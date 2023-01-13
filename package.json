@@ -10,6 +10,9 @@
     "core",
     "ext"
   ],
+  "devDependencies": {
+    "resolve-tspaths": "^0.8.3"
+  },
   "scripts": {
     "build": "cd core && yarn run build:prod && resolve-tspaths",
     "electron:preview": "electron core/_build/ext/app/electron/runPrebuild.js",

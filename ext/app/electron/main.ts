@@ -1,5 +1,3 @@
-console.log("STARTING");
-
 // Force some settings so that the electron build becomes usable again.
 // TODO: add an easy way to open files not created within app (would probably
 // require reviving a special document manager distinct from that used by server
@@ -23,8 +21,6 @@ appModulePath.addPath(build);
 
 import * as version from 'app/common/version';
 
-console.log("VERSION", {version});
-
 // Handle --version flag, which causes use to only print version, without running anything.
 if (process.argv.includes('--version')) {
   console.log(`${version.version} (${version.gitcommit} on ${version.channel})`);
@@ -42,7 +38,6 @@ const places = require('app/server/lib/places');
 const root = places.getUnpackedAppRoot();
 process.env.GRIST_SANDBOX = path.join(root, 'python', 'v4');
 //process.env.GRIST_SANDBOX = path.join(places.getAppPathTo(places.getAppRoot(), 'python'), 'v4');
-console.log("GRIST_SANDBOX", process.env.GRIST_SANDBOX);
 process.env.GRIST_SANDBOX_FLAVOR = 'unsandboxed';
 
 const updateDb = require('app/server/lib/dbUtils').updateDb;
@@ -84,14 +79,11 @@ let onStartup: any = null;
 
 let shouldQuit = false;
 
-console.log("About to request");
 if (!app.requestSingleInstanceLock()) {
-  console.log("Calling quit");
   app.quit();
   shouldQuit = true;
 }
 app.on('second-instance', (event, argv, cwd) => {
-  console.log("Second instance");
   onInstanceStart(argv, cwd);
 });
 
@@ -241,7 +233,6 @@ if (!shouldQuit) {
 const debugLogPath = (process.env.GRIST_LOG_PATH ||
                       path.join(app.getPath('home'), 'grist_debug.log'));
 
-  console.log({debugLogPath});
 if (process.env.GRIST_LOG_PATH || fs.existsSync(debugLogPath)) {
   var output = fs.createWriteStream(debugLogPath, { flags: "a" });
   output.on('error', (err: any) => log.error("Failed to open %s: %s", debugLogPath, err));
@@ -334,8 +325,8 @@ app.on('ready', function() {
     });
     let appMenu = new AppMenu(recentItems);
     electron.Menu.setApplicationMenu(appMenu.getMenu());
-      let updateManager = new UpdateManager(appMenu);
-      console.log(updateManager);
+    let updateManager = new UpdateManager(appMenu);
+    console.log(updateManager ? 'updateManager loadable, but not used yet' : '');
 
     appMenu.on('menu-file-new', () => createWindow().loadURL(appHost));
     appMenu.on('menu-file-open', () => electron.dialog.showOpenDialog({
