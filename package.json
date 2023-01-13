@@ -1,0 +1,57 @@
+{
+  "private": true,
+  "name": "grist-electron",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:gristlabs/grist-ee",
+  "author": "Paul Fitzpatrick <paulfitz@alum.mit.edu>",
+  "license": "MIT",
+  "workspaces": [
+    "core",
+    "ext"
+  ],
+  "scripts": {
+    "build": "cd core && yarn run build:prod && resolve-tspaths",
+    "electron:preview": "electron core/_build/ext/app/electron/runPrebuild.js",
+    "electron:linux": "electron-builder build --linux"  
+  },
+  "resolutions": {
+    "jquery": "3.5.0",
+    "ts-interface-checker": "1.0.2",
+    "@gristlabs/sqlite3": "git+https://github.com/paulfitz/node-sqlite3.git#v5.1.4-grist.1"
+  },
+  "build": {
+    "appId": "com.electron.grist.core",
+    "npmRebuild": false,
+    "compression": "store",
+    "includeSubNodeModules": true,
+    "asarUnpack": [
+      "core/python"
+    ],
+    "files": [
+      "core/ormconfig.js",
+      "core/_build/**/*",
+      "core/static/**/*",
+      "core/bower_components_ext/**/*",
+      "core/sandbox/**/*",
+      "core/node_modules/**/*",
+      "core/node_modules/*",
+      "node_modules/**/*",
+      "core/python/**/*",
+      "!**/*.map",
+      "!**/chromedriver/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ]
+  },
+  "main": "core/_build/ext/app/electron/main.js"
+}
