@@ -1,0 +1,13 @@
+{
+  "name": "ext",
+  "version": "1.0.0",
+  "dependencies": {
+    "aws-sdk": "2.1061.0",
+    "@azure/storage-blob": "12.9.0",
+    "electron": "19.0.9",
+    "electron-updater": "^5.3.0"
+  },
+  "devDependencies": {
+    "electron-builder": "23.3.3"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../buildtools/tsconfig-base-ext.json",
+  "files": [],
+  "include": [
+    "electron/**/*",
+    "../../stubs/app/common/version.ts",
+  ],
+  "references": [
+    { "path": "../../app/client" },
+    { "path": "../../app/server" },
+    { "path": "../../app/common" },
+    { "path": "../../app/plugin" },
+  ]
+}
