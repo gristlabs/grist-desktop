@@ -14,10 +14,6 @@ const path           = require('path');
 const build          = path.dirname(__dirname);
 const appModulePath  = require('app-module-path');
 appModulePath.addPath(build);
-//const paths = [build, build + '/core', build + '/ext', build + '/stubs'];
-//for (const p of paths) {
-//  appModulePath.addPath(p);
-//}
 
 import * as version from 'app/common/version';
 
@@ -29,15 +25,10 @@ if (process.argv.includes('--version')) {
 
 import * as electron from 'electron';
 
-//const electron       = require('electron');
 const app         = electron.app; // Module to control application life.
 
 process.env.TYPEORM_DATABASE = path.resolve(app.getPath('appData'), 'landing.db');
 
-const places = require('app/server/lib/places');
-const root = places.getUnpackedAppRoot();
-process.env.GRIST_SANDBOX = path.join(root, 'python', 'v4');
-//process.env.GRIST_SANDBOX = path.join(places.getAppPathTo(places.getAppRoot(), 'python'), 'v4');
 process.env.GRIST_SANDBOX_FLAVOR = 'unsandboxed';
 
 const updateDb = require('app/server/lib/dbUtils').updateDb;

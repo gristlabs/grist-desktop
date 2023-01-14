@@ -2,7 +2,7 @@ Just experimenting here, for an electron build of Grist see https://github.com/s
 
 ```
 yarn install
-./setup.sh
+yarn run setup
 yarn run build
 yarn run electron:preview
 yarn run electron:linux

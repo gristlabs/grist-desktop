@@ -14,6 +14,7 @@
     "resolve-tspaths": "^0.8.3"
   },
   "scripts": {
+    "setup": "bash ./setup.sh && cd core && yarn run install:python",
     "build": "cd core && yarn run build:prod && resolve-tspaths",
     "electron:preview": "electron core/_build/ext/app/electron/runPrebuild.js",
     "electron:dir": "electron-builder build --linux --dir",
@@ -30,7 +31,9 @@
     "compression": "store",
     "includeSubNodeModules": true,
     "asarUnpack": [
-      "core/python"
+      "core/python",
+      "core/sandbox_venv3",
+      "core/sandbox"
     ],
     "files": [
       "core/ormconfig.js",
@@ -38,10 +41,10 @@
       "core/static/**/*",
       "core/bower_components_ext/**/*",
       "core/sandbox/**/*",
-      "core/node_modules/**/*",
-      "core/node_modules/*",
-      "node_modules/**/*",
+      "core/sandbox_venv3/**/*",
       "core/python/**/*",
+      "core/node_modules/**/*",
+      "node_modules/**/*",
       "!**/*.map",
       "!**/chromedriver/*",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
