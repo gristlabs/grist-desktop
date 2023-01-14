@@ -78,7 +78,7 @@ jobs:
         run: yarn run build
 
       - name: Package
-        run: yarn run electron
+        run: yarn run electron --publish=never
 
 #      - name: Add Linux env vars
 #        if: contains(matrix.os, 'ubuntu')
@@ -107,13 +107,13 @@ jobs:
 #      - name: Package prebuilt binaries
 #        run: yarn node-pre-gyp package --target_arch=${{ env.TARGET }}
 
-#      - name: Upload binaries to commit artifacts
-#        uses: actions/upload-artifact@v3
-#        if: matrix.node == 16
-#        with:
-#          name: prebuilt-binaries
-#          path: build/stage/*/*
-#          retention-days: 7
+      - name: Upload binaries to commit artifacts
+        uses: actions/upload-artifact@v3
+        if: matrix.node == 16
+        with:
+          name: prebuilt-binaries
+          path: dist/*.AppImage
+          retention-days: 7
 
 #      - name: Upload binaries to GitHub Release
 #        run: yarn node-pre-gyp-github publish
