@@ -18,7 +18,8 @@
     "build": "cd core && yarn run build:prod && resolve-tspaths",
     "electron:preview": "electron core/_build/ext/app/electron/runPrebuild.js",
     "electron:dir": "electron-builder build --linux --dir",
-    "electron:linux": "electron-builder build --linux"
+    "electron:linux": "electron-builder build --linux",
+    "electron": "electron-builder build"
   },
   "resolutions": {
     "jquery": "3.5.0",

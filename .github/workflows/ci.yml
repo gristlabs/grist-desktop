@@ -1,0 +1,120 @@
+name: CI
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+env:
+  FORCE_COLOR: 1
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+#          - macos-latest
+          - ubuntu-20.04
+#          - windows-latest
+        host:
+          - x64
+        target:
+          - x64
+        node:
+          - 16
+#        include:
+#          - os: windows-latest
+#            node: 16
+#            host: x86
+#            target: x86
+#          - os: macos-m1
+#            node: 16
+#            host: arm64
+#            target: arm64
+    name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+          architecture: ${{ matrix.host }}
+
+#      - name: Add yarn (self-hosted)
+#        if: matrix.os == 'macos-m1'
+#        run: npm install -g yarn
+
+#      - name: Add msbuild to PATH
+#        uses: microsoft/setup-msbuild@v1.1
+#        if: contains(matrix.os, 'windows')
+#        with:
+#          msbuild-architecture: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Add env vars
+        shell: bash
+        run: |
+          echo "V=1" >> $GITHUB_ENV
+
+          if [ "${{ matrix.target }}" = "x86" ]; then
+            echo "TARGET=ia32" >> $GITHUB_ENV
+          else
+            echo "TARGET=${{ matrix.target }}" >> $GITHUB_ENV
+          fi
+
+      - name: Setup
+        run: yarn run setup
+
+      - name: Build
+        run: yarn run build
+
+      - name: Package
+        run: yarn run electron
+
+#      - name: Add Linux env vars
+#        if: contains(matrix.os, 'ubuntu')
+#        run: |
+#          echo "CFLAGS=${CFLAGS:-} -include ../src/gcc-preinclude.h" >> $GITHUB_ENV
+#          echo "CXXFLAGS=${CXXFLAGS:-} -include ../src/gcc-preinclude.h" >> $GITHUB_ENV
+
+#      - name: Configure build
+#        run: yarn node-pre-gyp configure --target_arch=${{ env.TARGET }}
+
+#      - name: Build binaries
+#        run: yarn node-pre-gyp build --target_arch=${{ env.TARGET }}
+
+#      - name: Print binary info
+#        if: contains(matrix.os, 'ubuntu')
+#        run: |
+#          ldd lib/binding/*/node_sqlite3.node
+#          echo "---"
+#          nm lib/binding/*/node_sqlite3.node | grep "GLIBC_" | c++filt || true
+#          echo "---"
+#          file lib/binding/napi-v*/*
+
+#      - name: Run tests
+#        run: yarn test
+
+#      - name: Package prebuilt binaries
+#        run: yarn node-pre-gyp package --target_arch=${{ env.TARGET }}
+
+#      - name: Upload binaries to commit artifacts
+#        uses: actions/upload-artifact@v3
+#        if: matrix.node == 16
+#        with:
+#          name: prebuilt-binaries
+#          path: build/stage/*/*
+#          retention-days: 7
+
+#      - name: Upload binaries to GitHub Release
+#        run: yarn node-pre-gyp-github publish
+#        if: matrix.node == 16 && startsWith(github.ref, 'refs/tags/')
+#        env:
+#          NODE_PRE_GYP_GITHUB_TOKEN: ${{ github.token }}
