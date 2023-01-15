@@ -11,11 +11,17 @@ process.env.GRIST_ORG_IN_PATH = 'true';
 process.env.APP_UNTRUSTED_URL = 'http://plugins.invalid';
 
 const path           = require('path');
-const build          = path.dirname(__dirname);
-const appModulePath  = require('app-module-path');
-appModulePath.addPath(build);
+//const build          = path.dirname(__dirname);
+//const appModulePath  = require('app-module-path');
+//appModulePath.addPath(build);
 
 import * as version from 'app/common/version';
+
+// Hack for preview version of app.
+// When packaged, we do not expects the module's path in argv[1].
+if (process.argv[1]?.endsWith('main.js')) {
+  process.argv.splice(1, 1);
+}
 
 // Handle --version flag, which causes use to only print version, without running anything.
 if (process.argv.includes('--version')) {
