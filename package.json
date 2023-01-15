@@ -19,7 +19,7 @@
     "electron:preview": "electron core/_build/ext/app/electron/runPrebuild.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
-    "electron": "electron-builder build"
+    "electron:ci": "electron-builder build --publish onTagOrDraft"
   },
   "resolutions": {
     "jquery": "3.5.0",

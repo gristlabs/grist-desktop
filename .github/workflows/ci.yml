@@ -78,7 +78,7 @@ jobs:
         run: yarn run build
 
       - name: Package
-        run: yarn run electron
+        run: yarn run electron:ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
