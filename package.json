@@ -61,8 +61,7 @@
       "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
     ],
     "linux": {
-      "target": "AppImage",
-      "publish": []
+      "target": "AppImage"
     }
   },
   "main": "core/_build/ext/app/electron/main.js"
