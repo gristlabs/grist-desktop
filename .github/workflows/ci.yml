@@ -12,6 +12,8 @@ env:
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ${{ matrix.os }}
