@@ -111,7 +111,8 @@ jobs:
         run: yarn run test
 
       - name: Package
-        run: yarn run electron:ci
+        # github endpoints hang up quite a bit, add one retry.
+        run: yarn run electron:ci || yarn run electron:ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
