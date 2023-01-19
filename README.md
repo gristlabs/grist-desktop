@@ -20,3 +20,6 @@ See [Releases](https://github.com/paulfitz/grist-electron/releases) for download
  * [ ] Get ARM builds going
  * [ ] Land grist-core changes upstream
  * [ ] Land node-sqlite3 build changes in @gristlabs fork
+ * [ ] Get Linux python sandboxing going (probably by embedding runsc)
+ * [ ] Get Mac python sandboxing going (using sandbox-exec)
+ * [ ] Get Windows python sandboxing going (how? maybe something BuildXL-based?)
