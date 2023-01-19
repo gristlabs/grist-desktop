@@ -9,14 +9,14 @@ yarn run electron:preview
 
 See [Releases](https://github.com/paulfitz/grist-electron/releases) for downloads.
 
- [x] Set up a Windows x86 build
- [x] Set up a Windows x64 build
- [x] Set up a Linux x64 build
- [x] Set up a Mac x64 build
- [ ] Sign and notarize Mac builds
- [ ] Revive the File items in the menu
- [ ] Revive opening a Grist document from the command line
- [ ] Revive the updater
- [ ] Get ARM builds going
- [ ] Land grist-core changes upstream
- [ ] Land node-sqlite3 build changes in @gristlabs fork
+ * [x] Set up a Windows x86 build
+ * [x] Set up a Windows x64 build
+ * [x] Set up a Linux x64 build
+ * [x] Set up a Mac x64 build
+ * [ ] Sign and notarize Mac builds
+ * [ ] Revive the File items in the menu
+ * [ ] Revive opening a Grist document from the command line
+ * [ ] Revive the updater
+ * [ ] Get ARM builds going
+ * [ ] Land grist-core changes upstream
+ * [ ] Land node-sqlite3 build changes in @gristlabs fork
