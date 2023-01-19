@@ -1,3 +1,8 @@
 dist
 ext/node_modules
 node_modules
+# links to core
+buildtools
+app
+stubs
+tsconfig.json

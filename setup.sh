@@ -62,3 +62,13 @@ if [[ ! -e core/python ]]; then
     echo "Do not know what to do about Python on $OSTYPE, will use end-user's system python3"
   fi
 fi
+
+# Make some links to make a valid typescript project and make editors happier to autocomplete
+for d in buildtools app stubs; do
+  if [[ ! -e $d ]]; then
+    ln -s core/$d $d
+  fi
+done
+if [[ ! -e tsconfig.json ]]; then
+  ln -s core/tsconfig-ext.json tsconfig.json
+fi

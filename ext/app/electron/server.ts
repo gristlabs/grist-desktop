@@ -23,7 +23,6 @@ export async function main() {
 
 /**
  * Start the server for electron. All options arguments are required.
- * @param options.appRoot: Directory containing Grist code, including subdirectories such
  *    as sandbox, static, and bower_components.
  * @param options.docsRoot: Directory for the user's documents.
  * @param options.userRoot: Directory for addition per user's specific files.
@@ -35,7 +34,6 @@ export async function main() {
  * @param options.serverMode: Whether this is electron, server, or dev version.
  */
 export async function start(options: {
-  appRoot: string,
   userRoot: string,
   docsRoot: string,
   instanceRoot: string,
