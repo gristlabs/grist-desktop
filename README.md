@@ -23,3 +23,4 @@ See [Releases](https://github.com/paulfitz/grist-electron/releases) for download
  * [ ] Get Linux python sandboxing going (probably by embedding runsc)
  * [ ] Get Mac python sandboxing going (using sandbox-exec)
  * [ ] Get Windows python sandboxing going (how? maybe something BuildXL-based?)
+ * [ ] Figure out weird bug with Mac icons

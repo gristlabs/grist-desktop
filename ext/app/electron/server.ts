@@ -52,7 +52,7 @@ export async function start(options: {
   process.env.PORT = String(options.port);
   process.env.APP_UNTRUSTED_URL = options.untrustedContent;
   const server = await main();
-  return server.electronServerMethods;
+  return server;
 }
 
 
