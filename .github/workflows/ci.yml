@@ -6,15 +6,9 @@ on:
     branches:
       - main
       - dev
+      - test
     tags:
       - '*'
-env:
-  FORCE_COLOR: 1
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -23,38 +17,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
           - ubuntu-20.04
-          - windows-latest
         host:
           - x64
         target:
           - x64
         node:
           - 16
-        include:
-          - os: windows-latest
-            node: 16
-            host: x86
-            target: x86
-#          - os: macos-m1
-#            node: 16
-#            host: arm64
-#            target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
-      - name: association
-        if: contains(matrix.os, 'windows')
-        run: |
-          ls
-          ls "c:\\"
-          ls "c:\\Program Files"
-          ls "c:\\Program Files/Git"
-          ls "c:\\Program Files/Git/bin"
-          cmd /c assoc .sh=bashscript
-          cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
-          cmd /c ftype
-
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -66,10 +37,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
-
-#      - name: Add yarn (self-hosted)
-#        if: matrix.os == 'macos-m1'
-#        run: npm install -g yarn
 
       - name: Install dependencies
         run: yarn install --network-timeout 300000
@@ -85,9 +52,3 @@ jobs:
 
       - name: Test
         run: yarn run test
-
-      - name: Package
-        # github endpoints hang up quite a bit, add one retry.
-        run: yarn run electron:ci || yarn run electron:ci
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
