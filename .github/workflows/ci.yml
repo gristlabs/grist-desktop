@@ -15,10 +15,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: write
-# Use bash everywhere, including windows.
-#defaults:
-#  run:
-#    shell: bash
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -33,10 +30,6 @@ jobs:
           - x64
         target:
           - x64
-#        host:
-#          - x86
-#        target:
-#          - x86
         node:
           - 16
         include:
@@ -78,25 +71,8 @@ jobs:
 #        if: matrix.os == 'macos-m1'
 #        run: npm install -g yarn
 
-#      - name: Add msbuild to PATH
-#        uses: microsoft/setup-msbuild@v1.1
-#        if: contains(matrix.os, 'windows')
-#        with:
-#          msbuild-architecture: ${{ matrix.target }}
-
       - name: Install dependencies
         run: yarn install --network-timeout 300000
-
-#      - name: Add env vars
-#        shell: bash
-#        run: |
-#          echo "V=1" >> $GITHUB_ENV
-#
-#         if [ "${{ matrix.target }}" = "x86" ]; then
-#            echo "TARGET=ia32" >> $GITHUB_ENV
-#          else
-#            echo "TARGET=${{ matrix.target }}" >> $GITHUB_ENV
-#          fi
 
       - name: Hooks and crooks
         run: yarn run setup
@@ -115,44 +91,3 @@ jobs:
         run: yarn run electron:ci || yarn run electron:ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-#      - name: Add Linux env vars
-#        if: contains(matrix.os, 'ubuntu')
-#        run: |
-#          echo "CFLAGS=${CFLAGS:-} -include ../src/gcc-preinclude.h" >> $GITHUB_ENV
-#          echo "CXXFLAGS=${CXXFLAGS:-} -include ../src/gcc-preinclude.h" >> $GITHUB_ENV
-
-#      - name: Configure build
-#        run: yarn node-pre-gyp configure --target_arch=${{ env.TARGET }}
-
-#      - name: Build binaries
-#        run: yarn node-pre-gyp build --target_arch=${{ env.TARGET }}
-
-#      - name: Print binary info
-#        if: contains(matrix.os, 'ubuntu')
-#        run: |
-#          ldd lib/binding/*/node_sqlite3.node
-#          echo "---"
-#          nm lib/binding/*/node_sqlite3.node | grep "GLIBC_" | c++filt || true
-#          echo "---"
-#          file lib/binding/napi-v*/*
-
-#      - name: Run tests
-#        run: yarn test
-
-#      - name: Package prebuilt binaries
-#        run: yarn node-pre-gyp package --target_arch=${{ env.TARGET }}
-
-#      - name: Upload binaries to commit artifacts
-#        uses: actions/upload-artifact@v3
-#        if: matrix.node == 16
-#        with:
-#          name: prebuilt-binaries
-#          path: dist/*.AppImage
-#          retention-days: 7
-
-#      - name: Upload binaries to GitHub Release
-#        run: yarn node-pre-gyp-github publish
-#        if: matrix.node == 16 && startsWith(github.ref, 'refs/tags/')
-#        env:
-#          NODE_PRE_GYP_GITHUB_TOKEN: ${{ github.token }}

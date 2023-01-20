@@ -27,8 +27,7 @@
   "resolutions": {
     "jquery": "3.5.0",
     "ts-interface-checker": "1.0.2",
-    "@gristlabs/sqlite3": "git+https://github.com/paulfitz/node-sqlite3.git#v5.1.4-grist.1",
-    "typescript": "4.7.4"
+    "@gristlabs/sqlite3": "git+https://github.com/paulfitz/node-sqlite3.git#v5.1.4-grist.1"
   },
   "build": {
     "appId": "com.electron.grist.core",
