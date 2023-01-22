@@ -28,7 +28,8 @@
   "resolutions": {
     "jquery": "3.5.0",
     "ts-interface-checker": "1.0.2",
-    "@gristlabs/sqlite3": "git+https://github.com/paulfitz/node-sqlite3.git#v5.1.4-grist.1"
+    "@gristlabs/sqlite3": "git+https://github.com/paulfitz/node-sqlite3.git#v5.1.4-grist.1",
+    "typescript": "4.7.4"
   },
   "build": {
     "appId": "com.electron.grist.core",
@@ -42,11 +43,12 @@
     },
     "mac": {
       "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
-      "icon": "core/static/icons/grist.png"
+      "icon": "core/static/icons/grist.icns"
     },
     "linux": {
       "artifactName": "${productName}-linux-${version}-${arch}.${ext}",
-      "icon": "core/static/icons/grist.png"
+      "icon": "core/static/icons/grist.png",
+      "target": "AppImage"
     },
     "asarUnpack": [
       "core/python",
@@ -80,9 +82,6 @@
     ],
     "directories": {
       "buildResources": "."
-    },
-    "linux": {
-      "target": "AppImage"
     }
   },
   "main": "core/_build/ext/app/electron/main.js"
