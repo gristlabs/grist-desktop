@@ -82,6 +82,16 @@
     ],
     "directories": {
       "buildResources": "."
+    },
+    "fileAssociations": [
+      {
+        "ext": "grist",
+        "name": "Grist Document",
+        "role": "Editor"
+      }
+    ],
+    "nsis": {
+      "perMachine": true
     }
   },
   "main": "core/_build/ext/app/electron/main.js"
