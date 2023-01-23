@@ -251,7 +251,8 @@ class GristApp {
     });
 
     // If browser JS called window.open(), open it in an external browser if it's a non-local URL.
-    win.webContents.on('new-window', (e, url) => {
+    // TODO: remove "as any" from 'new-window'
+    win.webContents.on('new-window' as any, (e: Electron.NewWindowWebContentsEvent, url: string) => {
       if (!gutil.startsWith(url, this.appHost)) {
         e.preventDefault();
         electron.shell.openExternal(url);
