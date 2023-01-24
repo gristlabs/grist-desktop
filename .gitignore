@@ -6,3 +6,7 @@ buildtools
 app
 stubs
 tsconfig.json
+_build
+stash
+NOTES.txt
+dock

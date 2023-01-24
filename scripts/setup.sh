@@ -42,6 +42,9 @@ fi
 if [[ "$os" = "linux-gnu"* ]]; then
   os="linux"
 fi
+if [[ "$os" = "linux-musl"* ]]; then
+  os="linux"
+fi
 if [[ "$os" = "msys"* ]]; then
   os="windows"
 fi
@@ -143,6 +146,9 @@ if [[ ! -e core/python ]]; then
   python_for_$os || {
     echo "Did not install self-contained Python for $os:$arch, will use end-user's system python3"
   }
+  if [[ -e core/python/bin/python3 ]]; then
+    core/python/bin/python3 --version
+  fi
 fi
 
 # Make some links to make a valid typescript project and make editors happier to autocomplete

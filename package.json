@@ -16,7 +16,7 @@
     "typescript": "4.7.4"
   },
   "scripts": {
-    "setup": "./setup.sh && cd core && yarn run install:python",
+    "setup": "./scripts/setup.sh && cd core && yarn run install:python",
     "build": "cd core && yarn run build:prod && resolve-tspaths",
     "paths": "cd core && resolve-tspaths",
     "electron:preview": "electron core/_build/ext/app/electron/main.js",
@@ -24,7 +24,7 @@
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "electron-builder build --publish always",
     "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db",
-    "check:bash:ci": "./check.sh"
+    "check:bash:ci": "./scripts/check.sh"
   },
   "resolutions": {
     "jquery": "3.5.0",
