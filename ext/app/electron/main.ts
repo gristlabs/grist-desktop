@@ -140,15 +140,21 @@ class GristApp {
         this.openWindowForPath(docName);
         break;
       default:
-        await this.openGristFile(filepath);
+        await this.openGristFile(filepath).catch(e => this.reportError(e));
         break;
     }
   }
 
   private async openGristFile(filepath: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
-    const target = path.normalize(await fse.realpath(filepath));
+    const target = await this.normalizePath(filepath);
     const docsRoot = this.flexServer.docsRoot;
-    const root = path.normalize(await fse.realpath(docsRoot));
+    const root = await this.normalizePath(docsRoot);
+    console.log("Opening a file", {
+      filepath,
+      target,
+      docsRoot,
+      root,
+    });
 
     // Here is our dumb strategy for opening random Grist files on the
     // file system: just mint a key and soft-link to them. If being
@@ -159,7 +165,7 @@ class GristApp {
     if (!path.relative(root, target).startsWith('..')) {
       const did = path.basename(target, '.grist');
       const p = path.join(docsRoot, `${did}.grist`);
-      if (path.normalize(await fse.realpath(p)) === target) {
+      if (await this.normalizePath(p) === target) {
         maybeDocId = did;
       }
     }
@@ -444,6 +450,26 @@ class GristApp {
       details.requestHeaders["X-From-Plugin-WebView"] = "true";
       callback({requestHeaders: details.requestHeaders});
     });
+  }
+
+  private reportError(e: Error) {
+    electron.dialog.showMessageBoxSync({
+      type: "info",
+      buttons: ["Ok"],
+      message: "Error",
+      detail: String(e)
+    });
+  }
+
+  private async normalizePath(filepath: string) {
+    // Use realpath if possible.
+    try {
+      filepath = await fse.realpath(filepath);
+    } catch (e) {
+      // if there's a problem, e.g. file doesn't exist or is symlink to
+      // nowhere, don't panic.
+    }
+    return path.normalize(filepath);
   }
 }
 
