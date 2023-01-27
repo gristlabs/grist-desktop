@@ -1,3 +1,4 @@
+import * as dotenv from "dotenv";
 import * as version from 'app/common/version';
 import * as log from 'app/server/lib/log';
 import * as electron from 'electron';
@@ -5,6 +6,8 @@ import * as fse from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import * as winston from 'winston';
+
+dotenv.config();
 
 // Handle --version flag, which causes us to only print version, without running anything.
 if (process.argv.includes('--version')) {
@@ -34,7 +37,7 @@ import { updateDb } from 'app/server/lib/dbUtils';
 import { FlexServer } from 'app/server/lib/FlexServer';
 import * as serverUtils from 'app/server/lib/serverUtils';
 import * as shutdown from 'app/server/lib/shutdown';
-import * as server from 'app/electron/server';
+import { main as mergedServerMain } from 'app/server/mergedServerMain';
 
 const RecentItems    = require('app/common/RecentItems');
 
@@ -102,7 +105,7 @@ class GristApp {
 
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
-    this.app.on('ready', () => this.onReady());
+    this.app.on('ready', () => this.onReady().catch(reportErrorAndStop));
   }
 
   private onInstanceStart(argv: any, workingDir: any) {
@@ -308,25 +311,30 @@ class GristApp {
   }
 
   private async onReady() {
-    let hostPort: string | number = 47478;
-    let untrustedPort = 47479;
     // The port doesn't matter, we only care to avoid interfering with something that another
     // application might want after we have bound it. We pick 47478 (phone number for GRIST).
-    hostPort = process.env.GRIST_TEST_PORT || await serverUtils.getAvailablePort(hostPort);
+    const port = process.env.PORT || process.env.GRIST_PORT ||
+      await serverUtils.getAvailablePort(47478);
     // get available port for untrusted content
-    untrustedPort = await serverUtils.getAvailablePort(untrustedPort);
-    this.appHost = "http://localhost:" + hostPort;
+    const untrustedPort = process.env.UNTRUSTED_PORT ||
+      process.env.GRIST_UNTRUSTED_PORT ||
+      await serverUtils.getAvailablePort(47479);
+
+    const host = setDefaultEnv('GRIST_HOST', 'localhost');
+    setDefaultEnv('PORT', String(port));
+    this.appHost = `http://${host}:${port}`;
+    setDefaultEnv('APP_HOME_URL', this.appHost);
+    // TODO: check trust in electron scenario, this code is very rusty.
+    setDefaultEnv('APP_UNTRUSTED_URL', `http://${host}:${untrustedPort}`);
+
     await updateDb();
-      
-    this.flexServer = await server.start({
-      userRoot: process.env.GRIST_USER_ROOT ||path.join(os.homedir(), '.grist'),
-      docsRoot: process.env.GRIST_DATA_DIR || this.app.getPath('documents'),
-      instanceRoot: path.join(process.env.GRIST_USER_DATA_DIR || this.app.getPath('userData')),
-      host: 'localhost',
-      port: hostPort,
-      untrustedContent : process.env.APP_UNTRUSTED_URL || `http://localhost:${untrustedPort}`,
-      serverMode: "electron",
-    });
+
+    setDefaultEnv('GRIST_USER_ROOT', path.join(os.homedir(), '.grist'));
+    setDefaultEnv('GRIST_DATA_DIR', this.app.getPath('documents'));
+    setDefaultEnv('GRIST_INST_DIR', process.env.GRIST_USER_DATA_DIR || this.app.getPath('userData'));
+    this.flexServer = await mergedServerMain(
+      parseInt(String(port), 10),
+      ['home', 'docs', 'static', 'app']);
     const serverMethods = this.flexServer.electronServerMethods;
     // This function is what we'll call now, and also in onInstanceStart. The latter is used on
     // Windows thanks to makeSingleInstance, and triggered when user clicks another .grist file.
@@ -451,4 +459,9 @@ function setDefaultEnv(name: string, value: string) {
   }
   process.env[name] = value;
   return value;
+}
+
+function reportErrorAndStop(e: Error) {
+  console.error(e);
+  process.exit(1);
 }
