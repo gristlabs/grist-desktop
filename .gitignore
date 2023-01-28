@@ -3,7 +3,7 @@ ext/node_modules
 node_modules
 # links to core
 buildtools
-app
+/app
 stubs
 tsconfig.json
 _build

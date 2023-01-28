@@ -21,12 +21,15 @@ setDefaultEnv('TYPEORM_DATABASE', path.resolve(electron.app.getPath('appData'), 
 // Default to unsandboxed, we will need a per-operating-system sandboxing setup.
 setDefaultEnv('GRIST_SANDBOX_FLAVOR', 'unsandboxed');
 setDefaultEnv('GRIST_MINIMAL_LOGIN', 'true');
-setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
 setDefaultEnv('GRIST_SINGLE_PORT', 'true');
 setDefaultEnv('GRIST_SERVE_SAME_ORIGIN', 'true');
 setDefaultEnv('GRIST_DEFAULT_PRODUCT', 'Free');
 setDefaultEnv('GRIST_ORG_IN_PATH', 'true');
 setDefaultEnv('APP_UNTRUSTED_URL', 'http://plugins.invalid');
+setDefaultEnv('GRIST_ELECTRON_AUTH', 'strict');
+if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
+  setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
+}
 const EMAIL = setDefaultEnv('GRIST_DEFAULT_EMAIL', 'you@example.com');
 
 // The dbUtils import must happen after TYPEORM_DATABASE is set up.
@@ -35,9 +38,12 @@ const EMAIL = setDefaultEnv('GRIST_DEFAULT_EMAIL', 'you@example.com');
 import * as gutil from 'app/common/gutil';
 import { updateDb } from 'app/server/lib/dbUtils';
 import { FlexServer } from 'app/server/lib/FlexServer';
+import {makeId} from "app/server/lib/idUtils";
 import * as serverUtils from 'app/server/lib/serverUtils';
 import * as shutdown from 'app/server/lib/shutdown';
 import { main as mergedServerMain } from 'app/server/mergedServerMain';
+
+import { getMinimalElectronLoginSystem, GristElectronAuthMode} from "app/electron/logins";
 
 const RecentItems    = require('app/common/RecentItems');
 
@@ -51,7 +57,6 @@ if (!electron.app.isPackaged) {
   process.argv.splice(1, 1);
 }
 
-
 class GristApp {
   private flexServer: FlexServer;
   private app = electron.app;
@@ -62,9 +67,17 @@ class GristApp {
   // Function, set once the app is ready, that opens or focuses a window when Grist is started. It
   // is called on 'ready' and by onInstanceStart (triggered when starting another Grist instance).
   private onStartup: any = null;
+  private credential: string = makeId();
   private shouldQuit = false;
+  private authMode: GristElectronAuthMode;
 
   public constructor() {
+    const mode = process.env.GRIST_ELECTRON_AUTH;
+    if (mode === 'strict' || mode === 'none' || mode === 'mixed') {
+      this.authMode = mode;
+    } else {
+      this.authMode = 'strict';
+    }
   }
 
   public main() {
@@ -125,7 +138,7 @@ class GristApp {
 
   private openWindowForPath(path: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
     // Create the browser window, and load the document.
-    (openWith || this.createWindow()).loadURL(this.appHost + "/doc/" + encodeURIComponent(path));
+    (openWith || this.createWindow()).loadURL(this.getUrl({doc: path}));
   }
 
   // Opens file at filepath for any accepted file type.
@@ -143,6 +156,19 @@ class GristApp {
         await this.openGristFile(filepath).catch(e => this.reportError(e));
         break;
     }
+  }
+
+  private getUrl(options: {
+    doc?: string,
+  } = {}) {
+    const url = new URL(this.appHost);
+    if (options.doc) {
+      url.pathname = 'doc/' + encodeURIComponent(options.doc);
+    }
+    if (this.authMode !== 'none') {
+      url.searchParams.set('electron_key', this.credential);
+    }
+    return url.href;
   }
 
   private async openGristFile(filepath: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
@@ -340,7 +366,9 @@ class GristApp {
     setDefaultEnv('GRIST_INST_DIR', process.env.GRIST_USER_DATA_DIR || this.app.getPath('userData'));
     this.flexServer = await mergedServerMain(
       parseInt(String(port), 10),
-      ['home', 'docs', 'static', 'app']);
+      ['home', 'docs', 'static', 'app'], {
+        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode),
+      });
     const serverMethods = this.flexServer.electronServerMethods;
     // This function is what we'll call now, and also in onInstanceStart. The latter is used on
     // Windows thanks to makeSingleInstance, and triggered when user clicks another .grist file.
@@ -357,7 +385,7 @@ class GristApp {
         return;
       }
       // We had no file to open, so open a window to the DocList.
-      this.createWindow().loadURL(this.appHost);
+      this.createWindow().loadURL(this.getUrl());
     };
 
     // Call onStartup immediately.
@@ -374,7 +402,7 @@ class GristApp {
     console.log(updateManager ? 'updateManager loadable, but not used yet' : '');
 
     // TODO: file new still does something, but it doesn't make a lot of sense.
-    appMenu.on('menu-file-new', () => this.createWindow().loadURL(this.appHost));
+    appMenu.on('menu-file-new', () => this.createWindow().loadURL(this.getUrl()));
 
     appMenu.on('menu-file-open', async () => {
       const result = await electron.dialog.showOpenDialog({
