@@ -3,6 +3,7 @@
 This is an unofficial, experimental electron build of Grist.
 
 It draws on some ideas from https://github.com/stan-donarise/grist-core-electron/
+and from an early standalone version of Grist.
 
 Only use with your own Grist documents or documents you trust, there is no
 sandboxing yet.
