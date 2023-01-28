@@ -57,6 +57,12 @@ Python running on your machine, and that's dangerous. Connections are
 plain http and not encrypted https, so network traffic could be
 readable in transit. And there’s no real login mechanism built in.
 
+## History
+
+Learn the back-story of this work in the
+[Packaging Grist as an Electron app](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233)
+forum thread.
+
 ## Roadmap
 
  * [x] Set up a Windows x86 build
