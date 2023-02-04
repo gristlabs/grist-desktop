@@ -72,12 +72,11 @@ forum thread.
  * [x] Set up a Mac x64 build
  * [ ] Sign and notarize Mac builds
  * [ ] Revive the File items in the menu
- * [ ] Revive opening a Grist document from the command line
+ * [x] Revive opening a Grist document from the command line
  * [ ] Revive the updater
  * [ ] Get ARM builds going
  * [ ] Land grist-core changes upstream
- * [ ] Land node-sqlite3 build changes in @gristlabs fork
- * [ ] Get Linux python sandboxing going (probably by embedding runsc)
- * [ ] Get Mac python sandboxing going (using sandbox-exec)
- * [ ] Get Windows python sandboxing going (how? maybe something BuildXL-based?)
-
+ * [x] Land node-sqlite3 build changes in @gristlabs fork
+ * [ ] Get Linux python sandboxing going (perhaps by embedding runsc)
+ * [ ] Get Mac python sandboxing going (perhaps using sandbox-exec)
+ * [ ] Get Windows python sandboxing going (how?)
