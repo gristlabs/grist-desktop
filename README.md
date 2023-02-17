@@ -20,6 +20,8 @@ Grist [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare
 ## Build
 
 ```
+git submodule init
+git submodule update
 yarn install
 yarn run setup
 yarn run build

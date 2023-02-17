@@ -23,6 +23,7 @@
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "electron-builder build --publish always",
+    "electron": "electron-builder build --publish never",
     "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db",
     "check:bash:ci": "./scripts/check.sh"
   },
@@ -43,13 +44,24 @@
     },
     "mac": {
       "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
-      "icon": "core/static/icons/grist.icns"
+      "icon": "core/static/icons/grist.icns",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime" : true,
+      "gatekeeperAssess": false,
+      "entitlements": "scripts/entitlements.mac.plist",
+      "entitlementsInherit": "scripts/entitlements.mac.plist",
+      "binaries": [
+        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python/bin/python3.9",
+        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/xxlimited.cpython-39-darwin.so",
+        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/_testcapi.cpython-39-darwin.so"
+      ]
     },
     "linux": {
       "artifactName": "${productName}-linux-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
       "target": "AppImage"
     },
+    "afterSign": "scripts/notarize.js",
     "asarUnpack": [
       "core/python",
       "core/sandbox_venv3",
@@ -78,7 +90,8 @@
       "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
       "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
-      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!node_modules/ext"
     ],
     "directories": {
       "buildResources": "."
