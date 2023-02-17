@@ -1,6 +1,7 @@
 {
   "private": true,
   "name": "grist-electron",
+  "productName": "grist-electron",
   "description": "Grist is the evolution of spreadsheets",
   "version": "0.1.6",
   "main": "index.js",
