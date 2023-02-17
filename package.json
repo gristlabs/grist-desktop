@@ -51,9 +51,9 @@
       "entitlements": "scripts/entitlements.mac.plist",
       "entitlementsInherit": "scripts/entitlements.mac.plist",
       "binaries": [
-        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python/bin/python3.9",
-        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/xxlimited.cpython-39-darwin.so",
-        "dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/_testcapi.cpython-39-darwin.so"
+        "./dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python/bin/python3.9",
+        "./dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/xxlimited.cpython-39-darwin.so",
+        "./dist/mac/grist-electron.app/Contents/Resources/app.asar.unpacked/core/python//lib/python3.9/lib-dynload/_testcapi.cpython-39-darwin.so"
       ]
     },
     "linux": {
