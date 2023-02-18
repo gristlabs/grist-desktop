@@ -12,7 +12,10 @@ sandboxing yet.
 
 See https://github.com/paulfitz/grist-electron/releases
 
-## Screenshot
+## Screenshots
+
+The Grist [Meme Generator](https://templates.getgrist.com/gtzQwTXkgzFG/Meme-Generator) template being edited on a Mac:
+![Grist on Mac](https://user-images.githubusercontent.com/118367/219882277-4dd1e60f-adde-463c-9a79-71e1924db6c1.png)
 
 Grist [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare) template running on an old super-low-resolution Windows 7 setup:
 ![Grist on Windows 7](https://user-images.githubusercontent.com/118367/215295214-83c46e03-16f6-45d2-84dd-d26d34cb5f95.jpeg)
