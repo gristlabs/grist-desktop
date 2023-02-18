@@ -50,12 +50,7 @@
       "hardenedRuntime" : true,
       "gatekeeperAssess": false,
       "entitlements": "scripts/entitlements.mac.plist",
-      "entitlementsInherit": "scripts/entitlements.mac.plist",
-      "binaries": [
-        "Contents/Resources/app.asar.unpacked/core/python/bin/python3.9",
-        "Contents/Resources/app.asar.unpacked/core/python/lib/python3.9/lib-dynload/xxlimited.cpython-39-darwin.so",
-        "Contents/Resources/app.asar.unpacked/core/python/lib/python3.9/lib-dynload/_testcapi.cpython-39-darwin.so"
-      ]
+      "entitlementsInherit": "scripts/entitlements.mac.plist"
     },
     "linux": {
       "artifactName": "${productName}-linux-${version}-${arch}.${ext}",
@@ -66,7 +61,8 @@
     "asarUnpack": [
       "core/python",
       "core/sandbox_venv3",
-      "core/sandbox"
+      "core/sandbox",
+      "**/*.node"
     ],
     "files": [
       "core/ormconfig.js",
