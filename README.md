@@ -26,6 +26,7 @@ yarn install
 yarn run setup
 yarn run build
 yarn run electron:preview
+yarn run electron
 ```
 
 ## Configure
@@ -72,13 +73,11 @@ forum thread.
  * [x] Set up a Windows x64 build
  * [x] Set up a Linux x64 build
  * [x] Set up a Mac x64 build
- * [ ] Sign and notarize Mac builds
+ * [x] Sign and notarize Mac builds
  * [ ] Revive the File items in the menu
  * [x] Revive opening a Grist document from the command line
  * [ ] Revive the updater
  * [ ] Get ARM builds going
- * [ ] Land grist-core changes upstream
+ * [x] Land grist-core changes upstream
  * [x] Land node-sqlite3 build changes in @gristlabs fork
- * [ ] Get Linux python sandboxing going (perhaps by embedding runsc)
- * [ ] Get Mac python sandboxing going (perhaps using sandbox-exec)
- * [ ] Get Windows python sandboxing going (how?)
+ * [ ] Get python sandboxing going (perhaps with runsc on Linux, sandbox-exec on Mac, ... but what on Windows? Maybe wasm for all)
