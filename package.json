@@ -36,7 +36,7 @@
   "build": {
     "appId": "com.electron.grist.core",
     "npmRebuild": false,
-    "compression": "store",
+    "compression": "normal",
     "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
@@ -88,7 +88,12 @@
       "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
       "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
-      "!node_modules/ext"
+      "!node_modules/ext",
+      "!node_modules/electron",
+      "!node_modules/app-builder-bin",
+      "!node_modules/7zip-bin",
+      "!node_modules/geckodriver",
+      "!node_modules/esbuild-linux-64"
     ],
     "directories": {
       "buildResources": "."
