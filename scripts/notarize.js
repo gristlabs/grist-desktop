@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env node
 
 const { notarize } = require('electron-notarize');
 const path = require('path');

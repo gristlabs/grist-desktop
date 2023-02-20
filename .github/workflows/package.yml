@@ -35,10 +35,11 @@ jobs:
             node: 16
             host: x86
             target: x86
-#          - os: macos-m1
-#            node: 16
-#            host: arm64
-#            target: arm64
+          # This is a self-hosted runner, github doesn't have this architecture yet.
+          - os: macos-m1
+            node: 16
+            host: arm64
+            target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: association
@@ -65,9 +66,9 @@ jobs:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
 
-#      - name: Add yarn (self-hosted)
-#        if: matrix.os == 'macos-m1'
-#        run: npm install -g yarn
+      - name: Add yarn (self-hosted)
+        if: matrix.os == 'macos-m1'
+        run: npm install -g yarn
 
       - name: Install dependencies
         run: yarn install --network-timeout 300000
@@ -94,4 +95,3 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
-
