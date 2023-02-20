@@ -112,6 +112,8 @@ function python_for_windows {
 function python_for_mac {
   if [[ "$arch" = "x64" ]]; then
     fetch_python 20221220/cpython-3.9.16+20221220-x86_64-apple-darwin-install_only.tar.gz
+  elif [[ "$arch" = "arm64" ]]; then
+    fetch_python 20221220/cpython-3.9.16+20221220-aarch64-apple-darwin-install_only.tar.gz
   else
     not_implemented
   fi
