@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-#          - macos-latest
+          - macos-latest
           - ubuntu-20.04
-#          - windows-latest
+          - windows-latest
         host:
           - x64
         target:
@@ -31,10 +31,10 @@ jobs:
         node:
           - 16
         include:
-#          - os: windows-latest
-#            node: 16
-#            host: x86
-#            target: x86
+          - os: windows-latest
+            node: 16
+            host: x86
+            target: x86
           # This is a self-hosted runner, github doesn't have this architecture yet.
           - os: macos-m1
             node: 16
@@ -95,9 +95,3 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
-
-      - name: Clean up keychain and provisioning profile
-        if: matrix.os == 'macos-m1'
-        run: |
-          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-          rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision

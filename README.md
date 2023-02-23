@@ -76,11 +76,12 @@ forum thread.
  * [x] Set up a Windows x64 build
  * [x] Set up a Linux x64 build
  * [x] Set up a Mac x64 build
+ * [x] Set up a Mac ARM build
  * [x] Sign and notarize Mac builds
  * [ ] Revive the File items in the menu
  * [x] Revive opening a Grist document from the command line
  * [ ] Revive the updater
- * [ ] Get ARM builds going
+ * [ ] Add Linux ARM builds
  * [x] Land grist-core changes upstream
  * [x] Land node-sqlite3 build changes in @gristlabs fork
- * [ ] Get python sandboxing going (perhaps with runsc on Linux, sandbox-exec on Mac, ... but what on Windows? Maybe wasm for all)
+ * [ ] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
