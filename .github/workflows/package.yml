@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
+#          - macos-latest
           - ubuntu-20.04
-          - windows-latest
+#          - windows-latest
         host:
           - x64
         target:
@@ -31,15 +31,15 @@ jobs:
         node:
           - 16
         include:
-          - os: windows-latest
-            node: 16
-            host: x86
-            target: x86
-          # This is a self-hosted runner, github doesn't have this architecture yet.
-#          - os: macos-m1
+#          - os: windows-latest
 #            node: 16
-#            host: arm64
-#            target: arm64
+#            host: x86
+#            target: x86
+          # This is a self-hosted runner, github doesn't have this architecture yet.
+          - os: macos-m1
+            node: 16
+            host: arm64
+            target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: association
