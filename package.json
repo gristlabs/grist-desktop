@@ -3,8 +3,8 @@
   "name": "grist-electron",
   "productName": "grist-electron",
   "description": "Grist is the evolution of spreadsheets",
-  "version": "0.1.6",
-  "main": "index.js",
+  "version": "0.1.7",
+  "main": "core/_build/ext/app/electron/main.js",
   "repository": "git@github.com:paulfitz/grist-electron",
   "author": "Paul Fitzpatrick <paulfitz@alum.mit.edu>",
   "license": "MIT",
@@ -47,7 +47,7 @@
       "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.icns",
       "category": "public.app-category.developer-tools",
-      "hardenedRuntime" : true,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "scripts/entitlements.mac.plist",
       "entitlementsInherit": "scripts/entitlements.mac.plist"
@@ -108,6 +108,5 @@
     "nsis": {
       "perMachine": true
     }
-  },
-  "main": "core/_build/ext/app/electron/main.js"
+  }
 }
