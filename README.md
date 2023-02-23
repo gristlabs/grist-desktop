@@ -1,12 +1,6 @@
 # Grist Electron app
 
-This is an unofficial, experimental electron build of Grist.
-
-It draws on some ideas from https://github.com/stan-donarise/grist-core-electron/
-and from an early standalone version of Grist.
-
-Only use with your own Grist documents or documents you trust, there is no
-sandboxing yet.
+This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/). Use with your own Grist documents or documents you trust since there is no sandboxing (yet!).
 
 ## Download
 
@@ -14,13 +8,25 @@ See https://github.com/paulfitz/grist-electron/releases
 
 ## Screenshots
 
-The Grist [Meme Generator](https://templates.getgrist.com/gtzQwTXkgzFG/Meme-Generator) template being edited on a Mac:
-![Grist on Mac](https://user-images.githubusercontent.com/118367/219882277-4dd1e60f-adde-463c-9a79-71e1924db6c1.png)
+The Grist [Meme Generator](https://templates.getgrist.com/gtzQwTXkgzFG/Meme-Generator) template being edited on an Intel Mac:
 
-Grist [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare) template running on an old super-low-resolution Windows 7 setup:
+![Grist on Intel Mac](https://user-images.githubusercontent.com/118367/219882277-4dd1e60f-adde-463c-9a79-71e1924db6c1.png)
+
+A [Wedding Planner](https://templates.getgrist.com/mNp9G2bZ1uaE/Wedding-Planner) on Ubuntu:
+
+![Grist on Linux](https://user-images.githubusercontent.com/118367/221054013-60d7bde0-c524-4185-972a-703b45141b56.png)
+
+A [D&D Encounter Tracker](https://templates.getgrist.com/3r2i6U4zhQLb/DD-Encounter-Tracker) on an ARM Mac (M1):
+
+![Grist on Mac M1](https://user-images.githubusercontent.com/118367/221052545-a1024710-b368-4f4b-a727-9d54c0b43cb5.png)
+
+A [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare) spreadsheet running on an old super-low-resolution Windows 7 setup:
+
 ![Grist on Windows 7](https://user-images.githubusercontent.com/118367/215295214-83c46e03-16f6-45d2-84dd-d26d34cb5f95.jpeg)
 
-## Build
+## How to build from source
+
+You'll need an environment with `bash`, `git`, and `yarn`.
 
 ```
 git submodule init
@@ -70,6 +76,9 @@ Learn the back-story of this work in the
 [Packaging Grist as an Electron app](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233)
 forum thread.
 
+It draws on some ideas from https://github.com/stan-donarise/grist-core-electron/
+and from an early standalone version of Grist developed at Grist Labs.
+
 ## Roadmap
 
  * [x] Set up a Windows x86 build
@@ -85,3 +94,4 @@ forum thread.
  * [x] Land grist-core changes upstream
  * [x] Land node-sqlite3 build changes in @gristlabs fork
  * [ ] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
+ * [ ] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
