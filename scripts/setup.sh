@@ -153,6 +153,10 @@ if [[ ! -e core/python ]]; then
   fi
 fi
 
+echo ""
+echo "======================================================================="
+echo "Tweak typescript project layout"
+
 # Make some links to make a valid typescript project and make editors happier to autocomplete
 for d in buildtools app stubs; do
   if [[ ! -e $d ]]; then
@@ -162,3 +166,11 @@ done
 if [[ ! -e tsconfig.json ]]; then
   ln -s core/tsconfig-ext.json tsconfig.json
 fi
+
+echo ""
+echo "======================================================================="
+echo "Get Pyodide ready"
+
+cd core/sandbox/pyodide
+./setup.sh
+node ./packages.js https://s3.amazonaws.com/grist-pynbox/pyodide/packages/ _build/packages/
