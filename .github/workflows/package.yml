@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-#          - macos-latest
+          - macos-latest
           - ubuntu-20.04
-#          - windows-latest
+          - windows-latest
         host:
           - x64
         target:
