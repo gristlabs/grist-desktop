@@ -1,9 +1,14 @@
 # Grist Electron app
 
-This is an Electron build of
-[Grist](https://github.com/gristlabs/grist-core/). Use with your own
-Grist documents or documents you trust since sandboxing is not yet
-turned on by default.
+This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
+
+Sandboxing is not (yet) on by default, so:
+
+ * Use with your own Grist documents, or
+ * Use with documents you trust, or
+ * Read below about how to turn on experimental sandboxing, or
+ * Wait for sandboxing to be on by default, or
+ * Return to the YOLO days of opening spreadsheets and crossing your fingers
 
 ## Download
 
