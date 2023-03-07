@@ -1,6 +1,9 @@
 # Grist Electron app
 
-This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/). Use with your own Grist documents or documents you trust since there is no sandboxing (yet!).
+This is an Electron build of
+[Grist](https://github.com/gristlabs/grist-core/). Use with your own
+Grist documents or documents you trust since sandboxing is not yet
+turned on by default.
 
 ## Download
 
@@ -69,11 +72,17 @@ Set `GRIST_ELECTRON_AUTH` to `mixed` to allow anonymous access
 across the network, but not logins. Set `GRIST_ELECTRON_AUTH` to `strict`
 to require logins and to permit them only in the app.
 
-Don't think any of this is secure. There is no sandboxing, so an
+Don't think any of this is secure. There is no sandboxing by default, so an
 untrusted user who can edit formulas would have access to unrestricted
 Python running on your machine, and that's dangerous. Connections are
 plain http and not encrypted https, so network traffic could be
 readable in transit. And there’s no real login mechanism built in.
+
+An experimental sandboxing mechanism can be turned on by running with:
+
+```
+GRIST_SANDBOX_FLAVOR=pyodide
+```
 
 ## History
 
@@ -98,5 +107,6 @@ and from an early standalone version of Grist developed at Grist Labs.
  * [ ] Add Linux ARM builds
  * [x] Land grist-core changes upstream
  * [x] Land node-sqlite3 build changes in @gristlabs fork
- * [ ] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
+ * [x] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
+ * [ ] Turn sandboxing on by default
  * [ ] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
