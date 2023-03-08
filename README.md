@@ -115,3 +115,7 @@ and from an early standalone version of Grist developed at Grist Labs.
  * [x] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
  * [ ] Turn sandboxing on by default
  * [ ] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
+
+# License
+
+[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
