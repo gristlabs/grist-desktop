@@ -1,14 +1,22 @@
-# Grist Electron app
+# Grist Desktop App, built with Electron
 
-This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
+This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/),
+Use it to easily open and edit Grist spreadsheets on your computer. It does not
+need the internet, and will work fine on a desert island (assuming you can find a
+power outlet). It is not tied to any online account or service.
 
-Sandboxing is not (yet) on by default, so:
+This build is handy for all sorts of things, like editing splits for
+ML training runs, analyzing some CSV or JSON data, or preparing some
+structured lists for a batch job.
 
- * Use with your own Grist documents, or
- * Use with documents you trust, or
- * Read below about how to turn on experimental sandboxing, or
- * Wait for sandboxing to be on by default, or
- * Return to the YOLO days of opening spreadsheets and crossing your fingers
+It is also the quickest way to demonstrate to the skeptical that a
+Grist spreadsheet on a hosted service really is fully self-contained,
+and that you could download it, and work with it on your own hardware
+if you needed to.
+
+For hosting Grist spreadsheets on a server for use by a team,
+better options are [grist-core](https://github.com/gristlabs/grist-core/)
+and [grist-omnibus](https://github.com/gristlabs/grist-omnibus/).
 
 ## Download
 
@@ -54,7 +62,7 @@ yarn run electron
 ## Configure
 
 There's no configuration needed if you are just running this as a regular app
-to view and edit Grist documents on your laptop.
+to view and edit Grist spreadsheets on your laptop.
 
 Some people use the app as a quick way to set up a simple Grist server
 in a local network where everyone is trusted. Be sure you know what you're
@@ -77,17 +85,34 @@ Set `GRIST_ELECTRON_AUTH` to `mixed` to allow anonymous access
 across the network, but not logins. Set `GRIST_ELECTRON_AUTH` to `strict`
 to require logins and to permit them only in the app.
 
-Don't think any of this is secure. There is no sandboxing by default, so an
-untrusted user who can edit formulas would have access to unrestricted
-Python running on your machine, and that's dangerous. Connections are
-plain http and not encrypted https, so network traffic could be
-readable in transit. And there’s no real login mechanism built in.
+It you use Grist on the network this way, be aware that data is being 
+sent using plain http and not encrypted https, so network traffic could be
+readable in transit. And there is no login mechanism built in.
 
-An experimental sandboxing mechanism can be turned on by running with:
+An experimental sandboxing mechanism is turned on by default, so that
+formulas in a spreadsheet are limited in their effect. Sandboxing can be
+turned off by setting:
+
+```
+GRIST_SANDBOX_FLAVOR=unsandboxed
+```
+
+It can be explicitly set by doing:
 
 ```
 GRIST_SANDBOX_FLAVOR=pyodide
 ```
+
+There are also `gvisor` and `macSandboxExec` sandbox
+flavors, but they are not yet easy to use.
+
+If you turn off sandboxing, then the full raw power of Python will be available
+to any Grist spreadsheet you open. So:
+
+ * Use only with your own Grist spreadsheets, or
+ * Use with spreadsheets you trust, or
+ * Turn sandboxing the heck back on, or
+ * Return to the YOLO days of opening spreadsheets and crossing your fingers.
 
 ## History
 
@@ -107,13 +132,13 @@ and from an early standalone version of Grist developed at Grist Labs.
  * [x] Set up a Mac ARM build
  * [x] Sign and notarize Mac builds
  * [ ] Revive the File items in the menu
- * [x] Revive opening a Grist document from the command line
+ * [x] Revive opening a Grist spreadsheet from the command line
  * [ ] Revive the updater
  * [ ] Add Linux ARM builds
  * [x] Land grist-core changes upstream
  * [x] Land node-sqlite3 build changes in @gristlabs fork
  * [x] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
- * [ ] Turn sandboxing on by default
+ * [x] Turn sandboxing on by default
  * [ ] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
 
 # License
