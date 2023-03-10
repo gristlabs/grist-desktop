@@ -1,6 +1,6 @@
 # Grist Desktop App, built with Electron
 
-This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/),
+This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
 Use it to easily open and edit Grist spreadsheets on your computer. It does not
 need the internet, and will work fine on a desert island (assuming you can find a
 power outlet). It is not tied to any online account or service.
@@ -11,7 +11,7 @@ structured lists for a batch job.
 
 It is also the quickest way to demonstrate to the skeptical that a
 Grist spreadsheet on a hosted service really is fully self-contained,
-and that you could download it, and work with it on your own hardware
+and that you could download it and work with it on your own hardware
 if you needed to.
 
 For hosting Grist spreadsheets on a server for use by a team,
