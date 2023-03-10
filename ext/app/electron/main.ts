@@ -18,8 +18,8 @@ if (process.argv.includes('--version')) {
 // Default to putting the database somewhere sensible for an app.
 // TODO: what about grist-sessions.db?
 setDefaultEnv('TYPEORM_DATABASE', path.resolve(electron.app.getPath('appData'), 'landing.db'));
-// Default to unsandboxed, we will need a per-operating-system sandboxing setup.
-setDefaultEnv('GRIST_SANDBOX_FLAVOR', 'unsandboxed');
+// Default to pyodide unless user specifically asked for unsandboxed or other.
+setDefaultEnv('GRIST_SANDBOX_FLAVOR', 'pyodide');
 setDefaultEnv('GRIST_MINIMAL_LOGIN', 'true');
 setDefaultEnv('GRIST_SINGLE_PORT', 'true');
 setDefaultEnv('GRIST_SERVE_SAME_ORIGIN', 'true');
