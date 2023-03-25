@@ -20,7 +20,7 @@ and [grist-omnibus](https://github.com/gristlabs/grist-omnibus/).
 
 ## Download
 
-See https://github.com/paulfitz/grist-electron/releases
+See https://github.com/gristlabs/grist-electron/releases
 
 ## Screenshots
 
