@@ -1,5 +1,5 @@
 [submodule "core"]
 	path = core
-	url = https://github.com/paulfitz/grist-core
-	branch = electron
+	url = https://github.com/gristlabs/grist-core
+	branch = main
 	ignore = dirty
