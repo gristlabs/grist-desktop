@@ -409,7 +409,8 @@ class GristApp {
       const result = await electron.dialog.showOpenDialog({
         title: 'Open existing Grist file',
         defaultPath: this.app.getPath('documents'),
-        filters: [{ name: 'Grist files', extensions: ['grist', 'csv', 'xlsx', 'xlsm'] }],
+        filters: [{ name: 'Grist files', extensions: ['grist'] }],
+        // disabling extensions 'csv', 'xlsx', and 'xlsm' for the moment.
         properties: ['openFile']
       });
       const files = result.filePaths;
