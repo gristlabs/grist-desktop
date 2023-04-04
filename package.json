@@ -59,6 +59,7 @@
     },
     "afterSign": "scripts/notarize.js",
     "asarUnpack": [
+      "core/plugins",
       "core/python",
       "core/sandbox_venv3",
       "core/sandbox",
@@ -73,6 +74,7 @@
       "core/sandbox/**/*",
       "core/sandbox_venv3/**/*",
       "core/sandbox_venv3",
+      "core/plugins/**/*",
       "core/python/**/*",
       "core/node_modules/**/*",
       "node_modules/**/*",

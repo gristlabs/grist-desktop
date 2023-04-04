@@ -26,6 +26,7 @@ setDefaultEnv('GRIST_SERVE_SAME_ORIGIN', 'true');
 setDefaultEnv('GRIST_DEFAULT_PRODUCT', 'Free');
 setDefaultEnv('GRIST_ORG_IN_PATH', 'true');
 setDefaultEnv('APP_UNTRUSTED_URL', 'http://plugins.invalid');
+setDefaultEnv('GRIST_HIDE_UI_ELEMENTS', 'helpCenter,billing,templates,multiSite,multiAccounts');
 setDefaultEnv('GRIST_ELECTRON_AUTH', 'strict');
 if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
   setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
@@ -215,7 +216,7 @@ class GristApp {
     }
     const link = path.join(docsRoot, `${docId}.grist`);
     if (!await fse.pathExists(link)) {
-      await fse.symlink(target, link);
+      await fse.symlink(target, link, 'junction');
     }
     this.openWindowForPath(docId, openWith);
   }
