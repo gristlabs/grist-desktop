@@ -28,6 +28,8 @@ setDefaultEnv('GRIST_ORG_IN_PATH', 'true');
 setDefaultEnv('APP_UNTRUSTED_URL', 'http://plugins.invalid');
 setDefaultEnv('GRIST_HIDE_UI_ELEMENTS', 'helpCenter,billing,templates,multiSite,multiAccounts');
 setDefaultEnv('GRIST_ELECTRON_AUTH', 'strict');
+setDefaultEnv('GRIST_WIDGET_LIST_URL',
+  'https://github.com/gristlabs/grist-widget/releases/download/latest/manifest.json');
 if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
   setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
 }
