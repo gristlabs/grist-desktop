@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import {commonUrls} from 'app/common/gristUrls';
 import * as version from 'app/common/version';
 import * as log from 'app/server/lib/log';
 import * as electron from 'electron';
@@ -28,6 +29,7 @@ setDefaultEnv('GRIST_ORG_IN_PATH', 'true');
 setDefaultEnv('APP_UNTRUSTED_URL', 'http://plugins.invalid');
 setDefaultEnv('GRIST_HIDE_UI_ELEMENTS', 'helpCenter,billing,templates,multiSite,multiAccounts');
 setDefaultEnv('GRIST_ELECTRON_AUTH', 'strict');
+setDefaultEnv('GRIST_WIDGET_LIST_URL', commonUrls.gristLabsWidgetRepository);
 if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
   setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
 }
