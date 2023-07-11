@@ -139,7 +139,7 @@ and from an early standalone version of Grist developed at Grist Labs.
  * [x] Land node-sqlite3 build changes in @gristlabs fork
  * [x] Get python sandboxing going. [Considering using WASM](https://github.com/gristlabs/grist-core/pull/437); could also use runsc on Linux and sandbox-exec on Mac
  * [x] Turn sandboxing on by default
- * [ ] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
+ * [x] Become an official [gristlabs](https://github.com/gristlabs/) project :-)
 
 # License
 
