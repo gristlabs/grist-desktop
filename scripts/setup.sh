@@ -172,5 +172,4 @@ echo "======================================================================="
 echo "Get Pyodide ready"
 
 cd core/sandbox/pyodide
-./setup.sh
-node ./packages.js https://s3.amazonaws.com/grist-pynbox/pyodide/packages/ _build/packages/
+make setup
