@@ -172,4 +172,7 @@ echo "======================================================================="
 echo "Get Pyodide ready"
 
 cd core/sandbox/pyodide
-make setup
+# work around an awkward bug with sh + make + windows + runners
+#   https://github.com/actions/runner-images/issues/7253
+bash ./setup.sh
+make fetch_packages
