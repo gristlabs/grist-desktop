@@ -58,6 +58,11 @@ jobs:
         with:
           submodules: true
 
+      - name: Submodule cleanup fix  # See https://github.com/actions/checkout/issues/358
+        run: |
+          git submodule foreach --recursive git clean -ffdx
+          git submodule foreach --recursive git reset --hard
+
       - name: check bash
         run: yarn run check:bash:ci
 
