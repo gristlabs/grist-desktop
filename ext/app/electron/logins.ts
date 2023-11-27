@@ -1,12 +1,10 @@
 import {ApiError} from 'app/common/ApiError';
-import {UserProfile} from 'app/common/LoginSessionAPI';
 import {expressWrap} from 'app/server/lib/expressWrap';
 import {GristLoginMiddleware, GristLoginSystem, GristServer,
         setUserInSession} from 'app/server/lib/GristServer';
 import {getDefaultProfile} from 'app/server/lib/MinimalLogin';
 import {getOrgUrl} from 'app/server/lib/requestUtils';
 import {Request} from 'express';
-import {IncomingMessage} from 'http';
 
 const cookie = require('cookie');
 
@@ -51,12 +49,6 @@ export async function getMinimalElectronLoginSystem(credential: string,
                                401);
           }));
           return 'electron-login';
-        },
-        async getProfile(req: Request|IncomingMessage): Promise<UserProfile|null|undefined> {
-          if ((req as any).forbidLogin) {
-            return null;
-          }
-          return undefined;
         },
         getWildcardMiddleware() {
           if (authMode === 'none') {
