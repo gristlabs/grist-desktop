@@ -105,7 +105,8 @@
       {
         "ext": "grist",
         "name": "Grist Document",
-        "role": "Editor"
+        "role": "Editor",
+        "icon": "core/static/icons/gristdoc"
       }
     ],
     "nsis": {
