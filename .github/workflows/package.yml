@@ -22,7 +22,6 @@ jobs:
       matrix:
         os:
           - macos-14
-          - macos-13
           - ubuntu-20.04
           - windows-latest
         host:
@@ -36,10 +35,6 @@ jobs:
             node: 18
             host: x86
             target: x86
-          - os: macos-13
-            node: 18
-            host: arm64
-            target: arm64
           - os: macos-14
             node: 18
             host: arm64
