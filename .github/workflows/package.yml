@@ -29,15 +29,14 @@ jobs:
         target:
           - x64
         node:
-          - 16
+          - 18
         include:
           - os: windows-latest
-            node: 16
+            node: 18
             host: x86
             target: x86
-          # This is a self-hosted runner, github doesn't have this architecture yet.
-          - os: macos-m1
-            node: 16
+          - os: macos-latest-xlarge
+            node: 18
             host: arm64
             target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
@@ -71,8 +70,8 @@ jobs:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
 
-      - name: Add yarn (self-hosted)
-        if: matrix.os == 'macos-m1'
+      - name: Add yarn
+        if: matrix.os == 'macos-latest-xlarge'
         run: npm install -g yarn
 
       - name: Install dependencies
