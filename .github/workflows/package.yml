@@ -21,7 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest-large
+          - macos-14
+          - macos-13
           - ubuntu-20.04
           - windows-latest
         host:
@@ -35,7 +36,11 @@ jobs:
             node: 18
             host: x86
             target: x86
-          - os: macos-latest-large
+          - os: macos-13
+            node: 18
+            host: arm64
+            target: arm64
+          - os: macos-14
             node: 18
             host: arm64
             target: arm64
@@ -71,7 +76,7 @@ jobs:
           architecture: ${{ matrix.host }}
 
       - name: Add yarn
-        if: matrix.os == 'macos-latest-large'
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
         run: npm install -g yarn
 
       - name: Install dependencies
