@@ -10,6 +10,6 @@
   "devDependencies": {
     "electron": "22.0.3",
     "electron-builder": "23.6.0",
-    "electron-notarize": "1.2.2"
+    "@electron/notarize": "2.3.2"
   }
 }
