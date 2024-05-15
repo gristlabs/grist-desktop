@@ -53,7 +53,7 @@ jobs:
           cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
           cmd /c ftype
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -65,7 +65,7 @@ jobs:
       - name: check bash
         run: yarn run check:bash:ci
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
