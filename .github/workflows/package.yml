@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
+          - macos-14
           - ubuntu-20.04
           - windows-latest
         host:
@@ -29,15 +29,14 @@ jobs:
         target:
           - x64
         node:
-          - 16
+          - 18
         include:
           - os: windows-latest
-            node: 16
+            node: 18
             host: x86
             target: x86
-          # This is a self-hosted runner, github doesn't have this architecture yet.
-          - os: macos-m1
-            node: 16
+          - os: macos-14
+            node: 18
             host: arm64
             target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
@@ -54,7 +53,7 @@ jobs:
           cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
           cmd /c ftype
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -66,13 +65,13 @@ jobs:
       - name: check bash
         run: yarn run check:bash:ci
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
 
-      - name: Add yarn (self-hosted)
-        if: matrix.os == 'macos-m1'
+      - name: Add yarn
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
         run: npm install -g yarn
 
       - name: Install dependencies
@@ -98,5 +97,6 @@ jobs:
           DEBUG: electron-builder
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
