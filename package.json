@@ -3,7 +3,7 @@
   "name": "grist-electron",
   "productName": "grist-electron",
   "description": "Grist is the evolution of spreadsheets",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "git@github.com:paulfitz/grist-electron",
   "author": "Paul Fitzpatrick <paulfitz@alum.mit.edu>",
