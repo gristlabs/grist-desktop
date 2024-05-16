@@ -10,11 +10,11 @@ exports.default = async function notarizing(context) {
     return;
   }
   console.log('Notarization begins...')
-  const appBundleId = context.packager.appInfo.info._configuration.appId;
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.normalize(path.join(context.appOutDir, `${appName}.app`));
   const appleId = process.env.APPLE_ID;
   const appleIdPassword = process.env.APPLE_ID_PASSWORD;
+  const teamId = process.env.APPLE_TEAM_ID;
   if (!appleId) {
     console.warn('Please set APPLE_ID');
     process.exit(1);
@@ -23,10 +23,14 @@ exports.default = async function notarizing(context) {
     console.warn('Please set APPLE_ID_PASSWORD');
     process.exit(1);
   }
+  if (!teamId) {
+    console.warn('Please set TEAM_ID');
+    process.exit(1);
+  }
   return notarize({
-    appBundleId,
     appPath,
     appleId,
     appleIdPassword,
+    teamId
   });
 };
