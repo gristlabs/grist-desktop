@@ -96,3 +96,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: dist/grist-electron-*
+          if-no-files-found: "error"
