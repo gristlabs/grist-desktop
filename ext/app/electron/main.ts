@@ -35,7 +35,7 @@ if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
 }
 const EMAIL = setDefaultEnv('GRIST_DEFAULT_EMAIL', 'you@example.com');
 
-// The dbUtils import must happen after TYPEORM_DATABASE is set up.
+// The dbUtils imp0rt must happen after TYPEORM_DATABASE is set up.
 // Safest to do most Grist codebase imports at this point, in case they
 // include dbUtils indirectly, now or in the future.
 import * as gutil from 'app/common/gutil';
