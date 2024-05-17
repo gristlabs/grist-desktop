@@ -232,19 +232,6 @@ class GristApp {
     return lastWindow;
   }
 
-  // Opens a nonBlocking messagebox notifying user of backup made
-  private notifyMigrateBackup(backupPath: string) {
-    let msgBoxArgs = {
-      type: "info",
-      buttons: ["Ok"],
-      message: "Backup Made",
-      detail: "Your Grist document has been upgraded to have the latest " +
-        "and greatest features.\n\nIn case anything goes wrong, " +
-        "we've left a backup at:\n\n" + backupPath
-    };
-    electron.dialog.showMessageBoxSync(msgBoxArgs);
-  }
-
   private createWindow() {
     const win = new electron.BrowserWindow({
       width: 1024,
@@ -289,12 +276,12 @@ class GristApp {
     });
 
     // If browser JS called window.open(), open it in an external browser if it's a non-local URL.
-    // TODO: remove "as any" from 'new-window'
-    win.webContents.on('new-window' as any, (e, url: string) => {
-      if (!gutil.startsWith(url, this.appHost)) {
-        e.preventDefault();
-        electron.shell.openExternal(url);
+    win.webContents.setWindowOpenHandler((details) => {
+      if (!gutil.startsWith(details.url, this.appHost)) {
+        electron.shell.openExternal(details.url);
+        return {action: "deny"}
       }
+      return {action: "allow"}
     });
 
     // Remove the window from the set when it's closed.
@@ -450,7 +437,6 @@ class GristApp {
       electron.Menu.setApplicationMenu(appMenu.getMenu());
     });
 
-    serverMethods.onBackupMade(() => this.notifyMigrateBackup("backup made"));
     // serverMethods.onBackupMade((bakPath: string) => notifyMigrateBackup(bakPath));
 
     // Check for updates, and check again periodically (if user declines, it's the interval till
