@@ -125,7 +125,7 @@ and from an early standalone version of Grist developed at Grist Labs.
 
 ## Roadmap
 
- * [x] Set up a Windows x86 build
+ * [ ] Set up a Windows x86 build (need to resolve OOM issue)
  * [x] Set up a Windows x64 build
  * [x] Set up a Linux x64 build
  * [x] Set up a Mac x64 build
