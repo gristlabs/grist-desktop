@@ -65,10 +65,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          architecture: ${{ matrix.target }}
 
       - name: Install dependencies
         run: yarn install --network-timeout 300000
+      
+      - name: Fix Windows x86 sqlite3 binding
+        if: startsWith(matrix.os, 'windows') && matrix.target == 'x86'
+        run: yarn upgrade sqlite3
+        env:
+          npm_config_build_from_source: true
+          npm_config_target_arch: ia32
+          npm_config_fallback_to_build: true
+        
 
       - name: Hooks and crooks
         run: yarn run setup
