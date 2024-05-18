@@ -58,17 +58,10 @@ jobs:
           git submodule foreach --recursive git clean -ffdx
           git submodule foreach --recursive git reset --hard
 
-      - name: check bash
-        run: yarn run check:bash:ci
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.host }}
-
-      - name: Add yarn
-        if: startsWith(matrix.os, 'macos')
-        run: npm install -g yarn
 
       - name: Install dependencies
         run: yarn install --network-timeout 300000

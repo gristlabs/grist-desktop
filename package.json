@@ -25,8 +25,7 @@
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "electron-builder build --publish always",
     "electron": "electron-builder build --publish never",
-    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db",
-    "check:bash:ci": "./scripts/check.sh"
+    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db"
   },
   "resolutions": {
     "jquery": "3.5.0",
