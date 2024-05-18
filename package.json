@@ -40,8 +40,30 @@
     "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
-      "artifactName": "${productName}-windows-${version}-${arch}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
       "icon": "core/static/icons/grist.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-windows-portable-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "${productName}-windows-installer-${version}-${arch}.${ext}",
+      "perMachine": true
     },
     "mac": {
       "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
@@ -108,9 +130,6 @@
         "role": "Editor",
         "icon": "core/static/icons/gristdoc"
       }
-    ],
-    "nsis": {
-      "perMachine": true
-    }
+    ]
   }
 }

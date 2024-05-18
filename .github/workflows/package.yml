@@ -38,7 +38,7 @@ jobs:
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: association
-        if: contains(matrix.os, 'windows')
+        if: startsWith(matrix.os, 'windows')
         run: |
           ls
           ls "c:\\"
@@ -67,7 +67,7 @@ jobs:
           architecture: ${{ matrix.host }}
 
       - name: Add yarn
-        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
+        if: startsWith(matrix.os, 'macos')
         run: npm install -g yarn
 
       - name: Install dependencies
@@ -99,6 +99,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: grist-electron-${{ matrix.os }}-${{ matrix.host }}
+          name: ${{ matrix.os }}-${{ matrix.host }}
           path: dist/grist-electron-*
           if-no-files-found: "error"
