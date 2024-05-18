@@ -22,8 +22,8 @@ jobs:
       matrix:
         os:
           - macos-14
-          - ubuntu-20.04
-          - windows-latest
+          - ubuntu-22.04
+          - windows-2022
         host:
           - x64
         target:
@@ -35,6 +35,10 @@ jobs:
             node: 18
             host: arm64
             target: arm64
+          - os: windows-2022
+            node: 18
+            host: x64
+            target: x86
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: association
