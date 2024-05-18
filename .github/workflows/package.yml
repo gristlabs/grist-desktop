@@ -65,7 +65,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          architecture: ${{ matrix.host }}
+          architecture: ${{ matrix.target }}
 
       - name: Install dependencies
         run: yarn install --network-timeout 300000
@@ -86,6 +86,7 @@ jobs:
         # github endpoints hang up quite a bit, add one retry.
         run: yarn run electron:ci || yarn run electron:ci
         env:
+          TARGET_ARCH: ${{ matrix.target }}
           GITHUB_TOKEN: ${{ github.token }}
           DEBUG: electron-builder
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -96,6 +97,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.host }}
+          name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
           path: dist/grist-electron-*
           if-no-files-found: "error"

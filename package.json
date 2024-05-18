@@ -23,7 +23,7 @@
     "electron:preview": "electron core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
-    "electron:ci": "electron-builder build --publish always",
+    "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
     "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db"
   },
