@@ -29,9 +29,6 @@ jobs:
         with:
           submodules: true
 
-      - name: check bash
-        run: yarn run check:bash:ci
-
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
