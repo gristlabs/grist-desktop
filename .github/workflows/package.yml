@@ -65,13 +65,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          cache: yarn
+
+      - uses: actions/cache@v4
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: node_modules
+          key: ${{ matrix.os }}-${{ matrix.target }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.target }}-yarn-
 
       - name: Install dependencies
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --network-timeout 300000
       
       - name: Fix Windows x86 sqlite3 binding
-        if: startsWith(matrix.os, 'windows') && matrix.target == 'x86'
+        if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
         run: yarn upgrade sqlite3
         # Prebuilt binding is for x64. We must build from source for x86 target.
         # See:
