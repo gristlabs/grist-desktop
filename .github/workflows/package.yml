@@ -69,7 +69,9 @@ jobs:
       - uses: actions/cache@v4
         id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
-          path: node_modules
+          path:
+            - node_modules
+            - core/node_modules
           key: ${{ matrix.os }}-${{ matrix.target }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ matrix.os }}-${{ matrix.target }}-yarn-
