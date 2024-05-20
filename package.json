@@ -13,7 +13,7 @@
     "ext"
   ],
   "devDependencies": {
-    "resolve-tspaths": "^0.8.3",
+    "resolve-tspaths": "^0.8.19",
     "typescript": "4.7.4"
   },
   "scripts": {
