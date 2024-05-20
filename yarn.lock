@@ -7344,7 +7344,7 @@ resolve-options@^2.0.0:
   dependencies:
     value-or-function "^4.0.0"
 
-resolve-tspaths@^0.8.3:
+resolve-tspaths@^0.8.19:
   version "0.8.19"
   resolved "https://registry.yarnpkg.com/resolve-tspaths/-/resolve-tspaths-0.8.19.tgz#f4164e657273b76d2bacb5afa5c236a2cc9fc964"
   integrity sha512-yZkXNYyHdVytOkJLhbib7TFpaMVElk9auO9R1jDmOSXPUWEjy+V44VqX77RIQ+kf0UJIlAGRDK/yrbfwlu1UWg==
