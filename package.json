@@ -23,10 +23,9 @@
     "electron:preview": "electron core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
-    "electron:ci": "electron-builder build --publish always",
+    "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db",
-    "check:bash:ci": "./scripts/check.sh"
+    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db"
   },
   "resolutions": {
     "jquery": "3.5.0",
@@ -40,8 +39,22 @@
     "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
-      "artifactName": "${productName}-windows-${version}-${arch}.${ext}",
+      "target": [
+        {
+          "target": "nsis"
+        },
+        {
+          "target": "portable"
+        }
+      ],
       "icon": "core/static/icons/grist.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-windows-portable-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "${productName}-windows-installer-${version}-${arch}.${ext}",
+      "perMachine": true
     },
     "mac": {
       "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
@@ -108,9 +121,6 @@
         "role": "Editor",
         "icon": "core/static/icons/gristdoc"
       }
-    ],
-    "nsis": {
-      "perMachine": true
-    }
+    ]
   }
 }
