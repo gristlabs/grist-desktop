@@ -67,7 +67,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - uses: actions/cache@v4
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        id: yarn-cache
         with:
           path: |
             node_modules
