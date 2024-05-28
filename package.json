@@ -7,7 +7,7 @@
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "git@github.com:paulfitz/grist-electron",
   "author": "Paul Fitzpatrick <paulfitz@alum.mit.edu>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "workspaces": [
     "core",
     "ext"
