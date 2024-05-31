@@ -1,4 +1,4 @@
-# Grist Desktop App, built with Electron
+# Grist Desktop
 
 This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
 Use it to easily open and edit Grist spreadsheets on your computer. It does not
@@ -20,7 +20,7 @@ and [grist-omnibus](https://github.com/gristlabs/grist-omnibus/).
 
 ## Download
 
-See https://github.com/gristlabs/grist-electron/releases
+See https://github.com/gristlabs/grist-desktop/releases
 
 ## Screenshots
 
@@ -40,7 +40,7 @@ A [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare) sp
 
 ![Grist on Windows 7](https://user-images.githubusercontent.com/118367/215295214-83c46e03-16f6-45d2-84dd-d26d34cb5f95.jpeg)
 
-Grist Electron being used as a server on a LAN, on Windows 10 Pro (credit: [Sylvain_Page](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233/29)).
+Grist Desktop being used as a server on a LAN, on Windows 10 Pro (credit: [Sylvain_Page](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233/29)).
 
 ![Grist on Windows 10 Pro](https://user-images.githubusercontent.com/118367/221203024-ac8ad72d-bb08-43dd-9447-f9a06cfbce3e.jpeg)
 
@@ -75,14 +75,14 @@ variables to make Grist listen on a specific network interface and port:
 ```
 GRIST_HOST=192.168.1.22     # IP address to serve from
 GRIST_PORT=8484             # Port number to serve at
-GRIST_ELECTRON_AUTH=strict  # Auth strategy (strict, mixed, or none)
+GRIST_DESKTOP_AUTH=strict  # Auth strategy (strict, mixed, or none)
 ```
 
 (You can create a `.env` file in the root directory of the app and set
-the environment variables there). Set `GRIST_ELECTRON_AUTH` to `none`
+the environment variables there). Set `GRIST_DESKTOP_AUTH` to `none`
 to allow access across the network just as if you were using the app.
-Set `GRIST_ELECTRON_AUTH` to `mixed` to allow anonymous access
-across the network, but not logins. Set `GRIST_ELECTRON_AUTH` to `strict`
+Set `GRIST_DESKTOP_AUTH` to `mixed` to allow anonymous access
+across the network, but not logins. Set `GRIST_DESKTOP_AUTH` to `strict`
 to require logins and to permit them only in the app.
 
 It you use Grist on the network this way, be aware that data is being 

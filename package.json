@@ -1,13 +1,13 @@
 {
   "private": true,
-  "name": "grist-electron",
-  "productName": "grist-electron",
+  "name": "grist-desktop",
+  "productName": "Grist Desktop",
   "description": "Grist is the evolution of spreadsheets",
   "version": "0.2.9",
   "main": "core/_build/ext/app/electron/main.js",
-  "repository": "git@github.com:paulfitz/grist-electron",
-  "author": "Paul Fitzpatrick <paulfitz@alum.mit.edu>",
-  "license": "MIT",
+  "repository": "https://github.com/gristlabs/grist-desktop",
+  "author": "Grist Labs Inc. <info@getgrist.com>",
+  "license": "Apache-2.0",
   "workspaces": [
     "core",
     "ext"
@@ -47,6 +47,7 @@
           "target": "portable"
         }
       ],
+      "artifactName": "${name}-windows-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.ico"
     },
     "portable": {
@@ -57,7 +58,7 @@
       "perMachine": true
     },
     "mac": {
-      "artifactName": "${productName}-mac-${version}-${arch}.${ext}",
+      "artifactName": "${name}-mac-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.icns",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
@@ -66,7 +67,7 @@
       "entitlementsInherit": "scripts/entitlements.mac.plist"
     },
     "linux": {
-      "artifactName": "${productName}-linux-${version}-${arch}.${ext}",
+      "artifactName": "${name}-linux-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
       "target": "AppImage"
     },

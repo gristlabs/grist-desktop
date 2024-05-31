@@ -1,39 +1,27 @@
 import * as dotenv from "dotenv";
-import {commonUrls} from 'app/common/gristUrls';
 import * as version from 'app/common/version';
 import * as log from 'app/server/lib/log';
 import * as electron from 'electron';
 import * as fse from 'fs-extra';
-import * as os from 'os';
 import * as path from 'path';
 import * as winston from 'winston';
+import { loadConfigFile } from "app/electron/config";
+import { program } from 'commander'
+import * as packageJson from 'desktop.package.json';
+
+program.name(packageJson.name).version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${version.version})`)
+program.option("-c, --config <string>", "Specify a configuration file")
+program.parse()
+// When unpackaged (yarn electron:preview), the module's name will be argv[1]. 
+// This snippet strips that to mimic the behavior when packaged.
+// Since commander already handles this gotcha, the hack must be applied after parsing arguments.
+if (!electron.app.isPackaged) {
+  process.argv.splice(1, 1);
+}
+
 
 dotenv.config();
-
-// Handle --version flag, which causes us to only print version, without running anything.
-if (process.argv.includes('--version')) {
-  console.log(`${version.version} (${version.gitcommit} on ${version.channel})`);
-  process.exit(0);
-}
-
-// Default to putting the database somewhere sensible for an app.
-// TODO: what about grist-sessions.db?
-setDefaultEnv('TYPEORM_DATABASE', path.resolve(electron.app.getPath('appData'), 'landing.db'));
-// Default to pyodide unless user specifically asked for unsandboxed or other.
-setDefaultEnv('GRIST_SANDBOX_FLAVOR', 'pyodide');
-setDefaultEnv('GRIST_MINIMAL_LOGIN', 'true');
-setDefaultEnv('GRIST_SINGLE_PORT', 'true');
-setDefaultEnv('GRIST_SERVE_SAME_ORIGIN', 'true');
-setDefaultEnv('GRIST_DEFAULT_PRODUCT', 'Free');
-setDefaultEnv('GRIST_ORG_IN_PATH', 'true');
-setDefaultEnv('APP_UNTRUSTED_URL', 'http://plugins.invalid');
-setDefaultEnv('GRIST_HIDE_UI_ELEMENTS', 'helpCenter,billing,templates,multiSite,multiAccounts');
-setDefaultEnv('GRIST_ELECTRON_AUTH', 'strict');
-setDefaultEnv('GRIST_WIDGET_LIST_URL', commonUrls.gristLabsWidgetRepository);
-if (process.env.GRIST_ELECTRON_AUTH !== 'mixed') {
-  setDefaultEnv('GRIST_FORCE_LOGIN', 'true');
-}
-const EMAIL = setDefaultEnv('GRIST_DEFAULT_EMAIL', 'you@example.com');
+loadConfigFile(program.opts().config)
 
 // The dbUtils import must happen after TYPEORM_DATABASE is set up.
 // Safest to do most Grist codebase imports at this point, in case they
@@ -46,19 +34,12 @@ import * as serverUtils from 'app/server/lib/serverUtils';
 import * as shutdown from 'app/server/lib/shutdown';
 import { main as mergedServerMain } from 'app/server/mergedServerMain';
 
-import { getMinimalElectronLoginSystem, GristElectronAuthMode} from "app/electron/logins";
+import { getMinimalElectronLoginSystem, GristDesktopAuthMode} from "app/electron/logins";
 
 const RecentItems    = require('app/common/RecentItems');
-
 const AppMenu        = require('app/electron/AppMenu');
 const UpdateManager  = require('app/electron/UpdateManager');
 const webviewOptions = require('app/electron/webviewOptions');
-
-if (!electron.app.isPackaged) {
-  // When packaged, we do not expect the module's path in argv[1].
-  // When unpackaged, mimic that.
-  process.argv.splice(1, 1);
-}
 
 class GristApp {
   private flexServer: FlexServer;
@@ -72,15 +53,10 @@ class GristApp {
   private onStartup: any = null;
   private credential: string = makeId();
   private shouldQuit = false;
-  private authMode: GristElectronAuthMode;
+  private authMode: GristDesktopAuthMode;
 
   public constructor() {
-    const mode = process.env.GRIST_ELECTRON_AUTH;
-    if (mode === 'strict' || mode === 'none' || mode === 'mixed') {
-      this.authMode = mode;
-    } else {
-      this.authMode = 'strict';
-    }
+    this.authMode = process.env.GRIST_DESKTOP_AUTH as GristDesktopAuthMode;
   }
 
   public main() {
@@ -199,7 +175,7 @@ class GristApp {
       }
     }
     const db = this.flexServer.getHomeDBManager();
-    const user = await db.getUserByLogin(EMAIL);
+    const user = await db.getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
     if (!user) { throw new Error('cannot find default user'); }
     const wss = db.unwrapQueryResult(await db.getOrgWorkspaces({userId: user.id}, 0));
     for (const doc of wss[0].docs) {
@@ -333,27 +309,21 @@ class GristApp {
   }
 
   private async onReady() {
-    // The port doesn't matter, we only care to avoid interfering with something that another
-    // application might want after we have bound it. We pick 47478 (phone number for GRIST).
-    const port = process.env.PORT || process.env.GRIST_PORT ||
-      await serverUtils.getAvailablePort(47478);
-    // get available port for untrusted content
+    const port = process.env.GRIST_PORT == "_RANDOM" ?
+      await serverUtils.getAvailablePort(47478) : process.env.GRIST_PORT;
+    // Get available port for untrusted content
+    // Note: this is never validated, but it's not documented in Grist Desktop either anyway.
     const untrustedPort = process.env.UNTRUSTED_PORT ||
       process.env.GRIST_UNTRUSTED_PORT ||
       await serverUtils.getAvailablePort(47479);
 
-    const host = setDefaultEnv('GRIST_HOST', 'localhost');
-    setDefaultEnv('PORT', String(port));
-    this.appHost = `http://${host}:${port}`;
-    setDefaultEnv('APP_HOME_URL', this.appHost);
+    this.appHost = `http://${process.env["GRIST_HOST"]}:${port}`;
+    process.env.APP_HOME_URL = this.appHost;
     // TODO: check trust in electron scenario, this code is very rusty.
-    setDefaultEnv('APP_UNTRUSTED_URL', `http://${host}:${untrustedPort}`);
+    process.env.APP_UNTRUSTED_URL = `http://${process.env["GRIST_HOST"]}:${untrustedPort}`;
 
     await updateDb();
 
-    setDefaultEnv('GRIST_USER_ROOT', path.join(os.homedir(), '.grist'));
-    setDefaultEnv('GRIST_DATA_DIR', this.app.getPath('documents'));
-    setDefaultEnv('GRIST_INST_DIR', process.env.GRIST_USER_DATA_DIR || this.app.getPath('userData'));
     this.flexServer = await mergedServerMain(
       parseInt(String(port), 10),
       ['home', 'docs', 'static', 'app'], {
@@ -495,15 +465,6 @@ const gristApp = new GristApp();
 gristApp.main();
 
 
-// Set a default for an environment variable.
-function setDefaultEnv(name: string, value: string) {
-  const current = process.env[name]
-  if (current !== undefined) {
-    return current;
-  }
-  process.env[name] = value;
-  return value;
-}
 
 function reportErrorAndStop(e: Error) {
   console.error(e);

@@ -1,14 +1,21 @@
 import {ApiError} from 'app/common/ApiError';
+import { UserProfile } from 'app/common/LoginSessionAPI';
 import {expressWrap} from 'app/server/lib/expressWrap';
 import {GristLoginMiddleware, GristLoginSystem, GristServer,
         setUserInSession} from 'app/server/lib/GristServer';
-import {getDefaultProfile} from 'app/server/lib/MinimalLogin';
 import {getOrgUrl} from 'app/server/lib/requestUtils';
 import {Request} from 'express';
 
 const cookie = require('cookie');
 
-export type GristElectronAuthMode = 'strict' | 'none' | 'mixed';
+export type GristDesktopAuthMode = 'strict' | 'none' | 'mixed';
+
+export function getProfile(): UserProfile {
+  return {
+    email: process.env.GRIST_DEFAULT_EMAIL as string,
+    name: process.env.GRIST_DEFAULT_USERNAME as string,
+  };
+}
 
 /**
  * A bare bones login system specialized for Electron. Single, hard-coded user.
@@ -16,7 +23,7 @@ export type GristElectronAuthMode = 'strict' | 'none' | 'mixed';
  * else is anonymous.
  */
 export async function getMinimalElectronLoginSystem(credential: string,
-                                                    authMode: GristElectronAuthMode): Promise<GristLoginSystem> {
+                                                    authMode: GristDesktopAuthMode): Promise<GristLoginSystem> {
   // Login and logout, redirecting immediately back.  Signup is treated as login,
   // no nuance here.
   return {
@@ -25,19 +32,19 @@ export async function getMinimalElectronLoginSystem(credential: string,
         if (authMode !== 'none' && !(req as any).electronDirect) {
           return getOrgUrl(req) + 'electron_only';
         }
-        await setUserInSession(req, gristServer, getDefaultProfile());
+        await setUserInSession(req, gristServer, getProfile());
         return url.href;
       }
       const middleware: GristLoginMiddleware = {
         getLoginRedirectUrl,
         getSignUpRedirectUrl: getLoginRedirectUrl,
-        async getLogoutRedirectUrl(req: Request, url: URL) {
+        async getLogoutRedirectUrl(_: Request, url: URL) {
           return url.href;
         },
         async addEndpoints(app) {
           // Make sure default user exists.
           const dbManager = gristServer.getHomeDBManager();
-          const profile = getDefaultProfile();
+          const profile = getProfile();
           const user = await dbManager.getUserByLoginWithRetry(profile.email, {profile});
           if (user) {
             // No need to survey this user!
