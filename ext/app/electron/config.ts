@@ -9,7 +9,7 @@ import {commonUrls} from 'app/common/gristUrls';
 
 const CONFIG_DIR = path.join(electron.app.getPath("appData"), packageJson.name)
 
-const APPDATA_DIR = (process.platform == "win32") ? electron.app.getPath("userData"):
+const APPDATA_DIR = (process.platform == "win32") ? electron.app.getPath("userData") :
   path.join(electron.app.getPath("home"), ".local", "share", packageJson.name)
 
 // Electron's app.getPath("userData") uses productName instead of name
@@ -28,7 +28,7 @@ function suggestEnv(name: string, value: string): void {
   }
 }
 
-type IConfig = {[key: string]: any}
+type IConfig = Record<string, any>
 
 class Config implements IConfig {
 
@@ -39,7 +39,7 @@ class Config implements IConfig {
   }
 
   /**
-   * Apply a configuration item by setting the corresponding environemt variable..
+   * Apply a configuration item by setting the corresponding environment variable.
    * The envvar, if already specified, has higher precedence over the config file.
    *
    * @param confKey The corresponding key in the config file.
@@ -89,7 +89,7 @@ class Config implements IConfig {
 }
 
 
-function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
+export function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
   let config: Config
   try {
     let configBuffer = fse.readFileSync(filename)
@@ -169,10 +169,10 @@ function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
     path.join(APPDATA_DIR, "home.sqlite3")
   )
 
-  const homedb_location = path.parse((process.env.TYPEORM_DATABASE as string)).dir
-  if (!fse.existsSync(homedb_location)) {
-    log.warn(`Directory to contain the home DB does not exist, creating ${homedb_location}`)
-    fse.mkdirSync(homedb_location)
+  const homeDBLocation = path.parse((process.env.TYPEORM_DATABASE as string)).dir
+  if (!fse.existsSync(homeDBLocation)) {
+    log.warn(`Directory to contain the home DB does not exist, creating ${homeDBLocation}`)
+    fse.mkdirSync(homeDBLocation)
   }
 
   // We don't allow manually setting these envvars anymore. Fixing them makes maintaining grist-desktop easier.
@@ -202,5 +202,3 @@ function getUsername(): string {
 function getEmail(): string {
   return getUsername().toLowerCase() + "@" + os.hostname()
 }
-
-export {loadConfigFile}
