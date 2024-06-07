@@ -1,12 +1,11 @@
-import {ApiError} from 'app/common/ApiError';
-import { UserProfile } from 'app/common/LoginSessionAPI';
-import {expressWrap} from 'app/server/lib/expressWrap';
-import {GristLoginMiddleware, GristLoginSystem, GristServer,
-        setUserInSession} from 'app/server/lib/GristServer';
-import {getOrgUrl} from 'app/server/lib/requestUtils';
-import {Request} from 'express';
+import { GristLoginMiddleware, GristLoginSystem, GristServer, setUserInSession } from "app/server/lib/GristServer";
+import { ApiError } from "app/common/ApiError";
+import { Request } from "express";
+import { UserProfile } from "app/common/LoginSessionAPI";
+import cookie from "cookie";
+import { expressWrap } from "app/server/lib/expressWrap";
+import { getOrgUrl } from "app/server/lib/requestUtils";
 
-const cookie = require('cookie');
 
 export type GristDesktopAuthMode = 'strict' | 'none' | 'mixed';
 

@@ -8,10 +8,15 @@
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
   "license": "Apache-2.0",
-  "workspaces": [
-    "core",
-    "ext"
-  ],
+  "workspaces": {
+    "packages": ["core", "ext"],
+    "nohoist": [
+      "**/eslint/**",
+      "**/typescript-eslint/**",
+      "**/globals/**",
+      "**/@eslint/js/**"
+    ]
+  },
   "devDependencies": {
     "resolve-tspaths": "^0.8.19",
     "typescript": "4.7.4"

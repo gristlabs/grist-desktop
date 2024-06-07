@@ -1,17 +1,17 @@
 import * as dotenv from "dotenv";
-import * as version from 'app/common/version';
-import * as log from 'app/server/lib/log';
-import * as electron from 'electron';
-import * as fse from 'fs-extra';
-import * as path from 'path';
-import * as winston from 'winston';
+import * as electron from "electron";
+import * as fse from "fs-extra";
+import * as log from "app/server/lib/log";
+import * as packageJson from "desktop.package.json";
+import * as path from "path";
+import * as version from "app/common/version";
+import * as winston from "winston";
 import { loadConfigFile } from "app/electron/config";
-import { program } from 'commander'
-import * as packageJson from 'desktop.package.json';
+import { program } from "commander";
 
-program.name(packageJson.name).version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${version.version})`)
-program.option("-c, --config <string>", "Specify a configuration file")
-program.parse()
+program.name(packageJson.name).version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${version.version})`);
+program.option("-c, --config <string>", "Specify a configuration file");
+program.parse();
 // When unpackaged (yarn electron:preview), the module's name will be argv[1]. 
 // This snippet strips that to mimic the behavior when packaged.
 // Since commander already handles this gotcha, the hack must be applied after parsing arguments.
@@ -19,27 +19,25 @@ if (!electron.app.isPackaged) {
   process.argv.splice(1, 1);
 }
 
-
 dotenv.config();
-loadConfigFile(program.opts().config)
+loadConfigFile(program.opts().config);
 
 // The dbUtils import must happen after TYPEORM_DATABASE is set up.
 // Safest to do most Grist codebase imports at this point, in case they
 // include dbUtils indirectly, now or in the future.
+// eslint-disable-next-line sort-imports
 import * as gutil from 'app/common/gutil';
-import { updateDb } from 'app/server/lib/dbUtils';
-import { FlexServer } from 'app/server/lib/FlexServer';
-import {makeId} from "app/server/lib/idUtils";
 import * as serverUtils from 'app/server/lib/serverUtils';
 import * as shutdown from 'app/server/lib/shutdown';
+import { GristDesktopAuthMode, getMinimalElectronLoginSystem } from "app/electron/logins";
+import AppMenu from 'app/electron/AppMenu';
+import { FlexServer } from 'app/server/lib/FlexServer';
+import RecentItems from 'app/common/RecentItems';
+import { UpdateManager } from 'app/electron/UpdateManager';
+import { makeId } from "app/server/lib/idUtils";
 import { main as mergedServerMain } from 'app/server/mergedServerMain';
-
-import { getMinimalElectronLoginSystem, GristDesktopAuthMode} from "app/electron/logins";
-
-const RecentItems    = require('app/common/RecentItems');
-const AppMenu        = require('app/electron/AppMenu');
-const UpdateManager  = require('app/electron/UpdateManager');
-const webviewOptions = require('app/electron/webviewOptions');
+import { updateDb } from 'app/server/lib/dbUtils';
+import webviewOptions from 'app/electron/webviewOptions';
 
 class GristApp {
   private flexServer: FlexServer;
@@ -127,10 +125,11 @@ class GristApp {
     switch (ext) {
       case '.csv':
       case '.xlsx':
-      case '.xlsm':
-        const docName = serverMethods.importDoc(filepath);
-        this.openWindowForPath(docName);
-        break;
+      case '.xlsm': {
+          const docName = serverMethods.importDoc(filepath);
+          this.openWindowForPath(docName);
+          break;
+      }
       default:
         await this.openGristFile(filepath).catch(e => this.reportError(e));
         break;
@@ -202,7 +201,7 @@ class GristApp {
   // Returns the last Grist window that was created.
   private getLastWindow() {
     let lastWindow = null;
-    for (let win of this.appWindows) {
+    for (const win of this.appWindows) {
       lastWindow = win;
     }
     return lastWindow;
@@ -231,7 +230,7 @@ class GristApp {
 
       // Set represented filename (on macOS) to home directory if on Start page
       if (title === 'Home - Grist') {
-        let docPath = this.app.getPath('documents');
+        const docPath = this.app.getPath('documents');
         win.setTitle(path.basename(docPath));
         win.setRepresentedFilename(docPath);
       } else {
@@ -255,9 +254,9 @@ class GristApp {
     win.webContents.setWindowOpenHandler((details) => {
       if (!gutil.startsWith(details.url, this.appHost)) {
         electron.shell.openExternal(details.url);
-        return {action: "deny"}
+        return {action: "deny"};
       }
-      return {action: "allow"}
+      return {action: "allow"};
     });
 
     // Remove the window from the set when it's closed.
@@ -339,7 +338,7 @@ class GristApp {
         await this.handleOpen(serverMethods, optPath);
         return;
       }
-      let win = this.getLastWindow();
+      const win = this.getLastWindow();
       if (win) {
         (win as any).show();
         return;
@@ -352,13 +351,13 @@ class GristApp {
     this.onStartup(this.pendingPathToOpen);
     this.pendingPathToOpen = null;
 
-    let recentItems = new RecentItems({
+    const recentItems = new RecentItems({
       maxCount: 10,
       intialItems: (await serverMethods.getUserConfig()).recentItems
     });
-    let appMenu = new AppMenu(recentItems);
+    const appMenu = new AppMenu(recentItems);
     electron.Menu.setApplicationMenu(appMenu.getMenu());
-    let updateManager = new UpdateManager(appMenu);
+    const updateManager = new UpdateManager(appMenu);
     console.log(updateManager ? 'updateManager loadable, but not used yet' : '');
 
     // TODO: file new still does something, but it doesn't make a lot of sense.
