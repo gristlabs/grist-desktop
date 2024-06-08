@@ -10,6 +10,9 @@ import { getOrgUrl } from "app/server/lib/requestUtils";
 export type GristDesktopAuthMode = 'strict' | 'none' | 'mixed';
 
 export function getProfile(): UserProfile {
+  // Both variables are guaranteed to be set when this function is invoked,
+  // since loadConfig() is called before a GristApp instance is created.
+  // If they are not set by the user, default values will be used. See config.ts for details.
   return {
     email: process.env.GRIST_DEFAULT_EMAIL as string,
     name: process.env.GRIST_DEFAULT_USERNAME as string,

@@ -10,6 +10,7 @@ export default [
   {
     rules: {
       "semi": ["warn", "always"],
+      "eqeqeq": ["warn", "always"],
       "sort-imports": ["warn", {}],
       "@typescript-eslint/no-explicit-any": "warn"
     }

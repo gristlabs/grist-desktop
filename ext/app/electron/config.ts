@@ -2,14 +2,16 @@ import * as electron from "electron";
 import * as fse from "fs-extra";
 import * as ini from "ini";
 import * as log from "app/server/lib/log";
+import * as net from 'net';
 import * as os from "os";
 import * as packageJson from "desktop.package.json";
 import * as path from "path";
+import bluebird from 'bluebird';
 import { commonUrls } from "app/common/gristUrls";
 
 const CONFIG_DIR = path.join(electron.app.getPath("appData"), packageJson.name);
 
-const APPDATA_DIR = (process.platform == "win32") ? electron.app.getPath("userData") :
+const APPDATA_DIR = (process.platform === "win32") ? electron.app.getPath("userData") :
   path.join(electron.app.getPath("home"), ".local", "share", packageJson.name);
 
 // Electron's app.getPath("userData") uses productName instead of name
@@ -26,6 +28,26 @@ function suggestEnv(name: string, value: string): void {
   if (process.env[name] === undefined) {
     process.env[name] = value;
   }
+}
+
+/**
+ * Copied from grist-core, since it is unsafe to import core code at this point.
+ */
+async function getAvailablePort(firstPort: number = 8000, optCount: number = 200): Promise<number> {
+  const lastPort = firstPort + optCount - 1;
+  async function checkNext(port: number): Promise<number> {
+    if (port > lastPort) {
+      throw new Error("No available ports between " + firstPort + " and " + lastPort);
+    }
+    return new bluebird((resolve: (p: number) => void, reject: (e: Error) => void) => {
+      const server = net.createServer();
+      server.on('error', reject);
+      server.on('close', () => resolve(port));
+      server.listen(port, 'localhost', () => server.close());
+    })
+    .catch(() => checkNext(port + 1));
+  }
+  return bluebird.try(() => checkNext(firstPort));
 }
 
 // The ini library recognizes boolean values, but not numbers. All other values are treated as strings.
@@ -90,7 +112,7 @@ class Config {
 }
 
 
-export function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
+export async function loadConfig(filename: string = DEFAULT_CONFIG_FILE) {
   let config: Config;
   try {
     const configBuffer = fse.readFileSync(filename);
@@ -129,7 +151,7 @@ export function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
       const port = parseInt(portstr);
       return port > 0 && port < 65536;
     },
-    "_RANDOM"
+    (await getAvailablePort(47478)).toString()
   );
   config.apply(
     "server.auth",
@@ -177,6 +199,7 @@ export function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
   }
 
   // We don't allow manually setting these envvars anymore. Fixing them makes maintaining grist-desktop easier.
+  process.env.APP_HOME_URL = `http://${process.env["GRIST_HOST"]}:${process.env["GRIST_PORT"]}`;
   process.env.GRIST_SINGLE_PORT = "true";
   process.env.GRIST_SERVE_SAME_ORIGIN = "true";
   process.env.GRIST_DEFAULT_PRODUCT = "Free";
@@ -189,6 +212,12 @@ export function loadConfigFile(filename: string = DEFAULT_CONFIG_FILE) {
 
   // Related to plugins (Would have to be changed if local custom widgets are used?)
   suggestEnv("GRIST_WIDGET_LIST_URL", commonUrls.gristLabsWidgetRepository);
+
+  // Note: This is neither validated nor documented, and subject to deprecation.
+  // Original comment: TODO: check trust in electron scenario, this code is very rusty.
+  if (process.env.GRIST_UNTRUSTED_PORT === undefined && process.env.APP_UNTRUSTED_URL === undefined) {
+    process.env["GRIST_UNTRUSTED_PORT"] = (await getAvailablePort(47479)).toString();
+  }
 }
 
 
