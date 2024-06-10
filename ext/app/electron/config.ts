@@ -9,14 +9,13 @@ import * as path from "path";
 import bluebird from 'bluebird';
 import { commonUrls } from "app/common/gristUrls";
 
-const CONFIG_DIR = path.join(electron.app.getPath("appData"), packageJson.name);
-
-const APPDATA_DIR = (process.platform === "win32") ? electron.app.getPath("userData") :
-  path.join(electron.app.getPath("home"), ".local", "share", packageJson.name);
+const APPDATA_DIR = (["win32", "darwin"].includes(process.platform))
+  ? path.join(electron.app.getPath("appData"), packageJson.name)
+  : path.join(electron.app.getPath("home"), ".local", "share", packageJson.name);
 
 // Electron's app.getPath("userData") uses productName instead of name
 // but productName should be "full capitalized name", not ideal for naming our config directory.
-const DEFAULT_CONFIG_FILE = path.join(CONFIG_DIR, "config.ini");
+const DEFAULT_CONFIG_FILE = path.join(APPDATA_DIR, "config.ini");
 const NO_VALIDATION = () => true;
 
 /**
@@ -113,13 +112,21 @@ class Config {
 
 
 export async function loadConfig(filename: string = DEFAULT_CONFIG_FILE) {
+  if (process.env.GRIST_ELECTRON_AUTH !== undefined) {
+    log.warn("GRIST_ELECTRON_AUTH has been deprecated; use GRIST_DESKTOP_AUTH instead.");
+  }
   let config: Config;
   try {
     const configBuffer = fse.readFileSync(filename);
     config = new Config(ini.parse(configBuffer.toString("utf8")));
   } catch (err) {
-    log.warn(`Failed to read configuration file: ${err}`);
-    config = new Config({});
+    if (err instanceof Error && err.message.startsWith("ENOENT")) {
+      log.warn(`Configuration file ${filename} does not exist, using default config.`);
+      config = new Config({});
+    } else {
+      log.error(`Failed to read configuration file: ${err}`);
+      process.exit(1);
+    }
   }
   // Section: login
   config.apply(
