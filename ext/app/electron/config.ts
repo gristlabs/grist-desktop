@@ -54,10 +54,10 @@ type INI = { [key: string]: (INI | string | boolean) }
 
 class Config {
 
-  #config: INI;
+  private config: INI;
 
   constructor(c: INI) {
-    this.#config = c;
+    this.config = c;
   }
 
   /**
@@ -75,7 +75,7 @@ class Config {
     validator: (value: string) => boolean,
     defaultValue: string,
   ): void {
-    let confValue: INI[keyof INI] = this.#config;
+    let confValue: INI[keyof INI] = this.config;
     for (const segment of confKey.split(".")) {
       confValue = (confValue as INI)[segment];
       if (confValue === undefined) {
