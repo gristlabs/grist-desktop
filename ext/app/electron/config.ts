@@ -1,33 +1,14 @@
 import * as electron from "electron";
 import * as fse from "fs-extra";
-import * as ini from "ini";
 import * as log from "app/server/lib/log";
 import * as net from 'net';
-import * as os from "os";
 import * as packageJson from "desktop.package.json";
 import * as path from "path";
 import bluebird from 'bluebird';
 import { commonUrls } from "app/common/gristUrls";
 
-const APPDATA_DIR = (["win32", "darwin"].includes(process.platform))
-  ? path.join(electron.app.getPath("appData"), packageJson.name)
-  : path.join(electron.app.getPath("home"), ".local", "share", packageJson.name);
-
-// Electron's app.getPath("userData") uses productName instead of name
-// but productName should be "full capitalized name", not ideal for naming our config directory.
-const DEFAULT_CONFIG_FILE = path.join(APPDATA_DIR, "config.ini");
 const NO_VALIDATION = () => true;
 
-/**
- * Suggest a value for an environment variable. If the variable is already set, do nothing. Otherwise set the value.
- * @param name The name of the environment variable.
- * @param value The value to suggest.
- */
-function suggestEnv(name: string, value: string): void {
-  if (process.env[name] === undefined) {
-    process.env[name] = value;
-  }
-}
 
 /**
  * Copied from grist-core, since it is unsafe to import core code at this point.
@@ -49,107 +30,45 @@ async function getAvailablePort(firstPort: number = 8000, optCount: number = 200
   return bluebird.try(() => checkNext(firstPort));
 }
 
-// The ini library recognizes boolean values, but not numbers. All other values are treated as strings.
-type INI = { [key: string]: (INI | string | boolean) }
-
-class Config {
-
-  private config: INI;
-
-  constructor(c: INI) {
-    this.config = c;
-  }
-
-  /**
-   * Apply a configuration item by setting the corresponding environment variable.
-   * The envvar, if already specified, has higher precedence over the config file.
-   *
-   * @param confKey The corresponding key in the config file.
-   * @param envKey The corresponding environment variable name.
-   * @param validator A predicate returning true if and only if the value to be used is valid. 
-   * @param defaultValue A default value to use when neither the environment variable nor the config file specifies a value, or when validation fails.
-   */
-  public apply(
-    confKey: string,
-    envKey: string,
-    validator: (value: string) => boolean,
-    defaultValue: string,
-  ): void {
-    let confValue: INI[keyof INI] = this.config;
-    for (const segment of confKey.split(".")) {
-      confValue = (confValue as INI)[segment];
-      if (confValue === undefined) {
-        break;
-      }
-    }
-    const envValue = process.env[envKey];
-    if (envValue === undefined) {
-      if (confValue === undefined) {
-        log.info(`Neither ${confKey} nor $${envKey} is specified, using default value ${defaultValue}`);
-        process.env[envKey] = defaultValue;
-        return;
-      } else {
-        // envvar is undefined but config has it
-        if (!["string", "boolean"].includes(typeof confValue) || !validator(confValue.toString())) {
-          log.warn(`${confKey} has invalid value ${confValue}, using default value ${defaultValue}`);
-          process.env[envKey] = defaultValue;
-        } else {
-          process.env[envKey] = confValue.toString();
-        }
-      }
-    } else {
-      // envvar is defined, ignore config
-      if (confValue !== undefined) {
-        log.warn(`${confKey} is overridden by $${envKey}`);
-      }
-      if (!validator(envValue)) {
-        log.warn(`$${envKey} has invalid value ${envValue}, using default value ${defaultValue}`);
-        process.env[envKey] = defaultValue;
-      }
+function check(envKey: string, validator: (value: string) => boolean, defaultValue: string,): void {
+  const envValue = process.env[envKey];
+  if (envValue === undefined) {
+    log.warn(`${envKey} is not set, using default value ${defaultValue}`);
+      process.env[envKey] = defaultValue;
+  } else {
+    if (!validator(envValue)) {
+      log.warn(`$${envKey} has invalid value ${envValue}, using default value ${defaultValue}`);
+      process.env[envKey] = defaultValue;
     }
   }
 }
 
 
-export async function loadConfig(filename: string = DEFAULT_CONFIG_FILE) {
+export async function loadConfig() {
   if (process.env.GRIST_ELECTRON_AUTH !== undefined) {
-    log.warn("GRIST_ELECTRON_AUTH has been deprecated; use GRIST_DESKTOP_AUTH instead.");
-  }
-  let config: Config;
-  try {
-    const configBuffer = fse.readFileSync(filename);
-    config = new Config(ini.parse(configBuffer.toString("utf8")));
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("ENOENT")) {
-      log.warn(`Configuration file ${filename} does not exist, using default config.`);
-      config = new Config({});
+    if (process.env.GRIST_DESKTOP_AUTH === undefined) {
+      process.env.GRIST_DESKTOP_AUTH = process.env.GRIST_ELECTRON_AUTH;
+      log.warn("GRIST_ELECTRON_AUTH has been deprecated; use GRIST_DESKTOP_AUTH instead.");
     } else {
-      log.error(`Failed to read configuration file: ${err}`);
-      process.exit(1);
+      log.warn("GRIST_DESKTOP_AUTH set, ignoring GRIST_ELECTRON_AUTH (deprecated).");
     }
   }
-  // Section: login
-  config.apply(
-    "login.username",
+  check(
     "GRIST_DEFAULT_USERNAME",
     NO_VALIDATION,
-    getUsername()
+    "You"
   );
-  config.apply(
-    "login.email",
+  check(
     "GRIST_DEFAULT_EMAIL",
     NO_VALIDATION,
-    getEmail()
+    "you@example.com"
   );
-  // Section: server
-  config.apply(
-    "server.listen",
+  check(
     "GRIST_HOST",
     NO_VALIDATION,
     "localhost"
   );
-  config.apply(
-    "server.port",
+  check(
     "GRIST_PORT",
     (portstr) => {
       if (! /^\d+$/.test(portstr)) {
@@ -160,43 +79,40 @@ export async function loadConfig(filename: string = DEFAULT_CONFIG_FILE) {
     },
     (await getAvailablePort(47478)).toString()
   );
-  config.apply(
-    "server.auth",
+  check(
     "GRIST_DESKTOP_AUTH",
     (auth) => ["strict", "none", "mixed"].includes(auth),
     "strict"
   );
-  // Section: sandbox
-  config.apply(
-    "sandbox.flavor",
+  check(
     "GRIST_SANDBOX_FLAVOR",
     (flavor) => ["pyodide", "unsandboxed", "gvisor", "macSandboxExec"].includes(flavor),
     "pyodide"
   );
-  // Section: storage
-  config.apply(
-    "storage.instance",
+  check(
     "GRIST_INST_DIR",
     NO_VALIDATION,
-    APPDATA_DIR
+    electron.app.getPath("userData")
   );
-  config.apply(
-    "storage.documents",
+  check(
     "GRIST_DATA_DIR",
     NO_VALIDATION,
     electron.app.getPath("documents")
   );
-  config.apply(
-    "storage.plugins",
+  check(
     "GRIST_USER_ROOT",
     NO_VALIDATION,
     path.join(electron.app.getPath("home"), ".grist")
   );
-  config.apply(
-    "storage.homedb",
+  check(
     "TYPEORM_DATABASE",
     NO_VALIDATION,
-    path.join(APPDATA_DIR, "home.sqlite3")
+    path.join(electron.app.getPath("appData"), "landing.db")
+  );
+  check(
+    "GRIST_WIDGET_LIST_URL", // Related to plugins (Would have to be changed if local custom widgets are used?)
+    NO_VALIDATION,
+    commonUrls.gristLabsWidgetRepository
   );
 
   const homeDBLocation = path.parse((process.env.TYPEORM_DATABASE as string)).dir;
@@ -217,25 +133,9 @@ export async function loadConfig(filename: string = DEFAULT_CONFIG_FILE) {
     process.env.GRIST_FORCE_LOGIN = "true";
   }
 
-  // Related to plugins (Would have to be changed if local custom widgets are used?)
-  suggestEnv("GRIST_WIDGET_LIST_URL", commonUrls.gristLabsWidgetRepository);
-
   // Note: This is neither validated nor documented, and subject to deprecation.
   // Original comment: TODO: check trust in electron scenario, this code is very rusty.
   if (process.env.GRIST_UNTRUSTED_PORT === undefined && process.env.APP_UNTRUSTED_URL === undefined) {
     process.env["GRIST_UNTRUSTED_PORT"] = (await getAvailablePort(47479)).toString();
   }
-}
-
-
-function getUsername(): string {
-  try {
-    return os.userInfo().username;
-  } catch {
-    return "You";
-  }
-}
-
-function getEmail(): string {
-  return getUsername().toLowerCase() + "@" + os.hostname();
 }
