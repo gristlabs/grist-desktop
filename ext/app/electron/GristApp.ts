@@ -5,9 +5,9 @@ import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
 import * as winston from "winston";
+import { ElectronServerMethods, FlexServer } from "app/server/lib/FlexServer";
 import { GristDesktopAuthMode, getMinimalElectronLoginSystem } from "app/electron/logins";
 import AppMenu from "app/electron/AppMenu";
-import { FlexServer } from "app/server/lib/FlexServer";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { makeId } from "app/server/lib/idUtils";
@@ -18,13 +18,13 @@ import webviewOptions from "app/electron/webviewOptions";
 export class GristApp {
   private flexServer: FlexServer;
   private app = electron.app;
-  private appWindows = new Set();       // A set of all our window objects.
-  private appHost: any = null;               // The hostname to connect to the local node server we start.
-  private pendingPathToOpen: any = null;     // Path to open when app is started to open a document.
+  private appWindows: Set<electron.BrowserWindow> = new Set();       // A set of all our window objects.
+  private appHost: string;               // The hostname to connect to the local node server we start.
+  private pendingPathToOpen: string | undefined = undefined;     // Path to open when app is started to open a document.
 
   // Function, set once the app is ready, that opens or focuses a window when Grist is started. It
   // is called on 'ready' and by onInstanceStart (triggered when starting another Grist instance).
-  private onStartup: any = null;
+  private onStartup: (optPath?: string) => Promise<void>;
   private credential: string = makeId();
   private shouldQuit = false;
   private authMode: GristDesktopAuthMode;
@@ -74,36 +74,36 @@ export class GristApp {
     this.app.whenReady().then(() => this.onReady().catch(reportErrorAndStop));
   }
 
-  private onInstanceStart(argv: any, workingDir: any) {
+  private onInstanceStart(argv: string[], workingDir: string) {
     argv = this.cleanArgv(argv);
     // Someone tried to run a second instance, we should either open a file or focus a window.
     log.debug("onInstanceStart %s in %s", JSON.stringify(argv), workingDir);
     if (this.onStartup) {
-      this.onStartup(argv[1] ? path.resolve(workingDir, argv[1]) : null);
+      this.onStartup(argv[1] ? path.resolve(workingDir, argv[1]) : undefined);
     }
   }
 
-  private cleanArgv(argv: any) {
+  private cleanArgv(argv: string[]) {
     // Ignoring flags starting with '-' which might be added by electron on Mac (See
     // https://phab.getgrist.com/T307).
-    return argv.filter((arg: any) => !arg.startsWith('-'));
+    return argv.filter((arg) => !arg.startsWith('-'));
   }
 
-  private openWindowForPath(path: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
+  private openWindowForDoc(docID: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
     // Create the browser window, and load the document.
-    (openWith || this.createWindow()).loadURL(this.getUrl({doc: path}));
+    (openWith || this.createWindow()).loadURL(this.getUrl(docID));
   }
 
   // Opens file at filepath for any accepted file type.
-  private async handleOpen(serverMethods: any, filepath: string) {
+  private async handleOpen(serverMethods: ElectronServerMethods, filepath: string) {
     log.debug("handleOpen %s", filepath);
     const ext = path.extname(filepath);
     switch (ext) {
       case '.csv':
       case '.xlsx':
       case '.xlsm': {
-          const docName = serverMethods.importDoc(filepath);
-          this.openWindowForPath(docName);
+          const doc = await serverMethods.importDoc(filepath);
+          this.openWindowForDoc(doc.id);
           break;
       }
       default:
@@ -112,12 +112,10 @@ export class GristApp {
     }
   }
 
-  private getUrl(options: {
-    doc?: string,
-  } = {}) {
+  private getUrl(docID?: string) {
     const url = new URL(this.appHost);
-    if (options.doc) {
-      url.pathname = 'doc/' + encodeURIComponent(options.doc);
+    if (docID) {
+      url.pathname = 'doc/' + encodeURIComponent(docID);
     }
     if (this.authMode !== 'none') {
       url.searchParams.set('electron_key', this.credential);
@@ -171,7 +169,7 @@ export class GristApp {
     if (!await fse.pathExists(link)) {
       await fse.symlink(target, link, 'junction');
     }
-    this.openWindowForPath(docId, openWith);
+    this.openWindowForDoc(docId, openWith);
   }
 
   // Returns the last Grist window that was created.
@@ -261,7 +259,7 @@ export class GristApp {
 
     if (process.env.GRIST_LOG_PATH || fse.existsSync(debugLogPath)) {
       const output = fse.createWriteStream(debugLogPath, { flags: "a" });
-      output.on('error', (err: any) => log.error("Failed to open %s: %s", debugLogPath, err));
+      output.on('error', (err) => log.error("Failed to open %s: %s", debugLogPath, err));
       output.on('open', () => {
         log.info('Logging also to %s', debugLogPath);
         output.write('\n--- log starting by pid ' + process.pid + ' ---\n');
@@ -284,7 +282,8 @@ export class GristApp {
   }
 
   private async onReady() {
-    this.appHost = process.env.APP_HOME_URL;
+    // APP_HOME_URL is set by loadConfig
+    this.appHost = process.env.APP_HOME_URL as string;
 
     await updateDb();
 
@@ -297,7 +296,7 @@ export class GristApp {
     // This function is what we'll call now, and also in onInstanceStart. The latter is used on
     // Windows thanks to makeSingleInstance, and triggered when user clicks another .grist file.
     // We can only set this callback once we have serverMethods and appHost.
-    this.onStartup = async (optPath: any) => {
+    this.onStartup = async (optPath?: string) => {
       log.debug("onStartup %s", optPath);
       if (optPath) {
         await this.handleOpen(serverMethods, optPath);
@@ -305,7 +304,7 @@ export class GristApp {
       }
       const win = this.getLastWindow();
       if (win) {
-        (win as any).show();
+        win.show();
         return;
       }
       // We had no file to open, so open a window to the DocList.
@@ -314,7 +313,7 @@ export class GristApp {
 
     // Call onStartup immediately.
     this.onStartup(this.pendingPathToOpen);
-    this.pendingPathToOpen = null;
+    this.pendingPathToOpen = undefined;
 
     const recentItems = new RecentItems({
       maxCount: 10,

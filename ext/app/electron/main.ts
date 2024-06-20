@@ -1,4 +1,3 @@
-import * as dotenv from "dotenv";
 import * as electron from "electron";
 import * as path from "path";
 import { program } from "commander";
@@ -18,6 +17,7 @@ if (!electron.app.isPackaged) {
 // eslint-disable-next-line sort-imports
 import * as packageJson from "desktop.package.json";
 import * as version from "app/common/version";
+import { GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 
 program.name(packageJson.name).version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${version.version})`);
@@ -30,12 +30,6 @@ if (!electron.app.isPackaged) {
   process.argv.splice(1, 1);
 }
 
-dotenv.config();
-
 loadConfig().then(() => {
-  // Note: TYPEORM_DATABASE must be set before importing dbUtils, or else it won't take effect.
-  // As Grist code could pull dbUtils in implicitly, it is unsafe to import anything from Grist Core before this.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const GristApp = require("app/electron/GristApp").GristApp;
   new GristApp().main();
 });
