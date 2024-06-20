@@ -4,6 +4,7 @@
   "include": [
     "electron/**/*",
     "../../stubs/app/common/version.ts",
+    "../desktop.package.json",
   ],
   "references": [
     { "path": "../../app/client" },

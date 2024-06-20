@@ -140,6 +140,9 @@ echo "Configure Grist to include external Electron code during build"
 if [ ! -e core/ext ]; then
   ln -s ../ext core/ext
 fi
+if [ ! -e ext/desktop.package.json ]; then
+  ln -s ../package.json ext/desktop.package.json
+fi
 
 echo ""
 echo "======================================================================="

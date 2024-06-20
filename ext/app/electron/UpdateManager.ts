@@ -1,9 +1,9 @@
-import * as electron from 'electron';
-import * as electronUpdater from 'electron-updater';
-import * as log from 'app/server/lib/log';
-import * as version from 'app/common/version';
+import * as electron from "electron";
+import * as electronUpdater from "electron-updater";
+import * as log from "app/server/lib/log";
+import * as version from "app/common/version";
 
-class UpdateManager {
+export class UpdateManager {
   private _suppressPopups: boolean;
   private _appMenu: any;
   private _timeout: any;
@@ -175,5 +175,3 @@ class UpdateManager {
     }) as any);
   }
 }
-
-module.exports = UpdateManager;

@@ -1,4 +1,4 @@
-# Grist Desktop App, built with Electron
+# Grist Desktop
 
 This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
 Use it to easily open and edit Grist spreadsheets on your computer. It does not
@@ -20,7 +20,7 @@ and [grist-omnibus](https://github.com/gristlabs/grist-omnibus/).
 
 ## Download
 
-See https://github.com/gristlabs/grist-electron/releases
+See https://github.com/gristlabs/grist-desktop/releases
 
 ## Screenshots
 
@@ -40,7 +40,7 @@ A [Doggy Daycare](https://templates.getgrist.com/vAcfEKLQf3YF/Doggie-Daycare) sp
 
 ![Grist on Windows 7](https://user-images.githubusercontent.com/118367/215295214-83c46e03-16f6-45d2-84dd-d26d34cb5f95.jpeg)
 
-Grist Electron being used as a server on a LAN, on Windows 10 Pro (credit: [Sylvain_Page](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233/29)).
+Grist Desktop being used as a server on a LAN, on Windows 10 Pro (credit: [Sylvain_Page](https://community.getgrist.com/t/packaging-grist-as-an-electron-app/1233/29)).
 
 ![Grist on Windows 10 Pro](https://user-images.githubusercontent.com/118367/221203024-ac8ad72d-bb08-43dd-9447-f9a06cfbce3e.jpeg)
 
@@ -61,58 +61,79 @@ yarn run electron
 
 ## Configure
 
-There's no configuration needed if you are just running this as a regular app
-to view and edit Grist spreadsheets on your laptop.
+There's no configuration needed if you are just running Grist Desktop as a
+regular app to view and edit Grist spreadsheets on your laptop.
+However, some aspects of Grist Desktop can be tuned with environment variables.
 
-Some people use the app as a quick way to set up a simple Grist server
-in a local network where everyone is trusted. Be sure you know what you're
-doing - if you have any security concerns at all, I'd urge you to do a
-proper Grist server installation - see https://support.getgrist.com/self-managed/
+For developers: You can create a `.env` file in the root directory of the app
+and set the environment variables there. If you are a Grist Desktop end user,
+consider using the config file instead.
 
-If you are sure you are in a trusted environment, you can set some environment
-variables to make Grist listen on a specific network interface and port:
+### Environment Variables
 
-```
-GRIST_HOST=192.168.1.22     # IP address to serve from
-GRIST_PORT=8484             # Port number to serve at
-GRIST_ELECTRON_AUTH=strict  # Auth strategy (strict, mixed, or none)
-```
+**`GRIST_DEFAULT_USERNAME`**: The name of the default user. Only effective when
+Grist Desktop initializes its database during the first launch. Default: `You`
 
-(You can create a `.env` file in the root directory of the app and set
-the environment variables there). Set `GRIST_ELECTRON_AUTH` to `none`
-to allow access across the network just as if you were using the app.
-Set `GRIST_ELECTRON_AUTH` to `mixed` to allow anonymous access
-across the network, but not logins. Set `GRIST_ELECTRON_AUTH` to `strict`
-to require logins and to permit them only in the app.
+**`GRIST_DEFAULT_EMAIL`**: The email of the default user. This is only effective
+when Grist Desktop initializes its database during the first launch. If you want
+to change this after initialization, you need to manually reset the database,
+re-initialize it and import your documents back. Usually you should not need to
+worry about this. Default: `you@example.com`
 
-It you use Grist on the network this way, be aware that data is being 
+**`GRIST_HOST`**: The IP address to serve the Grist server from. It is not
+recommended to set this. See this [note](#note-on-using-grist-desktop-as-a-server)
+for more info. Default: `localhost`
+
+**`GRIST_PORT`**: The port number to listen on. It is not recommended to set this.
+Default: Grist Desktop will randomly pick an available port.
+
+**`GRIST_DESKTOP_AUTH`**: The authentication mode to use. Must be one of `strict`,
+`mixed` and `none`. `none` allows network access as you. `mixed` allows anonymous
+network access. `strict` disallows network access. This used to be `GRIST_ELECTRON_AUTH`,
+which is still supported but deprecated. When both are set, `GRIST_DESKTOP_AUTH`
+has higher precedence. If you are still using `GRIST_ELECTRON_AUTH`, please consider
+switching to `GRIST_DESKTOP_AUTH`. Default: `strict`
+
+**`GRIST_SANDBOX_FLAVOR`**: The sandbox mechanism to use. It is recommended to stick
+to the default. Must be one of `pyodide`, `gvisor`, `macSandboxExec` and
+`unsandboxed`. See this [note](#note-on-sandboxing) for more info. Default: `pyodide`
+
+**`GRIST_INST_DIR`**, **`GRIST_DATA_DIR`**, **`GRIST_USER_ROOT`** and
+**`TYPEORM_DATABASE`**: These are a bit technical and require some understanding of how
+Grist Desktop works. For the time being, Grist Desktop works by launching a Grist server
+in the background. These variables can configure where the Grist server should store its files.
+By default, `GRIST_INST_DIR` is set to `getPath("userData")` defined by Electron;
+`GRIST_DATA_DIR` is set to `getPath("documents")`; `GRIST_USER_ROOT` is set to `.grist`
+in your home directory. `TYPEORM_DATABASE` is set to `landing.db` under
+`getPath("appData")`. If you change them, make sure to move existing data accordingly.
+See [grist-core documentation](https://github.com/gristlabs/grist-core) for details.
+You might want to store your Grist documents somewhere else and have a clean "Documents"
+folder. In this case, set `GRIST_DATA_DIR` to your desired location and move all `.grist`
+files there.
+
+### Note on using Grist Desktop as a server
+
+If you are sure you are in a trusted environment, you can use the app as a
+quick way to set up a simple Grist server, but be aware that data is being 
 sent using plain http and not encrypted https, so network traffic could be
 readable in transit. And there is no login mechanism built in.
 
-An experimental sandboxing mechanism is turned on by default, so that
-formulas in a spreadsheet are limited in their effect. Sandboxing can be
-turned off by setting:
+If you have security concerns, we recommend switching to a proper Grist server
+installation instead - see https://support.getgrist.com/self-managed/
 
-```
-GRIST_SANDBOX_FLAVOR=unsandboxed
-```
+### Note on sandboxing
 
-It can be explicitly set by doing:
+Sandboxing limits the effects of formulas in spreadsheets. It is recommended to use `pyodide`,
+as `gvisor` and `macSandboxExec` are not yet easy to use.
 
-```
-GRIST_SANDBOX_FLAVOR=pyodide
-```
-
-There are also `gvisor` and `macSandboxExec` sandbox
-flavors, but they are not yet easy to use.
-
-If you turn off sandboxing, then the full raw power of Python will be available
-to any Grist spreadsheet you open. So:
+If you turn it off, the full raw power of Python will be available to any Grist
+spreadsheet you open. So:
 
  * Use only with your own Grist spreadsheets, or
- * Use with spreadsheets you trust, or
+ * Use only with spreadsheets you trust, or
  * Turn sandboxing the heck back on, or
  * Return to the YOLO days of opening spreadsheets and crossing your fingers.
+
 
 ## History
 
