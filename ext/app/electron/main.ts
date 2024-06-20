@@ -15,6 +15,7 @@ if (!electron.app.isPackaged) {
   require('module').Module._initPaths();
 }
 // eslint-disable-next-line sort-imports
+import * as log from "app/server/lib/log";
 import * as packageJson from "desktop.package.json";
 import * as version from "app/common/version";
 import { GristApp } from "app/electron/GristApp";
@@ -30,6 +31,11 @@ if (!electron.app.isPackaged) {
   process.argv.splice(1, 1);
 }
 
-loadConfig().then(() => {
-  new GristApp().main();
-});
+loadConfig()
+  .then(() => {
+    new GristApp().main();
+  })
+  .catch((err) => {
+    log.error(`Failed to load config, aborting: ${err}`);
+    process.exit(1);
+  });
