@@ -120,5 +120,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
-          path: dist/grist-electron-*
+          path: dist/grist-desktop-*
           if-no-files-found: "error"
