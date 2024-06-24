@@ -2,7 +2,7 @@
   "private": true,
   "name": "grist-desktop",
   "productName": "Grist Desktop",
-  "description": "Grist is the evolution of spreadsheets",
+  "description": "Grist Desktop",
   "version": "0.2.9",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "https://github.com/gristlabs/grist-desktop",
