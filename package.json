@@ -2,7 +2,7 @@
   "private": true,
   "name": "grist-desktop",
   "productName": "Grist Desktop",
-  "description": "Grist is the evolution of spreadsheets",
+  "description": "Grist Desktop",
   "version": "0.2.9",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "https://github.com/gristlabs/grist-desktop",
@@ -38,7 +38,7 @@
     "chromedriver": "110.0.0"
   },
   "build": {
-    "appId": "com.electron.grist.core",
+    "appId": "com.getgrist.desktop",
     "npmRebuild": false,
     "compression": "normal",
     "includeSubNodeModules": true,
@@ -52,14 +52,13 @@
           "target": "portable"
         }
       ],
-      "artifactName": "${name}-windows-${version}-${arch}.${ext}",
       "icon": "core/static/icons/grist.ico"
     },
     "portable": {
-      "artifactName": "${productName}-windows-portable-${version}-${arch}.${ext}"
+      "artifactName": "${name}-windows-portable-${version}-${arch}.${ext}"
     },
     "nsis": {
-      "artifactName": "${productName}-windows-installer-${version}-${arch}.${ext}",
+      "artifactName": "${name}-windows-installer-${version}-${arch}.${ext}",
       "perMachine": true
     },
     "mac": {

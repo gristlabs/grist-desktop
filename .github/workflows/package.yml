@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-14
+          - macos-13
           - ubuntu-22.04
           - windows-2022
         host:
@@ -65,6 +65,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - uses: actions/cache@v4
         id: yarn-cache
@@ -120,5 +124,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
-          path: dist/grist-electron-*
+          path: |
+            dist/grist-desktop-*.exe
+            dist/grist-desktop-*.AppImage
+            dist/grist-desktop-*.dmg
           if-no-files-found: "error"
