@@ -166,8 +166,8 @@ export class GristApp {
       }));
     }
     const link = path.join(docsRoot, `${docId}.grist`);
-    if (!await fse.pathExists(link)) {
-      await fse.symlink(target, link, 'junction');
+    if (!fse.pathExistsSync(link)) {
+      fse.symlinkSync(target, link);
     }
     this.openWindowForDoc(docId, openWith);
   }

@@ -59,6 +59,22 @@ yarn run electron:preview
 yarn run electron
 ```
 
+## Note for Windows users on importing documents
+
+Due to technical limitations, Grist Desktop relies on symlinks to manage imported
+Grist documents. This feature will not work correctly on Windows by default, due
+to a Windows security policy: non-admin users must obtain a specific permission
+to be able to create symlinks. Please note that Microsoft suggests granting this
+permission only to trusted users, as it could expose security vulnerabilities if
+used improperly. If you are aware of the security implications and still want to
+let Grist Desktop work with imported Grist documents properly, see [here](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-vista/cc766301(v=ws.10)?redirectedfrom=MSDN#create-symbolic-links)
+for details about the permission you need to grant yourself, and use the Group
+Policy Editor (`gpedit.msc`) to enable it for your Windows user.
+
+Grist Desktop 0.2.10 has been confirmed to work with this permission granted. If
+you are unwilling to grant it, please stay tuned as we work on a new solution
+that does not involve symlinks.
+
 ## Configure
 
 There's no configuration needed if you are just running Grist Desktop as a
@@ -69,7 +85,7 @@ For developers: You can create a `.env` file in the root directory of the app
 and set the environment variables there. If you are a Grist Desktop end user,
 consider using the config file instead.
 
-### Environment Variables
+### Environment variables
 
 **`GRIST_DEFAULT_USERNAME`**: The name of the default user. Only effective when
 Grist Desktop initializes its database during the first launch. Default: `You`
