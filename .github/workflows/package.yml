@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-14
+          - macos-13
           - ubuntu-22.04
           - windows-2022
         host:
