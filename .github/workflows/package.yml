@@ -124,5 +124,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
-          path: dist/grist-desktop-*
+          path: |
+            dist/grist-desktop-*.exe
+            dist/grist-desktop-*.AppImage
+            dist/grist-desktop-*.dmg
           if-no-files-found: "error"
