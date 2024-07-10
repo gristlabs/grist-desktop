@@ -25,7 +25,7 @@
     "setup": "./scripts/setup.sh && cd core && yarn run install:python",
     "build": "cd core && yarn run build:prod && resolve-tspaths",
     "paths": "cd core && resolve-tspaths",
-    "electron:preview": "electron core/_build/ext/app/electron/main.js",
+    "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "./scripts/ci.sh",
