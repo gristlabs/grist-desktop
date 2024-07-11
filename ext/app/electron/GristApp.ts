@@ -10,7 +10,7 @@ import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { FlexServer } from "app/server/lib/FlexServer";
 import { IDocStorageManager } from "app/server/lib/IDocStorageManager";
-import { MergedServer } from "app/server/mergedServerMain";
+import { MergedServer } from "app/server/MergedServer";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { makeId } from "app/server/lib/idUtils";

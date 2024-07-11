@@ -1,6 +1,6 @@
 import * as log from "app/server/lib/log";
 import * as path from "path";
-import { HomeDBManager } from "app/gen-server/lib/HomeDBManager";
+import { HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
 
 export class DocRegistry {
 
