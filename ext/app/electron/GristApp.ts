@@ -252,7 +252,7 @@ export class GristApp {
       });
     this.flexServer = mergedServer.flexServer;
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
-    mergedServer.run();
+    await mergedServer.run();
     const serverMethods = this.flexServer.electronServerMethods;
 
     const recentItems = new RecentItems({
