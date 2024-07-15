@@ -45,7 +45,7 @@ export class DocRegistry {
     return this.pathToIdMap.get(docPath) ?? null;
   }
 
-  public async registerDoc(docPath: string) {
+  public async registerDoc(docPath: string): Promise<string> {
     const user = await this.db.getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
     if (!user) { throw new Error('cannot find default user'); }
     const wss = this.db.unwrapQueryResult(await this.db.getOrgWorkspaces({userId: user.id}, 0));

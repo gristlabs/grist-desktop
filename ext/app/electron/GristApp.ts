@@ -17,6 +17,8 @@ import { makeId } from "app/server/lib/idUtils";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
 
+const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
+
 export class FileToOpen {
   private _path: string | undefined;
   public set path(docPath: string | undefined) {
@@ -35,7 +37,11 @@ export type InstanceHandoverInfo = {
   "fileToOpen": string;
 }
 
+
 export class GristApp {
+
+  private static _instance: GristApp; // The singleton instance.
+
   private readonly credential: string = makeId();
   // APP_HOME_URL is set by loadConfig
   private readonly appHost: string = process.env.APP_HOME_URL as string; // The hostname to connect to the local node server we start.
@@ -44,9 +50,16 @@ export class GristApp {
   private docRegistry: DocRegistry;
   private authMode: GristDesktopAuthMode;
 
-  public constructor() {
+  private constructor() {
     this.setupLogging();
     this.authMode = process.env.GRIST_DESKTOP_AUTH as GristDesktopAuthMode;
+  }
+
+  public static get instance(): GristApp {
+    if (!GristApp._instance) {
+      GristApp._instance = new GristApp();
+    }
+    return GristApp._instance;
   }
 
   /**
@@ -157,6 +170,8 @@ export class GristApp {
     // Register for title updates
     win.on("page-title-updated", async (event, title) => {
       event.preventDefault();
+      win.setTitle(title);
+      return;
 
       // Set represented filename (on macOS) to home directory if on Start page
       if (title === "Home - Grist") {
@@ -168,7 +183,7 @@ export class GristApp {
         docPath += (path.extname(docPath) === ".grist" ? "" : ".grist");
 
         try {
-          await fse.access(docPath);
+          await fse.access(docPath, fse.constants.F_OK);
           // If valid path, set to path
           win.setTitle(path.basename(docPath) + " (" + path.dirname(docPath) + ")");
           win.setRepresentedFilename(docPath);
@@ -233,6 +248,37 @@ export class GristApp {
     }    
   }
 
+  public async createDocument(): Promise<string|null> {
+    const result = await electron.dialog.showSaveDialog({
+      title: "Create a new Grist document",
+      buttonLabel: "Create",
+      filters: [GRIST_DOCUMENT_FILTER],
+    });
+    if (result.canceled) {
+      return null;
+    }
+    const docPath = result.filePath;
+    let fileExists = true;
+    try {
+      await fse.access(docPath, fse.constants.F_OK);
+    } catch {
+      fileExists = false;
+    }
+    if (fileExists) {
+      electron.dialog.showErrorBox("Cannot create document", `Document ${docPath} already exists.`);
+      return null;
+    }
+    await this.docRegistry.registerDoc(docPath);
+    return docPath;
+  }
+
+  public async createAndOpenDocument(): Promise<void> {
+    const docPath = await this.createDocument();
+    if (docPath) {
+      this.openGristDocument(docPath);
+    }
+  }
+
   private async onReady() {
 
     await updateDb();
@@ -265,19 +311,18 @@ export class GristApp {
     console.log(updateManager ? "updateManager loadable, but not used yet" : "");
 
     // TODO: file new still does something, but it doesn"t make a lot of sense.
-    appMenu.on("menu-file-new", () => this.createWindow().loadURL(this.getUrl()));
+    appMenu.on("menu-file-new", this.createAndOpenDocument.bind(this));
 
     appMenu.on("menu-file-open", async () => {
       const result = await electron.dialog.showOpenDialog({
         title: "Open existing Grist file",
         defaultPath: electron.app.getPath("documents"),
-        filters: [{ name: "Grist files", extensions: ["grist"] }],
+        filters: [GRIST_DOCUMENT_FILTER],
         // disabling extensions "csv", "xlsx", and "xlsm" for the moment.
         properties: ["openFile"]
       });
-      const files = result.filePaths;
-      if (files) {
-        await this.openGristDocument(files[0]);
+      if (!result.canceled) {
+        await this.openGristDocument(result.filePaths[0]);
       }
     });
 

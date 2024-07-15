@@ -78,11 +78,9 @@ if (!electron.app.requestSingleInstanceLock({
   process.exit(0);
 }
 
-let app: GristApp;
 loadConfig()
   .then(() => {
-    app = new GristApp();
-    app.run(fileToOpen);
+    GristApp.instance.run(fileToOpen);
   })
   .catch((err) => {
     log.error(`Failed to load config, aborting: ${err}`);
