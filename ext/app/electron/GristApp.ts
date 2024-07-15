@@ -257,7 +257,7 @@ export class GristApp {
     if (result.canceled) {
       return null;
     }
-    const docPath = result.filePath;
+    let docPath = result.filePath;
     let fileExists = true;
     try {
       await fse.access(docPath, fse.constants.F_OK);
@@ -267,6 +267,9 @@ export class GristApp {
     if (fileExists) {
       electron.dialog.showErrorBox("Cannot create document", `Document ${docPath} already exists.`);
       return null;
+    }
+    if (!docPath.endsWith(".grist")) {
+      docPath += ".grist";
     }
     await this.docRegistry.registerDoc(docPath);
     return docPath;
