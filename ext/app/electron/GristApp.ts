@@ -9,7 +9,6 @@ import { GristDesktopAuthMode, getMinimalElectronLoginSystem } from "app/electro
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { FlexServer } from "app/server/lib/FlexServer";
-import { IDocStorageManager } from "app/server/lib/IDocStorageManager";
 import { MergedServer } from "app/server/MergedServer";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
@@ -47,8 +46,8 @@ export class GristApp {
   private readonly appHost: string = process.env.APP_HOME_URL as string; // The hostname to connect to the local node server we start.
   private flexServer: FlexServer;
   private openDocs: Map<string, electron.BrowserWindow> = new Map();
-  private docRegistry: DocRegistry;
   private authMode: GristDesktopAuthMode;
+  public docRegistry: DocRegistry;
 
   private constructor() {
     this.setupLogging();
@@ -291,13 +290,7 @@ export class GristApp {
       port,
       ["home", "docs", "static", "app"],
       {
-        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode),
-        storageManagerDecorator: (manager: IDocStorageManager) => {
-          manager.getPath = (docId: string) => {
-            log.debug(`getPath ${docId} => ${this.docRegistry.lookupById(docId)}`);
-            return this.docRegistry.lookupById(docId) as string; // TODO: consider possible errors
-          };
-        }
+        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode)
       });
     this.flexServer = mergedServer.flexServer;
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
@@ -356,16 +349,6 @@ export class GristApp {
       appMenu.rebuildMenu();
       electron.Menu.setApplicationMenu(appMenu.getMenu());
     });
-
-    // serverMethods.onBackupMade((bakPath: string) => notifyMigrateBackup(bakPath));
-
-    // Check for updates, and check again periodically (if user declines, it"s the interval till
-    // the next reminder, so too short would be annoying).
-    //    if (updateManager.startAutoCheck()) {
-    //      updateManager.schedulePeriodicChecks(6*3600);
-    //    } else {
-    //      log.warn("updateManager not starting (known not to work on Linux)");
-    //    }
 
     // Now that we are ready, future "open-file" events should just open windows directly.
     electron.app.removeAllListeners("open-file");

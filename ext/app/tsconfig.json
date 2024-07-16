@@ -3,6 +3,7 @@
   "files": [],
   "include": [
     "electron/**/*",
+    "server/**/*",
     "../../stubs/app/common/version.ts",
     "../desktop.package.json",
   ],
