@@ -18,7 +18,7 @@ if (!electron.app.isPackaged) {
 import * as log from "app/server/lib/log";
 import * as packageJson from "desktop.package.json";
 import * as version from "app/common/version";
-import { FileToOpen, GristApp, InstanceHandoverInfo } from "app/electron/GristApp";
+import { FileToOpen, GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 
 // Mimic the behavior of a packaged app, where argv will not include "electron" and its arguments.
@@ -72,7 +72,7 @@ if (!electron.app.requestSingleInstanceLock({
   // Inform the running instance of the document we want to open, if any.
   // DocOpen will resolve the path to absolute.
   fileToOpen: fileToOpen.path
-} as InstanceHandoverInfo)) {
+})) {
   log.warn(`${packageJson.productName} is already running.`);
   // We exit before even launching the Grist server, so no cleanup is needed.
   process.exit(0);

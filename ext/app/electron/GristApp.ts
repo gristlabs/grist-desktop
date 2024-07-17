@@ -32,8 +32,13 @@ export class FileToOpen {
   }
 }
 
-export type InstanceHandoverInfo = {
-  "fileToOpen": string;
+type InstanceHandoverInfo = {
+  fileToOpen: string;
+}
+
+type NewDocument = {
+  path: string,
+  id: string
 }
 
 
@@ -247,7 +252,7 @@ export class GristApp {
     }    
   }
 
-  public async createDocument(): Promise<string|null> {
+  public async createDocument(): Promise<NewDocument|null> {
     const result = await electron.dialog.showSaveDialog({
       title: "Create a new Grist document",
       buttonLabel: "Create",
@@ -270,14 +275,17 @@ export class GristApp {
     if (!docPath.endsWith(".grist")) {
       docPath += ".grist";
     }
-    await this.docRegistry.registerDoc(docPath);
-    return docPath;
+    const docId = await this.docRegistry.registerDoc(docPath);
+    return {
+      "id": docId,
+      "path": docPath
+    };
   }
 
   public async createAndOpenDocument(): Promise<void> {
-    const docPath = await this.createDocument();
-    if (docPath) {
-      this.openGristDocument(docPath);
+    const doc = await this.createDocument();
+    if (doc) {
+      this.openGristDocument(doc.path);
     }
   }
 
