@@ -1,10 +1,10 @@
-type NewDocument = {
+export type NewDocument = {
   path: string,
   id: string
 }
 
-export interface IElectronAPI {
-  createDocAndOpen: () => Promise<NewDocument>,
+interface IElectronAPI {
+  createDoc: () => Promise<NewDocument>,
 }
 
 declare global {

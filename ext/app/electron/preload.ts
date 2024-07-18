@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Only expose what is necessary. See https://www.electronjs.org/docs/latest/tutorial/context-isolation
 // If anything gets added to electronAPI, app/client/electronAPI.d.ts needs to be updated with the typing.
 contextBridge.exposeInMainWorld("electronAPI", {
-  createDocAndOpen: () => ipcRenderer.invoke("create-document"),
+  createDoc: () => ipcRenderer.invoke("create-document"),
 });
 
 process.once('loaded', () => {
