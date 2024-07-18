@@ -4,6 +4,7 @@
   "include": [
     "electron/**/*",
     "server/**/*",
+    "client/**/*",
     "../../stubs/app/common/version.ts",
     "../desktop.package.json",
   ],

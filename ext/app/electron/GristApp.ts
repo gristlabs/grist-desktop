@@ -10,6 +10,7 @@ import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { FlexServer } from "app/server/lib/FlexServer";
 import { MergedServer } from "app/server/MergedServer";
+import { NewDocument } from "app/client/electronAPI";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { makeId } from "app/server/lib/idUtils";
@@ -35,12 +36,6 @@ export class FileToOpen {
 type InstanceHandoverInfo = {
   fileToOpen: string;
 }
-
-type NewDocument = {
-  path: string,
-  id: string
-}
-
 
 export class GristApp {
 
@@ -134,11 +129,88 @@ export class GristApp {
       enableWhiteListOnly: true,
     });
 
+    await updateDb();
+    const port = parseInt(process.env["GRIST_PORT"] as string, 10);
+    const mergedServer = await MergedServer.create(
+      port,
+      ["home", "docs", "static", "app"],
+      {
+        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode)
+      });
+    this.flexServer = mergedServer.flexServer;
+    this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
 
-    // on("ready") is too late to set up at this point.
-    // whenReady will resolve right away if the application is already ready.
-    await electron.app.whenReady();
-    await this.onReady().catch(reportErrorAndStop);
+    // Wait for both electron and the Grist server to fully initialize.
+    await Promise.all([mergedServer.run(), electron.app.whenReady()]);
+
+    const serverMethods = this.flexServer.electronServerMethods;
+
+    const recentItems = new RecentItems({
+      maxCount: 10,
+      intialItems: (await serverMethods.getUserConfig()).recentItems
+    });
+    const appMenu = new AppMenu(recentItems);
+    electron.Menu.setApplicationMenu(appMenu.getMenu());
+    const updateManager = new UpdateManager(appMenu);
+    console.log(updateManager ? "updateManager loadable, but not used yet" : "");
+
+    appMenu.on("menu-file-new", this.createAndOpenDocument.bind(this));
+
+    appMenu.on("menu-file-open", async () => {
+      const result = await electron.dialog.showOpenDialog({
+        title: "Open existing Grist file",
+        defaultPath: electron.app.getPath("documents"),
+        filters: [GRIST_DOCUMENT_FILTER],
+        // disabling extensions "csv", "xlsx", and "xlsm" for the moment.
+        properties: ["openFile"]
+      });
+      if (!result.canceled) {
+        await this.openGristDocument(result.filePaths[0]);
+      }
+    });
+
+    serverMethods.onDocOpen((filePath: string) => {
+      // Add to list of recent docs in the dock (mac) or the JumpList (win)
+      electron.app.addRecentDocument(filePath);
+      // Add to list of recent docs in the menu
+      recentItems.addItem(filePath);
+      serverMethods.updateUserConfig({ recentItems: recentItems.listItems() });
+      // TODO: Electron does not yet support updating the menu except by reassigning the entire
+      // menu.  There are proposals to allow menu templates include callbacks that
+      // are called on menu open.  https://github.com/electron/electron/issues/528
+      appMenu.rebuildMenu();
+      electron.Menu.setApplicationMenu(appMenu.getMenu());
+    });
+
+    // Now that we are ready, future "open-file" events should just open windows directly.
+    electron.app.removeAllListeners("open-file");
+    electron.app.on("open-file", (e, filepath) => {
+      e.preventDefault();
+      this.openFile(filepath);
+    });
+
+    // Shut down the Grist server gracefully when the application is closed.
+    electron.app.on("will-quit", function(event) {
+      event.preventDefault();
+      shutdown.exit(0);
+    });
+
+    // Quit when all windows are closed.
+    electron.app.on("window-all-closed", () => {
+      electron.app.quit();
+    });
+
+    // Plugins create <webview> elements with a "plugins" partition; here we add a special header
+    // to all such requests. Requests for plugin content without this header will be rejected by
+    // the server, to ensure that untrusted content is only loaded in protected <webview> elements.
+    electron.session.fromPartition("plugins").webRequest.onBeforeSendHeaders((details, callback) => {
+      details.requestHeaders["X-From-Plugin-WebView"] = "true";
+      callback({requestHeaders: details.requestHeaders});
+    });
+
+    // The "Create Empty Document" button sends this event via the electron context bridge.
+    electron.ipcMain.handle("create-document", this.createDocument.bind(this));
+
     if (docOpen.path === undefined) {
       this.showWelcome();
     } else {
@@ -163,7 +235,6 @@ export class GristApp {
       height: 768,
       webPreferences: {
         nodeIntegration: false,
-        // TODO: check if this still works (has path information).
         preload: path.join(__dirname, "preload.js"),
         webviewTag: true
       },
@@ -172,32 +243,31 @@ export class GristApp {
     });
 
     // Register for title updates
-    win.on("page-title-updated", async (event, title) => {
-      event.preventDefault();
-      win.setTitle(title);
-      return;
-
-      // Set represented filename (on macOS) to home directory if on Start page
-      if (title === "Home - Grist") {
-        const docPath = electron.app.getPath("documents");
-        win.setTitle(path.basename(docPath));
-        win.setRepresentedFilename(docPath);
-      } else {
-        let docPath = path.resolve(electron.app.getPath("documents"), title);
-        docPath += (path.extname(docPath) === ".grist" ? "" : ".grist");
-
-        try {
-          await fse.access(docPath, fse.constants.F_OK);
-          // If valid path, set to path
-          win.setTitle(path.basename(docPath) + " (" + path.dirname(docPath) + ")");
-          win.setRepresentedFilename(docPath);
-        } catch(err) {
-          // If not valid path, leave title as-is and don"t set the represented file
-          win.setTitle(title);
-          win.setRepresentedFilename("");
-        }
-      }
-    });
+    // win.on("page-title-updated", async (event, title) => {
+    //   event.preventDefault();
+    //   win.setTitle(title);
+    //
+    //   // Set represented filename (on macOS) to home directory if on Start page
+    //   if (title === "Home - Grist") {
+    //     const docPath = electron.app.getPath("documents");
+    //     win.setTitle(path.basename(docPath));
+    //     win.setRepresentedFilename(docPath);
+    //   } else {
+    //     let docPath = path.resolve(electron.app.getPath("documents"), title);
+    //     docPath += (path.extname(docPath) === ".grist" ? "" : ".grist");
+    //
+    //     try {
+    //       await fse.access(docPath, fse.constants.F_OK);
+    //       // If valid path, set to path
+    //       win.setTitle(path.basename(docPath) + " (" + path.dirname(docPath) + ")");
+    //       win.setRepresentedFilename(docPath);
+    //     } catch(err) {
+    //       // If not valid path, leave title as-is and don"t set the represented file
+    //       win.setTitle(title);
+    //       win.setRepresentedFilename("");
+    //     }
+    //   }
+    // });
 
     // If browser JS called window.open(), open it in an external browser if it"s a non-local URL.
     win.webContents.setWindowOpenHandler((details) => {
@@ -252,6 +322,10 @@ export class GristApp {
     }    
   }
 
+  /**
+   * Show a dialog asking the user for a location, and create a new Grist document there.
+   * The document is added to the home DB, but not actually created in the filesystem until opened.
+   */
   public async createDocument(): Promise<NewDocument|null> {
     const result = await electron.dialog.showSaveDialog({
       title: "Create a new Grist document",
@@ -289,101 +363,6 @@ export class GristApp {
     }
   }
 
-  private async onReady() {
-
-    await updateDb();
-
-    const port = parseInt(process.env["GRIST_PORT"] as string, 10);
-    const mergedServer = await MergedServer.create(
-      port,
-      ["home", "docs", "static", "app"],
-      {
-        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode)
-      });
-    this.flexServer = mergedServer.flexServer;
-    this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
-    await mergedServer.run();
-    const serverMethods = this.flexServer.electronServerMethods;
-
-    const recentItems = new RecentItems({
-      maxCount: 10,
-      intialItems: (await serverMethods.getUserConfig()).recentItems
-    });
-    const appMenu = new AppMenu(recentItems);
-    electron.Menu.setApplicationMenu(appMenu.getMenu());
-    const updateManager = new UpdateManager(appMenu);
-    console.log(updateManager ? "updateManager loadable, but not used yet" : "");
-
-    // TODO: file new still does something, but it doesn"t make a lot of sense.
-    appMenu.on("menu-file-new", this.createAndOpenDocument.bind(this));
-
-    appMenu.on("menu-file-open", async () => {
-      const result = await electron.dialog.showOpenDialog({
-        title: "Open existing Grist file",
-        defaultPath: electron.app.getPath("documents"),
-        filters: [GRIST_DOCUMENT_FILTER],
-        // disabling extensions "csv", "xlsx", and "xlsm" for the moment.
-        properties: ["openFile"]
-      });
-      if (!result.canceled) {
-        await this.openGristDocument(result.filePaths[0]);
-      }
-    });
-
-    // If we get a request to show the Open-File dialog, do so, and load the result file if one
-    // is selected.
-    electron.ipcMain.on("show-open-dialog", async () => {
-      const result = await electron.dialog.showOpenDialog({
-        title: "Open existing Grist file",
-        defaultPath: electron.app.getPath("documents"),
-        filters: [{ name: "Grist files", extensions: ["grist"] }],
-        properties: ["openFile"]
-      });
-      const files = result.filePaths;
-      if (files) {
-        this.openGristDocument(files[0]);
-      }
-    });
-
-    serverMethods.onDocOpen((filePath: string) => {
-      // Add to list of recent docs in the dock (mac) or the JumpList (win)
-      electron.app.addRecentDocument(filePath);
-      // Add to list of recent docs in the menu
-      recentItems.addItem(filePath);
-      serverMethods.updateUserConfig({ recentItems: recentItems.listItems() });
-      // TODO: Electron does not yet support updating the menu except by reassigning the entire
-      // menu.  There are proposals to allow menu templates include callbacks that
-      // are called on menu open.  https://github.com/electron/electron/issues/528
-      appMenu.rebuildMenu();
-      electron.Menu.setApplicationMenu(appMenu.getMenu());
-    });
-
-    // Now that we are ready, future "open-file" events should just open windows directly.
-    electron.app.removeAllListeners("open-file");
-    electron.app.on("open-file", (e, filepath) => {
-      e.preventDefault();
-      this.openFile(filepath);
-    });
-
-    electron.app.on("will-quit", function(event) {
-      event.preventDefault();
-      shutdown.exit(0);
-    });
-
-    // Quit when all windows are closed.
-    electron.app.on("window-all-closed", () => {
-      electron.app.quit();
-    });
-
-    // Plugins create <webview> elements with a "plugins" partition; here we add a special header
-    // to all such requests. Requests for plugin content without this header will be rejected by
-    // the server, to ensure that untrusted content is only loaded in protected <webview> elements.
-    electron.session.fromPartition("plugins").webRequest.onBeforeSendHeaders((details, callback) => {
-      details.requestHeaders["X-From-Plugin-WebView"] = "true";
-      callback({requestHeaders: details.requestHeaders});
-    });
-  }
-
   private reportError(e: Error) {
     electron.dialog.showMessageBoxSync({
       type: "info",
@@ -395,7 +374,3 @@ export class GristApp {
 
 }
 
-function reportErrorAndStop(e: Error) {
-  console.error(e);
-  process.exit(1);
-}
