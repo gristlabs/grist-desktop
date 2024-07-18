@@ -5,7 +5,7 @@ import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
 import * as winston from "winston";
-import { GristDesktopAuthMode, getMinimalElectronLoginSystem } from "app/electron/logins";
+import { GristDesktopAuthMode } from "app/electron/LoginSystem";
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { FlexServer } from "app/server/lib/FlexServer";
@@ -131,12 +131,7 @@ export class GristApp {
 
     await updateDb();
     const port = parseInt(process.env["GRIST_PORT"] as string, 10);
-    const mergedServer = await MergedServer.create(
-      port,
-      ["home", "docs", "static", "app"],
-      {
-        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode)
-      });
+    const mergedServer = await MergedServer.create(port, ["home", "docs", "static", "app"]);
     this.flexServer = mergedServer.flexServer;
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
 
@@ -240,6 +235,10 @@ export class GristApp {
       },
       backgroundColor: "#42494B",
       autoHideMenuBar: false,
+    });
+
+    win.webContents.on("did-navigate", (event, url) => {
+      log.error(url);
     });
 
     // Register for title updates

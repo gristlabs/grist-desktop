@@ -1,6 +1,7 @@
 import { ICreate, makeSimpleCreator } from "app/server/lib/ICreate";
 import { GristApp } from "ext/app/electron/GristApp";
 import { IDocStorageManager } from "app/server/lib/IDocStorageManager";
+import { getElectronLoginSystem } from "app/electron/LoginSystem";
 import log from "app/server/lib/log";
 
 export const create: ICreate = makeSimpleCreator({
@@ -13,6 +14,7 @@ export const create: ICreate = makeSimpleCreator({
       return docRegistry.lookupById(docId) as string; // TODO: consider possible errors
     };
   },
+  getLoginSystem: getElectronLoginSystem,
 });
 
 export function getCreator(): ICreate {
