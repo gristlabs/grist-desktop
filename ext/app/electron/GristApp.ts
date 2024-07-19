@@ -1,21 +1,19 @@
 import * as electron from "electron";
-import * as fse from "fs-extra";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
-import * as winston from "winston";
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
+import { Document } from "app/gen-server/entity/Document";
 import { FlexServer } from "app/server/lib/FlexServer";
 import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
+import { fileExists } from "./utils";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
-import { Document } from "app/gen-server/entity/Document";
-import { fileExists } from "./utils";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 
@@ -42,14 +40,12 @@ export class GristApp {
   private static _instance: GristApp; // The singleton instance.
 
   // This is referenced by create.ts.
-  // TODO: Should we make DocRegistry its own singleton class?
+  // TODO: Should we make DocRegistry its own singleton class? (To avoid circular import.)
   public docRegistry: DocRegistry;
   private flexServer: FlexServer;
   private windowManager: WindowManager;
 
-  private constructor() {
-    this.setupLogging();
-  }
+  private constructor() {}
 
   public static get instance(): GristApp {
     if (!GristApp._instance) {
@@ -84,8 +80,7 @@ export class GristApp {
       case ".csv":
       case ".xlsx":
       case ".xlsm": {
-        // TODO: We can do better: Create the Grist document in /tmp (or a similar location) and
-        // ask the user to save manually to a location they prefer.
+        // TODO: This is currently just a stub that says "not implemented".
         const doc = await this.flexServer.electronServerMethods.importDoc(filepath);
         const docPath = path.resolve(process.env.GRIST_DATA_DIR as string, doc.id, ".grist");
         this.openGristDocument(docPath);
@@ -213,47 +208,6 @@ export class GristApp {
     } else {
       this.openFile(docOpen.path);
     }
-  }
-
-  /**
-   * Generally, our debug log output is discarded when running on Mac as a standalone application.
-   * For debug output, we will append log to ~/grist_debug.log, but only if it exists.
-   *
-   * So, to enable logging: `touch ~/grist_debug.log`
-   * To disable logging:    `rm ~/grist_debug.log`
-   * To clear the log:      `rm ~/grist_debug.log; touch ~/grist_debug.log`
-   *
-   * In summary:
-   * - When running app from finder or "open" command, no debug output.
-   * - When running from terminal as "Grist.app/Contents/MacOS/Grist, debug output goes to console.
-   * - When ~/grist_debug.log exists, log also to that file.
-   */
-  private setupLogging() {
-    const debugLogPath = (process.env.GRIST_LOG_PATH ||
-      path.join(electron.app.getPath("home"), "grist_debug.log"));
-
-    if (process.env.GRIST_LOG_PATH || fse.existsSync(debugLogPath)) {
-      const output = fse.createWriteStream(debugLogPath, { flags: "a" });
-      output.on("error", (err) => log.error("Failed to open %s: %s", debugLogPath, err));
-      output.on("open", () => {
-        log.info("Logging also to %s", debugLogPath);
-        output.write("\n--- log starting by pid " + process.pid + " ---\n");
-
-        const fileTransportOptions = {
-          name: "debugLog",
-          stream: output,
-          level: "debug",
-          timestamp: log.timestamp,
-          colorize: true,
-          json: false
-        };
-
-        // TODO: This does not log HTTP requests to the file. For that we may want to use
-        // "express-winston" module, and possibly update winston (we are far behind).
-        log.add(winston.transports.File, fileTransportOptions);
-        winston.add(winston.transports.File, fileTransportOptions);
-      });
-    }    
   }
 
   /**

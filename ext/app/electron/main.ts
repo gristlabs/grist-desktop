@@ -20,6 +20,7 @@ import * as packageJson from "desktop.package.json";
 import * as version from "app/common/version";
 import { FileToOpen, GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
+import { setupLogging } from "./logging";
 
 // Mimic the behavior of a packaged app, where argv will not include "electron" and its arguments.
 // Example:
@@ -80,6 +81,7 @@ if (!electron.app.requestSingleInstanceLock({
 
 loadConfig()
   .then(() => {
+    setupLogging();
     GristApp.instance.run(fileToOpen);
   })
   .catch((err) => {
