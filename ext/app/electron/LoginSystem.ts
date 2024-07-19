@@ -34,6 +34,14 @@ export class ElectronLoginSystem implements GristLoginSystem {
     this.authMode = process.env.GRIST_DESKTOP_AUTH as GristDesktopAuthMode;
   }
 
+  public authenticateURL(url: URL) {
+    const newUrl = new URL(url);
+    if (this.authMode !== "none") {
+      newUrl.searchParams.set("electron_key", this.credential);
+    }
+    return newUrl;
+  }
+
   public static get instance() {
     if (!ElectronLoginSystem._instance) {
       ElectronLoginSystem._instance = new ElectronLoginSystem();

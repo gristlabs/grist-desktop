@@ -1,11 +1,9 @@
 import * as electron from "electron";
 import * as fse from "fs-extra";
-import * as gutil from "app/common/gutil";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
 import * as winston from "winston";
-import { GristDesktopAuthMode } from "app/electron/LoginSystem";
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { FlexServer } from "app/server/lib/FlexServer";
@@ -13,9 +11,10 @@ import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
-import { makeId } from "app/server/lib/idUtils";
+import { WindowManager } from "app/electron/WindowManager";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
+import { Document } from "app/gen-server/entity/Document";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 
@@ -41,17 +40,14 @@ export class GristApp {
 
   private static _instance: GristApp; // The singleton instance.
 
-  private readonly credential: string = makeId();
-  // APP_HOME_URL is set by loadConfig
-  private readonly appHost: string = process.env.APP_HOME_URL as string; // The hostname to connect to the local node server we start.
-  private flexServer: FlexServer;
-  private openDocs: Map<string, electron.BrowserWindow> = new Map();
-  private authMode: GristDesktopAuthMode;
+  // This is referenced by create.ts.
+  // TODO: Should we make DocRegistry its own singleton class?
   public docRegistry: DocRegistry;
+  private flexServer: FlexServer;
+  private windowManager: WindowManager;
 
   private constructor() {
     this.setupLogging();
-    this.authMode = process.env.GRIST_DESKTOP_AUTH as GristDesktopAuthMode;
   }
 
   public static get instance(): GristApp {
@@ -64,8 +60,8 @@ export class GristApp {
   /**
    * Opens a Grist document at docPath.
    */
-  private async openGristDocument(docPath: string) {
-    log.debug(`Opening Grist document ${docPath}`);
+  private async openGristDocument(docPath: string, win?: electron.BrowserWindow) {
+    log.error(`Opening Grist document ${docPath}`);
     // Do we know about this document?
     let docId = this.docRegistry.lookupByPath(docPath);
     if (docId === null) {
@@ -74,20 +70,7 @@ export class GristApp {
     } else {
       log.debug(`Got docId ${docId}`);
     }
-    // Is it already open?
-    const win = this.openDocs.get(docId);
-    if (win !== undefined) {
-      win.show();
-    } else {
-      const win = this.createWindow();
-      win.loadURL(this.getUrl(docId));
-      win.on("closed", () => this.openDocs.delete(docId as string));
-      this.openDocs.set(docId, win);
-    }
-  }
-
-  public async showWelcome() {
-    this.createWindow().loadURL(this.getUrl());
+    (win || this.windowManager.getOrAdd(docId)).show();
   }
 
   /**
@@ -134,6 +117,18 @@ export class GristApp {
     const mergedServer = await MergedServer.create(port, ["home", "docs", "static", "app"]);
     this.flexServer = mergedServer.flexServer;
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
+    // TODO: Move the Doc ID lookup function somewhere else.
+    this.windowManager = new WindowManager(this.flexServer.getGristConfig(), async (docIdOrUrlId) => {
+      if (this.docRegistry.lookupById(docIdOrUrlId) == null) {
+        // DocRegistry does not know about this doc ID, so this must be an URL ID.
+        return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
+          .select("docs")
+          .from(Document, "docs")
+          .where('docs.url_id = :urlId', {urlId: docIdOrUrlId})
+          .getRawAndEntities()).entities[0].id;
+      }
+      return ""
+    });
 
     // Wait for both electron and the Grist server to fully initialize.
     await Promise.all([mergedServer.run(), electron.app.whenReady()]);
@@ -149,7 +144,15 @@ export class GristApp {
     const updateManager = new UpdateManager(appMenu);
     console.log(updateManager ? "updateManager loadable, but not used yet" : "");
 
-    appMenu.on("menu-file-new", this.createAndOpenDocument.bind(this));
+    appMenu.on("menu-file-new", async (win: electron.BrowserWindow) => {
+      const doc = await this.createDocument();
+      if (doc) {
+        win.loadURL(this.windowManager.getUrl(doc.id));
+      }
+    });
+
+    // The "Create Empty Document" button sends this event via the electron context bridge.
+    electron.ipcMain.handle("create-document", this.createDocument.bind(this));
 
     appMenu.on("menu-file-open", async () => {
       const result = await electron.dialog.showOpenDialog({
@@ -203,81 +206,11 @@ export class GristApp {
       callback({requestHeaders: details.requestHeaders});
     });
 
-    // The "Create Empty Document" button sends this event via the electron context bridge.
-    electron.ipcMain.handle("create-document", this.createDocument.bind(this));
-
     if (docOpen.path === undefined) {
-      this.showWelcome();
+      this.windowManager.getOrAdd(null);
     } else {
       this.openFile(docOpen.path);
     }
-  }
-
-  private getUrl(docID?: string) {
-    const url = new URL(this.appHost);
-    if (docID) {
-      url.pathname = "doc/" + encodeURIComponent(docID);
-    }
-    if (this.authMode !== "none") {
-      url.searchParams.set("electron_key", this.credential);
-    }
-    return url.href;
-  }
-
-  private createWindow() {
-    const win = new electron.BrowserWindow({
-      width: 1024,
-      height: 768,
-      webPreferences: {
-        nodeIntegration: false,
-        preload: path.join(__dirname, "preload.js"),
-        webviewTag: true
-      },
-      backgroundColor: "#42494B",
-      autoHideMenuBar: false,
-    });
-
-    win.webContents.on("did-navigate", (event, url) => {
-      log.error(url);
-    });
-
-    // Register for title updates
-    // win.on("page-title-updated", async (event, title) => {
-    //   event.preventDefault();
-    //   win.setTitle(title);
-    //
-    //   // Set represented filename (on macOS) to home directory if on Start page
-    //   if (title === "Home - Grist") {
-    //     const docPath = electron.app.getPath("documents");
-    //     win.setTitle(path.basename(docPath));
-    //     win.setRepresentedFilename(docPath);
-    //   } else {
-    //     let docPath = path.resolve(electron.app.getPath("documents"), title);
-    //     docPath += (path.extname(docPath) === ".grist" ? "" : ".grist");
-    //
-    //     try {
-    //       await fse.access(docPath, fse.constants.F_OK);
-    //       // If valid path, set to path
-    //       win.setTitle(path.basename(docPath) + " (" + path.dirname(docPath) + ")");
-    //       win.setRepresentedFilename(docPath);
-    //     } catch(err) {
-    //       // If not valid path, leave title as-is and don"t set the represented file
-    //       win.setTitle(title);
-    //       win.setRepresentedFilename("");
-    //     }
-    //   }
-    // });
-
-    // If browser JS called window.open(), open it in an external browser if it"s a non-local URL.
-    win.webContents.setWindowOpenHandler((details) => {
-      if (!gutil.startsWith(details.url, this.appHost)) {
-        electron.shell.openExternal(details.url);
-        return {action: "deny"};
-      }
-      return {action: "allow"};
-    });
-
-    return win;
   }
 
   /**
@@ -353,13 +286,6 @@ export class GristApp {
       "id": docId,
       "path": docPath
     };
-  }
-
-  public async createAndOpenDocument(): Promise<void> {
-    const doc = await this.createDocument();
-    if (doc) {
-      this.openGristDocument(doc.path);
-    }
   }
 
   private reportError(e: Error) {

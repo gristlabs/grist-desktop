@@ -1,4 +1,3 @@
-import * as log from "app/server/lib/log";
 import * as path from "path";
 import { HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
 
@@ -25,13 +24,9 @@ export class DocRegistry {
         // Cache the two-way mapping docID <-> path.
         dr.idToPathMap.set(doc.id, doc.options?.externalId);
         dr.pathToIdMap.set(doc.options?.externalId, doc.id);
-        log.info(`Document ${doc.id} has path ${doc.options?.externalId}`);
       } else {
         // Remove this document - it should not appear in a DB for Grist Desktop.
-        // TODO: do we need a transaction to do this?
-        await dr.db.connection.transaction(async manager => {
-          manager.remove(doc);
-        });
+        await dr.db.connection.manager.remove(doc);
       }
     }
     return dr;
