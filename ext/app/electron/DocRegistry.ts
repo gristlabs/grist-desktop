@@ -1,5 +1,6 @@
 import * as path from "path";
 import { HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
+import { fileExists } from "./utils";
 
 export class DocRegistry {
 
@@ -20,13 +21,17 @@ export class DocRegistry {
     // Go over all documents we know about.
     for (const doc of await dr.db.getAllDocs()) {
       // All documents are supposed to have externalId set.
-      if (doc.options?.externalId) {
+      const docPath = doc.options?.externalId;
+      if (docPath && fileExists(docPath)) {
         // Cache the two-way mapping docID <-> path.
-        dr.idToPathMap.set(doc.id, doc.options?.externalId);
-        dr.pathToIdMap.set(doc.options?.externalId, doc.id);
+        dr.idToPathMap.set(doc.id, docPath);
+        dr.pathToIdMap.set(docPath, doc.id);
       } else {
         // Remove this document - it should not appear in a DB for Grist Desktop.
-        await dr.db.connection.manager.remove(doc);
+        await dr.db.deleteDocument({
+          userId: (await dr.getDefaultUser()).id,
+          urlId: doc.id
+        });
       }
     }
     return dr;
@@ -40,10 +45,15 @@ export class DocRegistry {
     return this.pathToIdMap.get(docPath) ?? null;
   }
 
-  public async registerDoc(docPath: string): Promise<string> {
+  private async getDefaultUser() {
     const user = await this.db.getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
     if (!user) { throw new Error('cannot find default user'); }
-    const wss = this.db.unwrapQueryResult(await this.db.getOrgWorkspaces({userId: user.id}, 0));
+    return user;
+  }
+
+  public async registerDoc(docPath: string): Promise<string> {
+    const defaultUser = await this.getDefaultUser();
+    const wss = this.db.unwrapQueryResult(await this.db.getOrgWorkspaces({userId: defaultUser.id}, 0));
     for (const doc of wss[0].docs) {
       if (doc.options?.externalId === docPath) {
         // We might be able to do better.
@@ -51,7 +61,7 @@ export class DocRegistry {
       }
     }
     const docId = this.db.unwrapQueryResult(await this.db.addDocument({
-      userId: user.id,
+      userId: defaultUser.id,
     }, wss[0].id, {
       name: path.basename(docPath, '.grist'),
       options: { externalId: docPath },

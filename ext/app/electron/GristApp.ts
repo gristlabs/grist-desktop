@@ -15,6 +15,7 @@ import { WindowManager } from "app/electron/WindowManager";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
 import { Document } from "app/gen-server/entity/Document";
+import { fileExists } from "./utils";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 
@@ -61,7 +62,7 @@ export class GristApp {
    * Opens a Grist document at docPath.
    */
   private async openGristDocument(docPath: string, win?: electron.BrowserWindow) {
-    log.error(`Opening Grist document ${docPath}`);
+    log.debug(`Opening Grist document ${docPath}`);
     // Do we know about this document?
     let docId = this.docRegistry.lookupByPath(docPath);
     if (docId === null) {
@@ -119,7 +120,7 @@ export class GristApp {
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
     // TODO: Move the Doc ID lookup function somewhere else.
     this.windowManager = new WindowManager(this.flexServer.getGristConfig(), async (docIdOrUrlId) => {
-      if (this.docRegistry.lookupById(docIdOrUrlId) == null) {
+      if (this.docRegistry.lookupById(docIdOrUrlId) === null) {
         // DocRegistry does not know about this doc ID, so this must be an URL ID.
         return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
           .select("docs")
@@ -127,7 +128,8 @@ export class GristApp {
           .where('docs.url_id = :urlId', {urlId: docIdOrUrlId})
           .getRawAndEntities()).entities[0].id;
       }
-      return ""
+      // Otherwise it is a doc ID already. Return as-is.
+      return docIdOrUrlId;
     });
 
     // Wait for both electron and the Grist server to fully initialize.
@@ -268,13 +270,7 @@ export class GristApp {
       return null;
     }
     let docPath = result.filePath;
-    let fileExists = true;
-    try {
-      await fse.access(docPath, fse.constants.F_OK);
-    } catch {
-      fileExists = false;
-    }
-    if (fileExists) {
+    if (fileExists(docPath)) {
       electron.dialog.showErrorBox("Cannot create document", `Document ${docPath} already exists.`);
       return null;
     }

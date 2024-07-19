@@ -50,9 +50,8 @@ export class ElectronLoginSystem implements GristLoginSystem {
   }
 
   async getMiddleware(gristServer: GristServer) {
-    const loginSystem = this;
-    async function getLoginRedirectUrl(req: Request, url: URL) {
-      if (loginSystem.authMode !== 'none' && !(req as any).electronDirect) {
+    const getLoginRedirectUrl = async (req: Request, url: URL) => {
+      if (this.authMode !== 'none' && !(req as any).electronDirect) {
         return getOrgUrl(req) + 'electron_only';
       }
       await setUserInSession(req, gristServer, getProfile());
@@ -61,10 +60,10 @@ export class ElectronLoginSystem implements GristLoginSystem {
     const middleware: GristLoginMiddleware = {
       getLoginRedirectUrl,
       getSignUpRedirectUrl: getLoginRedirectUrl,
-      async getLogoutRedirectUrl(_: Request, url: URL) {
+      getLogoutRedirectUrl: async (_: Request, url: URL) => {
         return url.href;
       },
-      async addEndpoints(app) {
+      addEndpoints: async (app) => {
         // Make sure default user exists.
         const dbManager = gristServer.getHomeDBManager();
         const profile = getProfile();
@@ -80,8 +79,8 @@ export class ElectronLoginSystem implements GristLoginSystem {
         }));
         return 'electron-login';
       },
-      getWildcardMiddleware() {
-        if (loginSystem.authMode === 'none') {
+      getWildcardMiddleware: () => {
+        if (this.authMode === 'none') {
           return [];
         }
         return [expressWrap(async (req, res, next) => {
@@ -95,7 +94,7 @@ export class ElectronLoginSystem implements GristLoginSystem {
           if (keyPresented && keyPresented !== keyRemembered) {
             res.cookie('electron_key', keyPresented);
           }
-          if (keyPresented === loginSystem.credential || keyRemembered === loginSystem.credential) {
+          if (keyPresented === this.credential || keyRemembered === this.credential) {
             (req as any).electronDirect = true;
           }
           return next();
