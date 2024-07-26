@@ -56,7 +56,7 @@ export class ElectronLoginSystem implements GristLoginSystem {
       }
       await setUserInSession(req, gristServer, getProfile());
       return url.href;
-    }
+    };
     const middleware: GristLoginMiddleware = {
       getLoginRedirectUrl,
       getSignUpRedirectUrl: getLoginRedirectUrl,

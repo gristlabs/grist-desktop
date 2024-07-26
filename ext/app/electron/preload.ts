@@ -5,6 +5,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // If anything gets added to electronAPI, app/client/electronAPI.d.ts needs to be updated with the typing.
 contextBridge.exposeInMainWorld("electronAPI", {
   createDoc: () => ipcRenderer.invoke("create-document"),
+  importDoc: (uploadId: number) => ipcRenderer.invoke("import-document", uploadId),
 });
 
 process.once('loaded', () => {

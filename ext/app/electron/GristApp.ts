@@ -11,9 +11,12 @@ import { NewDocument } from "app/client/electronAPI";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
-import { fileExists } from "./utils";
+import { fileCreatable, fileExists } from "app/electron/utils";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
+import { ActiveDoc } from "app/server/lib/ActiveDoc";
+import { globalUploadSet } from "app/server/lib/uploads";
+import { OptDocSession } from "app/server/lib/DocSession";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 
@@ -148,8 +151,11 @@ export class GristApp {
       }
     });
 
-    // The "Create Empty Document" button sends this event via the electron context bridge.
-    electron.ipcMain.handle("create-document", this.createDocument.bind(this));
+    // The following events are sent through the electron context bridge.
+    // "Create Empty Document".
+    electron.ipcMain.handle("create-document", (_event) => this.createDocument());
+    // "Import Document", after dealing with file upload.
+    electron.ipcMain.handle("import-document", (_event, importUploadId) => this.createDocument(importUploadId));
 
     appMenu.on("menu-file-open", async () => {
       const result = await electron.dialog.showOpenDialog({
@@ -210,42 +216,78 @@ export class GristApp {
     }
   }
 
-  /**
-   * Show a dialog asking the user for a location, and create a new Grist document there.
-   * The document is added to the home DB, but not actually created in the filesystem until opened.
-   */
-  public async createDocument(): Promise<NewDocument|null> {
+  private async askNewGristDocPath(): Promise<string|null> {
     const result = await electron.dialog.showSaveDialog({
-      title: "Create a new Grist document",
-      buttonLabel: "Create",
+      title: "Save new Grist document",
+      buttonLabel: "Save",
       filters: [GRIST_DOCUMENT_FILTER],
     });
     if (result.canceled) {
       return null;
     }
-    let docPath = result.filePath;
+    const docPath = result.filePath.endsWith(".grist")
+      ? result.filePath
+      : result.filePath + ".grist";
     if (fileExists(docPath)) {
       electron.dialog.showErrorBox("Cannot create document", `Document ${docPath} already exists.`);
       return null;
     }
-    if (!docPath.endsWith(".grist")) {
-      docPath += ".grist";
+    if (!fileCreatable(docPath)) {
+      electron.dialog.showErrorBox("Cannot create document", `Selected location ${docPath} is not writable.`);
+      return null;
+    }
+    return docPath;
+  }
+
+  /**
+   * Show a dialog asking the user for a location, and create a new Grist document there.
+   * The document is added to the home DB, but not actually created in the filesystem until opened.
+   * If importUploadId is specified, import data from the uploaded file associated with such ID. This implements the
+   * home page import functionality of grist-core.
+   *
+   * TODO: Investigate ways to map the source file into the sandbox without "uploading" it.
+   * The actual import is done by the data engine, which runs in a sandbox by default, hence cannot access arbitrary
+   * files on the host filesystem.
+   * It is suboptimal to have to "upload" the file first, but this reuses grist-core's infrastructure to help us avoid
+   * dealing with various sandbox flavors individually.
+   */
+  public async createDocument(importUploadId?: number): Promise<NewDocument|null> {
+    const docPath = await this.askNewGristDocPath();
+    if (!docPath) {
+      return null;
     }
     const docId = await this.docRegistry.registerDoc(docPath);
+
+    if (importUploadId !== undefined) {
+      // TODO: Move getDefaultUser out of DocRegistry.
+      const accessId = this.flexServer.getDocManager().makeAccessId((await this.docRegistry.getDefaultUser()).id);
+      const uploadInfo = globalUploadSet.getUploadInfo(importUploadId, accessId);
+      const activeDoc = new ActiveDoc(this.flexServer.getDocManager(), docId);
+      // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
+      // leading to an error when grist-core later moves the uploaded file.
+      await activeDoc.docPluginManager!.ready;
+      // Fake a session required by the server. "system" mode gives us the owner role on the new document.
+      const fakeDocSession: OptDocSession = {client: null, mode: "system"};
+      await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
+      // This uses the same oneStepImport function that grist-core DocManager's _doImport invokes.
+      // TODO: Show a loading UI when the import is in progress.
+      // The import process could take several seconds for a small csv file, or longer for larger files.
+      await activeDoc.oneStepImport(fakeDocSession, uploadInfo);
+    }
+
     return {
-      "id": docId,
-      "path": docPath
+      id: docId,
+      path: docPath
     };
   }
 
   private reportError(e: Error) {
     electron.dialog.showMessageBoxSync({
       type: "info",
-      buttons: ["Ok"],
+      buttons: ["OK"],
       message: "Error",
       detail: String(e)
     });
   }
 
 }
-

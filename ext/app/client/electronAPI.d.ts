@@ -5,6 +5,7 @@ export type NewDocument = {
 
 interface IElectronAPI {
   createDoc: () => Promise<NewDocument>,
+  importDoc: (uploadId: number) => Promise<NewDocument>,
 }
 
 declare global {

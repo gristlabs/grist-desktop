@@ -45,7 +45,7 @@ export class DocRegistry {
     return this.pathToIdMap.get(docPath) ?? null;
   }
 
-  private async getDefaultUser() {
+  public async getDefaultUser() {
     const user = await this.db.getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
     if (!user) { throw new Error('cannot find default user'); }
     return user;
