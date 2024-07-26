@@ -2,21 +2,22 @@ import * as electron from "electron";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
+import { fileCreatable, fileExists } from "app/electron/utils";
+import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
 import { Document } from "app/gen-server/entity/Document";
 import { FlexServer } from "app/server/lib/FlexServer";
+import { IMPORTABLE_EXTENSIONS } from "app/client/lib/uploads";
 import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
+import { OptDocSession } from "app/server/lib/DocSession";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
-import { fileCreatable, fileExists } from "app/electron/utils";
+import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
-import { ActiveDoc } from "app/server/lib/ActiveDoc";
-import { globalUploadSet } from "app/server/lib/uploads";
-import { OptDocSession } from "app/server/lib/DocSession";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 
@@ -74,24 +75,18 @@ export class GristApp {
   }
 
   /**
-   * Opens the file at filepath. File can be of any accepted type, including grist, csv, and xls[x,m].
+   * Opens the file at filepath. File can be a Grist document, or an importable document.
+   * Import has not been implemented yet, and will just throw an error for now.
    */
   public async openFile(filepath: string) {
     log.debug(`Opening file ${filepath}`);
     const ext = path.extname(filepath);
-    switch (ext) {
-      case ".csv":
-      case ".xlsx":
-      case ".xlsm": {
-        // TODO: This is currently just a stub that says "not implemented".
-        const doc = await this.flexServer.electronServerMethods.importDoc(filepath);
-        const docPath = path.resolve(process.env.GRIST_DATA_DIR as string, doc.id, ".grist");
-        this.openGristDocument(docPath);
-        break;
-      }
-      default:
-        await this.openGristDocument(filepath).catch(e => this.reportError(e));
-        break;
+    if (ext === ".grist") {
+      await this.openGristDocument(filepath);
+    } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
+      throw new Error("Import has not been implemented");
+    } else {
+      throw new Error(`Unsupported format ${ext}`);
     }
   }
 
@@ -99,7 +94,8 @@ export class GristApp {
 
     electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
       const instanceHandoverInfo = _additionalData as InstanceHandoverInfo;
-      this.openFile(instanceHandoverInfo["fileToOpen"]);
+      this.openFile(instanceHandoverInfo["fileToOpen"])
+        .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
     });
 
     // limits access to the webview api, read the `webviewOptions` module documentation for more
@@ -187,7 +183,8 @@ export class GristApp {
     electron.app.removeAllListeners("open-file");
     electron.app.on("open-file", (e, filepath) => {
       e.preventDefault();
-      this.openFile(filepath);
+      this.openFile(filepath)
+        .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
     });
 
     // Shut down the Grist server gracefully when the application is closed.
@@ -212,7 +209,12 @@ export class GristApp {
     if (docOpen.path === undefined) {
       this.windowManager.getOrAdd(null);
     } else {
-      this.openFile(docOpen.path);
+      try {
+        await this.openFile(docOpen.path);
+      } catch(e) {
+        this.windowManager.getOrAdd(null);
+        electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
+      }
     }
   }
 
@@ -279,15 +281,6 @@ export class GristApp {
       id: docId,
       path: docPath
     };
-  }
-
-  private reportError(e: Error) {
-    electron.dialog.showMessageBoxSync({
-      type: "info",
-      buttons: ["OK"],
-      message: "Error",
-      detail: String(e)
-    });
   }
 
 }
