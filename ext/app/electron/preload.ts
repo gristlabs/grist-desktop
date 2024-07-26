@@ -6,9 +6,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld("electronAPI", {
   createDoc: () => ipcRenderer.invoke("create-document"),
   importDoc: (uploadId: number) => ipcRenderer.invoke("import-document", uploadId),
+  onMainProcessImportDoc: (callback: (fileContents: Buffer, fileName: string) => void) => {
+    ipcRenderer.on("import-document",
+      (_event, fileContents: Buffer, fileName: string) => callback(fileContents, fileName));
+    return;
+  },
 });
 
 process.once('loaded', () => {
-  // global.electronSelectFiles = remote.getGlobal('electronSelectFiles').bind(null, remote.getCurrentWindow());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).isRunningUnderElectron = true;
 });

@@ -8,13 +8,18 @@ import { uploadFiles } from 'app/client/lib/uploads';
 /**
  * Imports a document and returns its upload ID, or null if no files were selected.
  */
-export async function docImport(app: AppModel): Promise<number|null> {
-  const files: File[] = await openFilePicker({
-    multiple: false,
-    accept: IMPORTABLE_EXTENSIONS.filter((extension) => extension !== ".grist").join(","),
-  });
+export async function docImport(app: AppModel, fileToImport?: File): Promise<number|null> {
+  let files: File[];
 
-  if (!files.length) { return null; }
+  if (fileToImport === undefined) {
+    files = await openFilePicker({
+      multiple: false,
+      accept: IMPORTABLE_EXTENSIONS.filter((extension) => extension !== ".grist").join(","),
+    });
+    if (!files.length) { return null; }
+  } else {
+    files = [fileToImport];
+  }
 
   const progressUI = app.notifier.createProgressIndicator(files[0].name, byteString(files[0].size));
   const progress = ImportProgress.create(progressUI, progressUI, files[0]);

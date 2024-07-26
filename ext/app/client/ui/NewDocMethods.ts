@@ -10,11 +10,9 @@ export async function createDocAndOpen() {
   }
 }
 
-export async function importDocAndOpen(home: HomeModel) {
+export async function importDocAndOpen(home: HomeModel, fileToImport: File) {
   electronOnly();
-  const destWS = home.newDocWorkspace.get();
-  if (!destWS || destWS === "unsaved") { return; }
-  const uploadId = await docImport(home.app);
+  const uploadId = await docImport(home.app, fileToImport);
   if (uploadId === null) { return; }
   const doc = await window.electronAPI.importDoc(uploadId);
   if (doc) {
@@ -22,6 +20,16 @@ export async function importDocAndOpen(home: HomeModel) {
   }
 }
 
+window.electronAPI.onMainProcessImportDoc((fileContents: Buffer, fileName: string) => {
+  (async() => {
+    while (!window.gristHomeModel || !window.gristHomeModel.app) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    importDocAndOpen(window.gristHomeModel, new File([fileContents], fileName));
+  })();
+});
+
+// Called by import plugins.
 export async function importFromPluginAndOpen() {
   alert("not implemented");
 }

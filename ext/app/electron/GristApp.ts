@@ -1,4 +1,5 @@
 import * as electron from "electron";
+import * as fse from "fs-extra";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
@@ -18,8 +19,11 @@ import { WindowManager } from "app/electron/WindowManager";
 import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
+import { decodeUrl } from "app/common/gristUrls";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
+const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
+  IMPORTABLE_EXTENSIONS.filter(ext => ext !== ".grist").map(ext => ext.substring(1))};
 
 export class FileToOpen {
   private _path: string | undefined;
@@ -58,33 +62,59 @@ export class GristApp {
     return GristApp._instance;
   }
 
-  /**
-   * Opens a Grist document at docPath.
-   */
-  private async openGristDocument(docPath: string, win?: electron.BrowserWindow) {
-    log.debug(`Opening Grist document ${docPath}`);
-    // Do we know about this document?
-    let docId = this.docRegistry.lookupByPath(docPath);
-    if (docId === null) {
-      docId = await this.docRegistry.registerDoc(docPath);
-      log.warn(`Document not found in home DB, assigned docId ${docId}`);
-    } else {
-      log.debug(`Got docId ${docId}`);
-    }
-    (win || this.windowManager.getOrAdd(docId)).show();
+  // TODO: Move this function somewhere else.
+  private isWindowShowingDocument(win: Electron.BrowserWindow) {
+    const url = new URL(win.webContents.getURL());
+    const gristUrl = decodeUrl(this.flexServer.getGristConfig(), url);
+    return gristUrl.doc !== undefined;
   }
 
   /**
    * Opens the file at filepath. File can be a Grist document, or an importable document.
    * Import has not been implemented yet, and will just throw an error for now.
    */
-  public async openFile(filepath: string) {
-    log.debug(`Opening file ${filepath}`);
-    const ext = path.extname(filepath);
+  public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
+
+    log.debug(`Opening file ${filePath}`);
+    const ext = path.extname(filePath);
+
     if (ext === ".grist") {
-      await this.openGristDocument(filepath);
+
+      log.debug(`Opening Grist document ${filePath}`);
+      // Do we know about this document?
+      let docId = this.docRegistry.lookupByPath(filePath);
+      if (docId === null) {
+        docId = await this.docRegistry.registerDoc(filePath);
+        log.warn(`Document not found in home DB, assigned docId ${docId}`);
+      } else {
+        log.debug(`Got docId ${docId}`);
+      }
+
+      let win: electron.BrowserWindow;
+      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        win = requestWindow;
+        win.webContents.loadURL(this.windowManager.getUrl(docId));
+      } else {
+        win = this.windowManager.getOrAdd(docId);
+        win.show();
+      }
+
     } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
-      throw new Error("Import has not been implemented");
+
+      const fileContents = fse.readFileSync(filePath);
+
+      let win: electron.BrowserWindow;
+      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        win = requestWindow;
+        await win.webContents.loadURL(this.windowManager.getUrl());
+        win.webContents.send("import-document", fileContents, path.basename(filePath));
+      } else {
+        win = this.windowManager.getOrAdd(null);
+        win.webContents.on("did-finish-load", () => {
+          win.webContents.send("import-document", fileContents, path.basename(filePath));
+        })
+      }
+
     } else {
       throw new Error(`Unsupported format ${ext}`);
     }
@@ -112,19 +142,21 @@ export class GristApp {
     const mergedServer = await MergedServer.create(port, ["home", "docs", "static", "app"]);
     this.flexServer = mergedServer.flexServer;
     this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
-    // TODO: Move the Doc ID lookup function somewhere else.
-    this.windowManager = new WindowManager(this.flexServer.getGristConfig(), async (docIdOrUrlId) => {
-      if (this.docRegistry.lookupById(docIdOrUrlId) === null) {
-        // DocRegistry does not know about this doc ID, so this must be an URL ID.
-        return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
-          .select("docs")
-          .from(Document, "docs")
-          .where('docs.url_id = :urlId', {urlId: docIdOrUrlId})
-          .getRawAndEntities()).entities[0].id;
+    this.windowManager = new WindowManager(this.flexServer.getGristConfig(),
+      // TODO: Move this Doc ID lookup function somewhere else.
+      async (docIdOrUrlId) => {
+        if (this.docRegistry.lookupById(docIdOrUrlId) === null) {
+          // DocRegistry does not know about this doc ID, so this must be an URL ID.
+          return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
+            .select("docs")
+            .from(Document, "docs")
+            .where('docs.url_id = :urlId', {urlId: docIdOrUrlId})
+            .getRawAndEntities()).entities[0].id;
+        }
+        // Otherwise it is a doc ID already. Return as-is.
+        return docIdOrUrlId;
       }
-      // Otherwise it is a doc ID already. Return as-is.
-      return docIdOrUrlId;
-    });
+    );
 
     // Wait for both electron and the Grist server to fully initialize.
     await Promise.all([mergedServer.run(), electron.app.whenReady()]);
@@ -146,25 +178,23 @@ export class GristApp {
         win.loadURL(this.windowManager.getUrl(doc.id));
       }
     });
+    appMenu.on("menu-file-open", async (win: electron.BrowserWindow) => {
+      const result = await electron.dialog.showOpenDialog({
+        title: "Open or import",
+        defaultPath: electron.app.getPath("documents"),
+        filters: [GRIST_DOCUMENT_FILTER, IMPORTABLE_DOCUMENT_FILTER],
+        properties: ["openFile"]
+      });
+      if (!result.canceled) {
+        await this.openFile(result.filePaths[0], win);
+      }
+    });
 
     // The following events are sent through the electron context bridge.
     // "Create Empty Document".
     electron.ipcMain.handle("create-document", (_event) => this.createDocument());
     // "Import Document", after dealing with file upload.
     electron.ipcMain.handle("import-document", (_event, importUploadId) => this.createDocument(importUploadId));
-
-    appMenu.on("menu-file-open", async () => {
-      const result = await electron.dialog.showOpenDialog({
-        title: "Open existing Grist file",
-        defaultPath: electron.app.getPath("documents"),
-        filters: [GRIST_DOCUMENT_FILTER],
-        // disabling extensions "csv", "xlsx", and "xlsm" for the moment.
-        properties: ["openFile"]
-      });
-      if (!result.canceled) {
-        await this.openGristDocument(result.filePaths[0]);
-      }
-    });
 
     serverMethods.onDocOpen((filePath: string) => {
       // Add to list of recent docs in the dock (mac) or the JumpList (win)
