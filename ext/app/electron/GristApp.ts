@@ -69,55 +69,6 @@ export class GristApp {
     return gristUrl.doc !== undefined;
   }
 
-  /**
-   * Opens the file at filepath. File can be a Grist document, or an importable document.
-   * Import has not been implemented yet, and will just throw an error for now.
-   */
-  public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
-
-    log.debug(`Opening file ${filePath}`);
-    const ext = path.extname(filePath);
-
-    if (ext === ".grist") {
-
-      log.debug(`Opening Grist document ${filePath}`);
-      // Do we know about this document?
-      let docId = this.docRegistry.lookupByPath(filePath);
-      if (docId === null) {
-        docId = await this.docRegistry.registerDoc(filePath);
-        log.warn(`Document not found in home DB, assigned docId ${docId}`);
-      } else {
-        log.debug(`Got docId ${docId}`);
-      }
-
-      const existingWindow = this.windowManager.get(docId);
-      if (existingWindow) {
-        existingWindow.show();
-      } else if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
-        requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
-      } else {
-        this.windowManager.add(docId).show();
-      }
-
-    } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
-
-      const fileContents = fse.readFileSync(filePath);
-
-      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
-        await requestWindow.webContents.loadURL(this.windowManager.getUrl());
-        requestWindow.webContents.send("import-document", fileContents, path.basename(filePath));
-      } else {
-        const win = this.windowManager.add(null);
-        win.webContents.on("did-finish-load", () => {
-          win.webContents.send("import-document", fileContents, path.basename(filePath));
-        })
-      }
-
-    } else {
-      throw new Error(`Unsupported format ${ext}`);
-    }
-  }
-
   public async run(docOpen: FileToOpen) {
 
     electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
@@ -246,6 +197,12 @@ export class GristApp {
     }
   }
 
+  /**
+   * Show a dialog to ask the user for a location to store a Grist document to be created.
+   * If the user does not provide an extension name, ".grist" will be appended.
+   * Show an error dialog and abort if the file already exists, or cannot be created.
+   * @returns A promise that resolves to the picked location, or null if the operation is aborted.
+   */
   private async askNewGristDocPath(): Promise<string|null> {
     const result = await electron.dialog.showSaveDialog({
       title: "Save new Grist document",
@@ -270,6 +227,71 @@ export class GristApp {
   }
 
   /**
+   * Opens the file at filepath. File can be a Grist document, or an importable document.
+   * @param filePath Path to the file to open.
+   * @param requestWindow The window associated with the open request. If this window is not showing
+   *                      a document already, it will be reused for the newly opened document.
+   */
+  public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
+
+    const ext = path.extname(filePath);
+
+    if (ext === ".grist") {
+
+      log.debug(`Opening Grist document ${filePath}`);
+
+      // Do we know about this document?
+      let docId = this.docRegistry.lookupByPath(filePath);
+      if (docId === null) {
+        // Assign a doc ID if it does not already have one.
+        docId = await this.docRegistry.registerDoc(filePath);
+        log.debug(`Document not found in home DB, assigned docId ${docId}`);
+      } else {
+        log.debug(`Got docId ${docId}`);
+      }
+
+      const existingWindow = this.windowManager.get(docId);
+      if (existingWindow) {
+        // If the document is already open in a window, bring that window up to the user.
+        existingWindow.show();
+      } else if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        // If a specific window issued the open request, and it is not currently busy with another
+        // document, reuse this window.
+        requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
+      } else {
+        // Otherwise we keep open documents open, and create a new window for the opening document.
+        this.windowManager.add(docId).show();
+      }
+
+    } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
+      // Note: IMPORTABLE_EXTENSIONS comes from grist-core and includes ".grist".
+
+      log.debug(`Importing from file ${filePath}`);
+      const fileContents = fse.readFileSync(filePath);
+
+      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        // Reuse an existing window, see above branch.
+        // Return to the home page first, since the handler function only exists there.
+        await requestWindow.webContents.loadURL(this.windowManager.getUrl());
+        // The window is already fully loaded, so we can directly send the signal.
+        requestWindow.webContents.send("import-document", fileContents, path.basename(filePath));
+      } else {
+        const win = this.windowManager.add(null);
+        // The window is newly created. We must wait until it is loaded before sending the signal.
+        win.webContents.on("did-finish-load", () => {
+          win.webContents.send("import-document", fileContents, path.basename(filePath));
+        })
+        // The signal will be handled by importDocAndOpen, which automatically redirects for us.
+      }
+
+    } else {
+      // We can only handle Grist documents and importable documents. The file picker filter should
+      // prevent us from ending up here, but just in case...
+      throw new Error(`Unsupported format ${ext}`);
+    }
+  }
+
+  /**
    * Show a dialog asking the user for a location, and create a new Grist document there.
    * The document is added to the home DB, but not actually created in the filesystem until opened.
    * If importUploadId is specified, import data from the uploaded file associated with such ID. This implements the
@@ -280,6 +302,9 @@ export class GristApp {
    * files on the host filesystem.
    * It is suboptimal to have to "upload" the file first, but this reuses grist-core's infrastructure to help us avoid
    * dealing with various sandbox flavors individually.
+   *
+   * @param importUploadId The upload ID.
+   * @returns A promise that resolves to a representation of the saved document, or null if the operation is aborted.
    */
   public async createDocument(importUploadId?: number): Promise<NewDocument|null> {
     const docPath = await this.askNewGristDocPath();
