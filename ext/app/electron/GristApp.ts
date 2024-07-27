@@ -16,10 +16,10 @@ import { OptDocSession } from "app/server/lib/DocSession";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
+import { decodeUrl } from "app/common/gristUrls";
 import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
-import { decodeUrl } from "app/common/gristUrls";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
@@ -141,7 +141,7 @@ export class GristApp {
 
     // The following events are sent through the electron context bridge.
     // "Create Empty Document".
-    electron.ipcMain.handle("create-document", (_event) => this.createDocument());
+    electron.ipcMain.handle("create-document", () => this.createDocument());
     // "Import Document", after dealing with file upload.
     electron.ipcMain.handle("import-document", (_event, importUploadId) => this.createDocument(importUploadId));
 
@@ -280,7 +280,7 @@ export class GristApp {
         // The window is newly created. We must wait until it is loaded before sending the signal.
         win.webContents.on("did-finish-load", () => {
           win.webContents.send("import-document", fileContents, path.basename(filePath));
-        })
+        });
         // The signal will be handled by importDocAndOpen, which automatically redirects for us.
       }
 
