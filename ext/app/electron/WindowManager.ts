@@ -15,7 +15,11 @@ export class WindowManager {
     private resolveDocId: (urlIdOrDocId: string) => Promise<string>
   ) {}
 
-  public getOrAdd(docId: string | null): BrowserWindow {
+  public get(docId: string): BrowserWindow | null {
+    return this.docToWindowMap.get(docId) ?? null;
+  }
+
+  public add(docId: string | null): BrowserWindow {
 
     if (docId) {
       const win = this.docToWindowMap.get(docId);

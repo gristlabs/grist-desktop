@@ -90,26 +90,24 @@ export class GristApp {
         log.debug(`Got docId ${docId}`);
       }
 
-      let win: electron.BrowserWindow;
-      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
-        win = requestWindow;
-        win.webContents.loadURL(this.windowManager.getUrl(docId));
+      const existingWindow = this.windowManager.get(docId);
+      if (existingWindow) {
+        existingWindow.show();
+      } else if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
       } else {
-        win = this.windowManager.getOrAdd(docId);
-        win.show();
+        this.windowManager.add(docId).show();
       }
 
     } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
 
       const fileContents = fse.readFileSync(filePath);
 
-      let win: electron.BrowserWindow;
       if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
-        win = requestWindow;
-        await win.webContents.loadURL(this.windowManager.getUrl());
-        win.webContents.send("import-document", fileContents, path.basename(filePath));
+        await requestWindow.webContents.loadURL(this.windowManager.getUrl());
+        requestWindow.webContents.send("import-document", fileContents, path.basename(filePath));
       } else {
-        win = this.windowManager.getOrAdd(null);
+        const win = this.windowManager.add(null);
         win.webContents.on("did-finish-load", () => {
           win.webContents.send("import-document", fileContents, path.basename(filePath));
         })
@@ -237,12 +235,12 @@ export class GristApp {
     });
 
     if (docOpen.path === undefined) {
-      this.windowManager.getOrAdd(null);
+      this.windowManager.add(null);
     } else {
       try {
         await this.openFile(docOpen.path);
       } catch(e) {
-        this.windowManager.getOrAdd(null);
+        this.windowManager.add(null);
         electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
       }
     }
