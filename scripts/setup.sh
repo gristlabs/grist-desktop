@@ -93,7 +93,7 @@ function unpack_msapi {
 
 function python_for_linux {
   if [[ "$arch" = "x64" ]]; then
-    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64_v4-unknown-linux-gnu-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64_v3-unknown-linux-gnu-install_only.tar.gz
   elif [[ "$arch" = "arm64" ]]; then
     fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-aarch64-unknown-linux-gnu-install_only.tar.gz
   else
