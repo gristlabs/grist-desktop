@@ -20,7 +20,9 @@ export async function importDocAndOpen(home: HomeModel, fileToImport: File) {
   }
 }
 
-window.electronAPI.onMainProcessImportDoc((fileContents: Buffer, fileName: string) => {
+// The ? is for external visitors over the network. electronAPI is set by electron's preload script
+// and is undefined for non-electron visitors. An error here will make the entire page fail to load.
+window.electronAPI?.onMainProcessImportDoc((fileContents: Buffer, fileName: string) => {
   (async() => {
     while (!window.gristHomeModel || !window.gristHomeModel.app) {
       await new Promise(resolve => setTimeout(resolve, 100));
