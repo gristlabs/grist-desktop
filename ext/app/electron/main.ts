@@ -16,7 +16,7 @@ if (!electron.app.isPackaged) {
 }
 // eslint-disable-next-line sort-imports
 import * as log from "app/server/lib/log";
-import * as packageJson from "desktop.package.json";
+import * as packageJson from "ext/desktop.package.json";
 import * as version from "app/common/version";
 import { FileToOpen, GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
