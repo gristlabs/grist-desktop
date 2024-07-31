@@ -2,6 +2,12 @@
 
 set -e
 
+# Pick a version from https://github.com/indygreg/python-build-standalone/releases
+# Assets look like cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-...
+# Must be >=3.10 to support PREVIOUS.
+PYTHON_VERSION=3.11.9
+PYTHON_BUILD_DATE=20240726
+
 # Call with os and arch.
 # Or set $OSTYPE and $RUN_ARCH and call with nothing.
 # OSTYPEs are aliased as follows:
@@ -87,9 +93,9 @@ function unpack_msapi {
 
 function python_for_linux {
   if [[ "$arch" = "x64" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-x86_64-unknown-linux-gnu-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64_v3-unknown-linux-gnu-install_only.tar.gz
   elif [[ "$arch" = "arm64" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-aarch64-unknown-linux-gnu-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-aarch64-unknown-linux-gnu-install_only.tar.gz
   else
     not_implemented
   fi
@@ -98,9 +104,9 @@ function python_for_linux {
 
 function python_for_windows {
   if [[ "$arch" = "x64" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64-pc-windows-msvc-shared-install_only.tar.gz
   elif [[ "$arch" = "x86" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-i686-pc-windows-msvc-shared-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-i686-pc-windows-msvc-shared-install_only.tar.gz
   else
     not_implemented
   fi
@@ -111,9 +117,9 @@ function python_for_windows {
 
 function python_for_mac {
   if [[ "$arch" = "x64" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-x86_64-apple-darwin-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64-apple-darwin-install_only.tar.gz
   elif [[ "$arch" = "arm64" ]]; then
-    fetch_python 20221220/cpython-3.9.16+20221220-aarch64-apple-darwin-install_only.tar.gz
+    fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-aarch64-apple-darwin-install_only.tar.gz
   else
     not_implemented
   fi
