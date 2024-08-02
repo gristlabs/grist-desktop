@@ -23,8 +23,8 @@
   },
   "scripts": {
     "setup": "./scripts/setup.sh && cd core && yarn run install:python",
-    "build": "cd core && yarn run build:prod && resolve-tspaths",
-    "paths": "cd core && resolve-tspaths",
+    "build": "cd core && yarn run build:prod && resolve-tspaths -p tsconfig-ext.json",
+    "paths": "cd core && resolve-tspaths -p tsconfig-ext.json",
     "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
