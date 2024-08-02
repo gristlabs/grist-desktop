@@ -1,26 +1,27 @@
 import * as electron from "electron";
 import * as path from "path";
 import { program } from "commander";
+
+//process.env.NODE_PATH = __dirname + ":" + process.env.NODE_PATH;
+process.env.APP_ROOT_PATH = path.resolve(__dirname, "../../../..");
+console.log(process.env.APP_ROOT_PATH);
+
 // A temporary hack to make `yarn start` work.
 // TODO: Create a script that actually calls resolve-tspaths when source code changes, and ditch this.
 if (!electron.app.isPackaged) {
   process.env.NODE_PATH =
     path.resolve(process.cwd(), 'core/_build') +
-      ':' +
-      path.resolve(process.cwd(), 'core/_build/ext') +
-      ':' +
-      path.resolve(process.cwd(), 'core/_build/stubs') +
       ':' + process.env.NODE_PATH;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   require('module').Module._initPaths();
 }
 // eslint-disable-next-line sort-imports
 import * as log from "app/server/lib/log";
-import * as packageJson from "ext/desktop.package.json";
+import * as packageJson from "desktop.package.json";
 import * as version from "app/common/version";
 import { FileToOpen, GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
-import { setupLogging } from "./logging";
+import { setupLogging } from "app/electron/logging";
 
 // Mimic the behavior of a packaged app, where argv will not include "electron" and its arguments.
 // Example:
