@@ -1,5 +1,5 @@
 import { ICreate, makeSimpleCreator } from "app/server/lib/ICreate";
-import { GristApp } from "ext/app/electron/GristApp";
+import { GristApp } from "app/electron/GristApp";
 import { IDocStorageManager } from "app/server/lib/IDocStorageManager";
 import { getElectronLoginSystem } from "app/electron/LoginSystem";
 import log from "app/server/lib/log";
