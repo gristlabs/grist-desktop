@@ -30,7 +30,7 @@
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db"
+    "test": "electron core/_build/ext/app/electron/main.js --version"
   },
   "resolutions": {
     "jquery": "3.5.0",
