@@ -1,8 +1,8 @@
 import { HomeModel } from 'app/client/models/HomeModel';
-import { docImport } from 'app/client/ui/HomeImports';
 import { electronOnly } from "app/client/electronOnly";
+import { homeImports } from 'app/client/ui/HomeImports';
 
-export async function createDocAndOpen() {
+async function createDocAndOpen() {
   electronOnly();
   const doc = await window.electronAPI.createDoc();
   if (doc) {
@@ -10,9 +10,9 @@ export async function createDocAndOpen() {
   }
 }
 
-export async function importDocAndOpen(home: HomeModel, fileToImport: File) {
+async function importDocAndOpen(home: HomeModel, fileToImport: File) {
   electronOnly();
-  const uploadId = await docImport(home.app, fileToImport);
+  const uploadId = await homeImports.docImport(home.app, fileToImport);
   if (uploadId === null) { return; }
   const doc = await window.electronAPI.importDoc(uploadId);
   if (doc) {
@@ -31,7 +31,4 @@ window.electronAPI?.onMainProcessImportDoc((fileContents: Buffer, fileName: stri
   })();
 });
 
-// Called by import plugins.
-export async function importFromPluginAndOpen() {
-  alert("not implemented");
-}
+export const newDocMethods = { createDocAndOpen, importDocAndOpen };

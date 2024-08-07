@@ -8,7 +8,7 @@ import { uploadFiles } from 'app/client/lib/uploads';
 /**
  * Imports a document and returns its upload ID, or null if no files were selected.
  */
-export async function docImport(app: AppModel, fileToImport?: File): Promise<number|null> {
+async function docImport(app: AppModel, fileToImport?: File): Promise<number|null> {
   let files: File[];
 
   if (fileToImport === undefined) {
@@ -38,6 +38,4 @@ export async function docImport(app: AppModel, fileToImport?: File): Promise<num
   }
 }
 
-export async function importFromPlugin() {
-  alert("not implemented");
-}
+export const homeImports = {docImport};
