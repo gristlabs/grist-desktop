@@ -29,14 +29,14 @@ jobs:
         target:
           - x64
         node:
-          - 18
+          - 20
         include:
           - os: macos-14
-            node: 18
+            node: 20
             host: arm64
             target: arm64
           - os: windows-2022
-            node: 18
+            node: 20
             host: x64
             target: x86
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
