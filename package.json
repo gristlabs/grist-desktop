@@ -49,12 +49,12 @@
           "target": "nsis"
         },
         {
-          "target": "portable"
+          "target": "zip"
         }
       ],
       "icon": "core/static/icons/grist.ico"
     },
-    "portable": {
+    "zip": {
       "artifactName": "${name}-windows-portable-${version}-${arch}.${ext}"
     },
     "nsis": {
