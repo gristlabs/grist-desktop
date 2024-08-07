@@ -128,21 +128,7 @@
         "rank": "Owner"
       },
       {
-        "ext": "csv",
-        "name": "Comma-Separated Values",
-        "role": "Viewer",
-        "icon": "core/static/icons/gristdoc",
-        "rank": "Alternate"
-      },
-      {
-        "ext": "tsv",
-        "name": "Tab-Separated Values",
-        "role": "Viewer",
-        "icon": "core/static/icons/gristdoc",
-        "rank": "Alternate"
-      },
-      {
-        "ext": "dsv",
+        "ext": ["csv", "tsv", "dsv"],
         "name": "Delimiter-Separated Values",
         "role": "Viewer",
         "icon": "core/static/icons/gristdoc",
@@ -156,17 +142,11 @@
         "rank": "Alternate"
       },
       {
-        "ext": "xlsx",
+        "ext": ["xlsx", "xlsm"],
         "name": "Microsoft Excel Spreadsheet",
         "role": "Viewer",
         "icon": "core/static/icons/gristdoc",
         "rank": "Alternate"
-      },
-      {
-        "ext": "xlsm",
-        "name": "Microsoft Excel Open XML Spreadsheet",
-        "role": "Viewer",
-        "icon": "core/static/icons/gristdoc"
       }
     ]
   }
