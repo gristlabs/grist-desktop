@@ -122,7 +122,7 @@ export class GristApp {
     console.log(updateManager ? "updateManager loadable, but not used yet" : "");
 
     appMenu.on("menu-file-new", async (win: electron.BrowserWindow) => {
-      const doc = await this.createDocument();
+      const doc = await this.createDocument(win);
       if (doc) {
         win.loadURL(this.windowManager.getUrl(doc.id));
       }
@@ -141,9 +141,11 @@ export class GristApp {
 
     // The following events are sent through the electron context bridge.
     // "Create Empty Document".
-    electron.ipcMain.handle("create-document", () => this.createDocument());
+    electron.ipcMain.handle("create-document", (event) =>
+      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!));
     // "Import Document", after dealing with file upload.
-    electron.ipcMain.handle("import-document", (_event, importUploadId) => this.createDocument(importUploadId));
+    electron.ipcMain.handle("import-document", (event, importUploadId) =>
+      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!, importUploadId));
 
     serverMethods.onDocOpen((filePath: string) => {
       // Add to list of recent docs in the dock (mac) or the JumpList (win)
@@ -201,10 +203,13 @@ export class GristApp {
    * Show a dialog to ask the user for a location to store a Grist document to be created.
    * If the user does not provide an extension name, ".grist" will be appended.
    * Show an error dialog and abort if the file already exists, or cannot be created.
-   * @returns A promise that resolves to the picked location, or null if the operation is aborted.
+   *
+   * @param initiatorWindow The electron window that requested to create a new document.
+   * @returns A string representing the picked location, or null if the user aborted.
    */
-  private async askNewGristDocPath(): Promise<string|null> {
-    const result = await electron.dialog.showSaveDialog({
+  private async askNewGristDocPath(initiatorWindow: electron.BrowserWindow): Promise<string|null> {
+    console.log(initiatorWindow);
+    const result = await electron.dialog.showSaveDialog(initiatorWindow, {
       title: "Save new Grist document",
       buttonLabel: "Save",
       filters: [GRIST_DOCUMENT_FILTER],
@@ -303,11 +308,12 @@ export class GristApp {
    * It is suboptimal to have to "upload" the file first, but this reuses grist-core's infrastructure to help us avoid
    * dealing with various sandbox flavors individually.
    *
+   * @param initiatorWindow The electron window that issued this request.
    * @param importUploadId The upload ID.
    * @returns A promise that resolves to a representation of the saved document, or null if the operation is aborted.
    */
-  public async createDocument(importUploadId?: number): Promise<NewDocument|null> {
-    const docPath = await this.askNewGristDocPath();
+  public async createDocument(initiatorWindow: electron.BrowserWindow, importUploadId?: number): Promise<NewDocument|null> {
+    const docPath = await this.askNewGristDocPath(initiatorWindow);
     if (!docPath) {
       return null;
     }
