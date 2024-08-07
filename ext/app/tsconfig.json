@@ -10,6 +10,7 @@
     "../../core/app/client/**/*",
     "../../stubs/app/common/version.ts",
     "../desktop.package.json",
+    "../core.package.json",
   ],
   "references": [
     { "path": "../../app/client" },

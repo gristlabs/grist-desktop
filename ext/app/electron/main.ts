@@ -1,8 +1,7 @@
 import * as electron from "electron";
 import * as path from "path";
 import { program } from "commander";
-// A temporary hack to make `yarn start` work.
-// TODO: Create a script that actually calls resolve-tspaths when source code changes, and ditch this.
+// HACK: A temporary hack to make `yarn start` work.
 if (!electron.app.isPackaged) {
   process.env.NODE_PATH =
     path.resolve(process.cwd(), 'core/_build') +
@@ -15,9 +14,9 @@ if (!electron.app.isPackaged) {
   require('module').Module._initPaths();
 }
 // eslint-disable-next-line sort-imports
+import * as corePackageJson from "ext/core.package.json";
 import * as log from "app/server/lib/log";
 import * as packageJson from "ext/desktop.package.json";
-import * as version from "app/common/version";
 import { FileToOpen, GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 import { setupLogging } from "./logging";
@@ -57,7 +56,7 @@ electron.app.on('open-file', (e, docPath) => {
 
 program
   .name(packageJson.name)
-  .version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${version.version})`)
+  .version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${corePackageJson.version})`)
   // On Windows, opening a file by double-clicking it invokes Grist with path as the first arg.
   .argument("[document]", "Grist document to open")
   .action((docPath: string) => {
