@@ -44,6 +44,7 @@
     "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "target": [
         {
           "target": "nsis"
@@ -54,15 +55,11 @@
       ],
       "icon": "core/static/icons/grist.ico"
     },
-    "zip": {
-      "artifactName": "${name}-windows-portable-${version}-${arch}.${ext}"
-    },
     "nsis": {
-      "artifactName": "${name}-windows-installer-${version}-${arch}.${ext}",
       "perMachine": true
     },
     "mac": {
-      "artifactName": "${name}-mac-${version}-${arch}.${ext}",
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.icns",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
@@ -71,7 +68,7 @@
       "entitlementsInherit": "scripts/entitlements.mac.plist"
     },
     "linux": {
-      "artifactName": "${name}-linux-${version}-${arch}.${ext}",
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
       "target": "AppImage"
     },
