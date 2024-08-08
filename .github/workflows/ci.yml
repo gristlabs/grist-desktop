@@ -22,7 +22,7 @@ jobs:
         target:
           - x64
         node:
-          - 18
+          - 20
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - uses: actions/checkout@v3

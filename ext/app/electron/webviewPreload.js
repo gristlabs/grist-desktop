@@ -1,6 +1,4 @@
-/* globals window */
-
-const ipc = require('electron').ipcRenderer;
+import { ipcRenderer as ipc } from 'electron';
 
 window.isRunningUnderElectron = true;
 

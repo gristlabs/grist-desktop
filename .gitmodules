@@ -1,5 +1,5 @@
 [submodule "core"]
 	path = core
 	url = https://github.com/gristlabs/grist-core
-	branch = main
+	branch = nativefs
 	ignore = dirty

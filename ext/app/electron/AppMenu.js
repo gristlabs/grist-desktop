@@ -61,11 +61,11 @@ class AppMenu extends events.EventEmitter {
       submenu: [{
         label: 'New',
         accelerator: 'CmdOrCtrl+N',
-        click: () => this.emit('menu-file-new')
+        click: (item, focusedWindow) => this.emit('menu-file-new', focusedWindow)
       }, {
         label: 'Open...',
         accelerator: 'CmdOrCtrl+O',
-        click: () => this.emit('menu-file-open')
+        click: (item, focusedWindow) => this.emit('menu-file-open', focusedWindow)
       }, {
         label: 'Open Recent',
         submenu: this.buildOpenRecentSubmenu()
