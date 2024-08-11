@@ -26,8 +26,10 @@ jobs:
           - windows-2022
         host:
           - x64
+          - arm64
         target:
           - x64
+          - arm64
         node:
           - 18
         include:
@@ -39,6 +41,10 @@ jobs:
             node: 18
             host: x64
             target: x86
+          - os: windows-2022  # Add Windows ARM64 build
+            node: 18
+            host: arm64
+            target: arm64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: Set up bash association
