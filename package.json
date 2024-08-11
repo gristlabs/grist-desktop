@@ -46,10 +46,12 @@
     "win": {
       "target": [
         {
-          "target": "nsis"
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
         },
         {
-          "target": "portable"
+          "target": "portable",
+          "arch": ["x64", "arm64"]
         }
       ],
       "icon": "core/static/icons/grist.ico"
