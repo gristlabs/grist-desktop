@@ -41,7 +41,7 @@ jobs:
             node: 18
             host: x64
             target: x86
-          - os: windows-2022  # Add Windows ARM64 build
+          - os: windows-2022
             node: 18
             host: arm64
             target: arm64
