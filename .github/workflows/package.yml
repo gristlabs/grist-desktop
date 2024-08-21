@@ -121,11 +121,34 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Windows portable build
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
-          path: |
-            dist/grist-desktop-*.exe
-            dist/grist-desktop-*.AppImage
-            dist/grist-desktop-*.dmg
+          name: windows-portable-${{ matrix.target }}
+          path: dist/grist-desktop-*.zip
+          if-no-files-found: "error"
+
+      - name: Upload Windows installer build
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-${{ matrix.target }}
+          path: dist/grist-desktop-*.exe
+          if-no-files-found: "error"
+
+      - name: Upload Linux build
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.target }}
+          path: dist/grist-desktop-*.AppImage
+          if-no-files-found: "error"
+
+      - name: Upload macOS build
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: dist/grist-desktop-*.dmg
           if-no-files-found: "error"
