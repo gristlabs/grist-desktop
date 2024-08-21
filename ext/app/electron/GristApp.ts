@@ -25,22 +25,8 @@ const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
   IMPORTABLE_EXTENSIONS.filter(ext => ext !== ".grist").map(ext => ext.substring(1))};
 
-export class FileToOpen {
-  private _path: string | undefined;
-  public set path(docPath: string | undefined) {
-    if (docPath === undefined) {
-      this._path = undefined;
-    } else {
-      this._path = path.resolve(docPath);
-    }
-  }
-  public get path() {
-    return this._path;
-  }
-}
-
 type InstanceHandoverInfo = {
-  fileToOpen: string;
+  fileToOpen: string|null;
 }
 
 export class GristApp {
@@ -69,12 +55,15 @@ export class GristApp {
     return gristUrl.doc !== undefined;
   }
 
-  public async run(docOpen: FileToOpen) {
+  public async run(initialFileToOpen: string|null) {
 
     electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
       const instanceHandoverInfo = _additionalData as InstanceHandoverInfo;
-      this.openFile(instanceHandoverInfo["fileToOpen"])
-        .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
+      if (instanceHandoverInfo.fileToOpen !== null) {
+        // If the new instance didn't want to open any file, we don't need to do anything.
+        this.openFile(instanceHandoverInfo.fileToOpen)
+          .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
+      }
     });
 
     // limits access to the webview api, read the `webviewOptions` module documentation for more
@@ -155,16 +144,16 @@ export class GristApp {
       serverMethods.updateUserConfig({ recentItems: recentItems.listItems() });
       // TODO: Electron does not yet support updating the menu except by reassigning the entire
       // menu.  There are proposals to allow menu templates include callbacks that
-      // are called on menu open.  https://github.com/electron/electron/issues/528
+      // are called on menu open. https://github.com/electron/electron/issues/528
       appMenu.rebuildMenu();
       electron.Menu.setApplicationMenu(appMenu.getMenu());
     });
 
     // Now that we are ready, future "open-file" events should just open windows directly.
     electron.app.removeAllListeners("open-file");
-    electron.app.on("open-file", (e, filepath) => {
+    electron.app.on("open-file", (e, filePath) => {
       e.preventDefault();
-      this.openFile(filepath)
+      this.openFile(filePath)
         .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
     });
 
@@ -187,11 +176,11 @@ export class GristApp {
       callback({requestHeaders: details.requestHeaders});
     });
 
-    if (docOpen.path === undefined) {
+    if (initialFileToOpen === null) {
       this.windowManager.add(null);
     } else {
       try {
-        await this.openFile(docOpen.path);
+        await this.openFile(initialFileToOpen);
       } catch(e) {
         this.windowManager.add(null);
         electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
@@ -208,7 +197,6 @@ export class GristApp {
    * @returns A string representing the picked location, or null if the user aborted.
    */
   private async askNewGristDocPath(initiatorWindow: electron.BrowserWindow): Promise<string|null> {
-    console.log(initiatorWindow);
     const result = await electron.dialog.showSaveDialog(initiatorWindow, {
       title: "Save new Grist document",
       buttonLabel: "Save",
@@ -233,12 +221,14 @@ export class GristApp {
 
   /**
    * Opens the file at filepath. File can be a Grist document, or an importable document.
-   * @param filePath Path to the file to open.
+   * @param filePath Path to the file to open. Can be relative.
    * @param requestWindow The window associated with the open request. If this window is not showing
    *                      a document already, it will be reused for the newly opened document.
    */
   public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
 
+    // Use absolute path only from now on.
+    filePath = path.resolve(filePath);
     const ext = path.extname(filePath);
 
     if (ext === ".grist") {

@@ -17,7 +17,7 @@ if (!electron.app.isPackaged) {
 import * as corePackageJson from "ext/core.package.json";
 import * as log from "app/server/lib/log";
 import * as packageJson from "ext/desktop.package.json";
-import { FileToOpen, GristApp } from "app/electron/GristApp";
+import { GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 import { setupLogging } from "./logging";
 
@@ -45,22 +45,24 @@ if (process.platform === "darwin") {
   }
 }
 
-const fileToOpen = new FileToOpen();
+let initialFileToOpen: string|null = null;
 
 // macOS-specific event.
+// This only handles the situation "when a file is dropped onto the dock and the application is not yet running".
+// The other situation is handled separately.
 // https://www.electronjs.org/docs/latest/api/app#event-open-file-macos
 electron.app.on('open-file', (e, docPath) => {
-  e.preventDefault(); // Electron requires this to handle the open-file event.
-  fileToOpen.path = docPath;
+  e.preventDefault(); // Electron requires this. See link above.
+  initialFileToOpen = docPath;
 });
 
 program
   .name(packageJson.name)
   .version(`${packageJson.productName} ${packageJson.version} (with Grist Core ${corePackageJson.version})`)
   // On Windows, opening a file by double-clicking it invokes Grist with path as the first arg.
-  .argument("[document]", "Grist document to open")
-  .action((docPath: string) => {
-    fileToOpen.path = docPath;
+  .argument("[file]", "File to open, can be Grist document or importable document")
+  .action((docPath?: string) => {
+    initialFileToOpen = docPath ?? null;
   });
 
 // Commander.js has "node" and "electron" modes, but they don't handle the quirks above well enough.
@@ -70,8 +72,7 @@ program.parse(process.argv.slice(1), { from: "user" });
 
 if (!electron.app.requestSingleInstanceLock({
   // Inform the running instance of the document we want to open, if any.
-  // DocOpen will resolve the path to absolute.
-  fileToOpen: fileToOpen.path
+  fileToOpen: initialFileToOpen
 })) {
   log.warn(`${packageJson.productName} is already running.`);
   // We exit before even launching the Grist server, so no cleanup is needed.
@@ -81,7 +82,7 @@ if (!electron.app.requestSingleInstanceLock({
 loadConfig()
   .then(() => {
     setupLogging();
-    GristApp.instance.run(fileToOpen);
+    GristApp.instance.run(initialFileToOpen);
   })
   .catch((err) => {
     log.error(`Failed to load config, aborting: ${err}`);
