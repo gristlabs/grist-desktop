@@ -2,21 +2,19 @@ import * as fse from "fs-extra";
 import * as path from "path";
 
 export function fileExists(filePath: string): boolean {
-  let ret = true;
   try {
     fse.accessSync(filePath, fse.constants.F_OK);
+    return true;
   } catch {
-    ret = false;
+    return false;
   }
-  return ret;
 }
 
 export function fileCreatable(filePath: string): boolean {
-  let ret = true;
   try {
     fse.accessSync(path.dirname(filePath), fse.constants.W_OK);
+    return true;
   } catch {
-    ret = false;
+    return false;
   }
-  return ret;
 }

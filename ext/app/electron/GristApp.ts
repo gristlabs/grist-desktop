@@ -3,7 +3,7 @@ import * as fse from "fs-extra";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
-import { fileCreatable, fileExists } from "app/electron/utils";
+import { fileCreatable, fileExists } from "app/electron/fileUtils";
 import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
 import { DocRegistry } from "./DocRegistry";
@@ -244,16 +244,7 @@ export class GristApp {
     if (ext === ".grist") {
 
       log.debug(`Opening Grist document ${filePath}`);
-
-      // Do we know about this document?
-      let docId = this.docRegistry.lookupByPath(filePath);
-      if (docId === null) {
-        // Assign a doc ID if it does not already have one.
-        docId = await this.docRegistry.registerDoc(filePath);
-        log.debug(`Document not found in home DB, assigned docId ${docId}`);
-      } else {
-        log.debug(`Got docId ${docId}`);
-      }
+      const docId = await this.docRegistry.lookupByPathOrCreate(filePath);
 
       const existingWindow = this.windowManager.get(docId);
       if (existingWindow) {
