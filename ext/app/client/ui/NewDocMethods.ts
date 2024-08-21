@@ -1,6 +1,7 @@
 import { HomeModel } from 'app/client/models/HomeModel';
 import { electronOnly } from "app/client/electronOnly";
 import { homeImports } from 'app/client/ui/HomeImports';
+import { urlState } from 'app/client/models/gristUrlState';
 
 async function createDocAndOpen() {
   electronOnly();
@@ -22,7 +23,7 @@ async function _importDocAndOpen(home: HomeModel, fileToImport?: File) {
   if (uploadId === null) { return; }
   const doc = await window.electronAPI.importDoc(uploadId);
   if (doc) {
-    window.location.assign("/o/docs/" + doc.id);
+    urlState().pushUrl({doc: doc.id});
   }
 }
 
