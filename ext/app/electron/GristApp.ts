@@ -20,6 +20,7 @@ import { decodeUrl } from "app/common/gristUrls";
 import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
+import {DesktopDocStorageManager, isDesktopStorageManager} from "../server/lib/DesktopDocStorageManager";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
@@ -46,6 +47,14 @@ export class GristApp {
       GristApp._instance = new GristApp();
     }
     return GristApp._instance;
+  }
+
+  public get storageManager(): DesktopDocStorageManager {
+    const currentStorageManager = this.flexServer.getStorageManager();
+    if (!isDesktopStorageManager(currentStorageManager)) {
+      throw new Error("FlexServer running with incorrect storage manager for desktop.");
+    }
+    return currentStorageManager;
   }
 
   // TODO: Move this function somewhere else.

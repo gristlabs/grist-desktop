@@ -3,6 +3,25 @@ import * as path from "path";
 import { HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
 import { fileExists } from "app/electron/fileUtils";
 
+/*
+Doc registry is hard to remove.
+In an ideal world, this cache would be maintained by Grist's internal machinery.
+Potentially, the DesktopDocStorageManager
+However, external code (i.e electron) needs to be able to add the paths for specific grist files to that file.
+
+It should be possible to:
+1. Add the path to the doc registry
+2. Trigger an event, which triggers the electron browser to call the "new doc" API.
+3. New doc is resolved to the right file when loaded.
+
+The result should be we don't need to manually call into any addDocument shennanigans on the backend, which is a win.
+
+However, anything short of this full refactor is probably not worth it? If I keep things as-is and just move them
+to the storage manager, all I'm actually doing is moving things around, and not solving the problem of bypassing
+Grist's main APIs/interfaces.
+ */
+
+
 export class DocRegistry {
 
   private idToPathMap: Map<string, string>;
