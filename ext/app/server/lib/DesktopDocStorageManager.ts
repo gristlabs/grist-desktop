@@ -4,8 +4,9 @@ import {IDocWorkerMap} from "app/server/lib/DocWorkerMap";
 import {ExternalStorageCreator} from "app/server/lib/ExternalStorage";
 import log from "grist-core/_build/app/server/lib/log";
 import {IDocStorageManager} from "grist-core/_build/app/server/lib/IDocStorageManager";
-import { HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
-import {fileExists} from "../../electron/fileUtils";
+import {Document} from "app/gen-server/entity/Document"
+import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
+import {fileExists} from "app/electron/fileUtils";
 
 export class DesktopDocStorageManager extends HostedStorageManager {
     // Document paths on disk are stored in the HomeDB. However, they need caching here to allow synchronous access,
@@ -39,18 +40,17 @@ export class DesktopDocStorageManager extends HostedStorageManager {
           // All Grist Desktop documents are supposed to have externalId set to their file path.
           const docPath = doc.options?.externalId;
           if (docPath && fileExists(docPath)) {
-              this.registerDoc(doc.id, docPath);
+              this.registerDocPath(doc.id, docPath);
           }
         }
     };
 
     async listDocsWithoutFilesOnDisk(homeDb: HomeDBManager): Promise<Document[]> {
         const allDocs = await homeDb.getAllDocs();
-        return allDocs.filter((doc) => this.getPath())
-
+        return allDocs.filter((doc) => !fileExists(this.getPath(doc.id)));
     };
 
-    registerDoc(docId: string, docPath: string) {
+    registerDocPath(docId: string, docPath: string) {
         this._idToPathMap.set(docId, docPath);
         this._pathToIdMap.set(docPath, docId);
     };

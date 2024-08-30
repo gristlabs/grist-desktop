@@ -21,6 +21,7 @@ import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
 import {DesktopDocStorageManager, isDesktopStorageManager} from "../server/lib/DesktopDocStorageManager";
+import {HomeDBManager} from "../../../app/gen-server/lib/homedb/HomeDBManager";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
@@ -55,6 +56,10 @@ export class GristApp {
       throw new Error("FlexServer running with incorrect storage manager for desktop.");
     }
     return currentStorageManager;
+  }
+
+  public get homeDBManager(): HomeDBManager {
+    return this.flexServer.getHomeDBManager();
   }
 
   // TODO: Move this function somewhere else.
@@ -197,6 +202,14 @@ export class GristApp {
     }
   }
 
+  public async getDefaultUser() {
+    const user = await this.flexServer.getHomeDBManager().getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
+    if (!user) {
+      throw new Error('cannot find default user');
+    }
+    return user;
+  }
+
   /**
    * Show a dialog to ask the user for a location to store a Grist document to be created.
    * If the user does not provide an extension name, ".grist" will be appended.
@@ -332,4 +345,35 @@ export class GristApp {
     };
   }
 
+  public async registerExistingDoc(docPath: string): Promise<string> {
+    const defaultUser = await this.getDefaultUser();
+    const wss = this.homeDBManager.unwrapQueryResult(
+      await this.homeDBManager.getOrgWorkspaces({userId: defaultUser.id}, 0)
+    );
+
+    for (const doc of wss[0].docs) {
+      if (doc.options?.externalId === docPath) {
+        // We might be able to do better.
+        throw Error("DocRegistry cache incoherent. Please try restarting the app.");
+      }
+    }
+
+    // Create the entry in the home database.
+    const docId = this.homeDBManager.unwrapQueryResult(
+      await this.homeDBManager.addDocument(
+        {
+          userId: defaultUser.id,
+        },
+        wss[0].id,
+        {
+          name: path.basename(docPath, '.grist'),
+          options: {externalId: docPath},
+        }
+      )
+    );
+
+    // Inform the storage manager where to find the file for that doc.
+    this.storageManager.registerDocPath(docId, docPath);
+    return docId;
+  }
 }
