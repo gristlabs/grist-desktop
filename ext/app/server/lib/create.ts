@@ -5,10 +5,9 @@ import {
   makeSimpleCreator
 } from "app/server/lib/ICreate";
 import {DesktopDocStorageManager} from "app/server/lib/DesktopDocStorageManager";
-import {GristApp} from "ext/app/electron/GristApp";
 
 const createDesktopStorageManager: HostedDocStorageManagerCreator =
-    (...args) => new DesktopDocStorageManager(GristApp.instance.docRegistry, ...args);
+    (...args) => new DesktopDocStorageManager(...args);
 
 export const create: ICreate = makeSimpleCreator({
   deploymentType: "electron",

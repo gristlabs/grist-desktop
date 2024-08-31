@@ -6,7 +6,6 @@ import * as shutdown from "app/server/lib/shutdown";
 import { fileCreatable, fileExists } from "app/electron/fileUtils";
 import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
-import { DocRegistry } from "./DocRegistry";
 import { Document } from "app/gen-server/entity/Document";
 import { FlexServer } from "app/server/lib/FlexServer";
 import { IMPORTABLE_EXTENSIONS } from "app/client/lib/uploads";
@@ -36,8 +35,6 @@ export class GristApp {
   private static _instance: GristApp; // The singleton instance.
 
   // This is referenced by create.ts.
-  // TODO: Should we make DocRegistry its own singleton class? (To avoid circular import.)
-  public docRegistry: DocRegistry;
   private flexServer: FlexServer;
   private windowManager: WindowManager;
 
@@ -97,7 +94,7 @@ export class GristApp {
     this.windowManager = new WindowManager(this.flexServer.getGristConfig(),
       // TODO: Move this Doc ID lookup function somewhere else.
       async (docIdOrUrlId) => {
-        if (this.docRegistry.lookupById(docIdOrUrlId) === null) {
+        if (this.storageManager.lookupById(docIdOrUrlId) === null) {
           // DocRegistry does not know about this doc ID, so this must be an URL ID.
           return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
             .select("docs")
@@ -256,7 +253,13 @@ export class GristApp {
     if (ext === ".grist") {
 
       log.debug(`Opening Grist document ${filePath}`);
-      const docId = await this.docRegistry.lookupByPathOrCreate(filePath);
+      let docId = this.storageManager.lookupByPath(filePath);
+      if (!docId) {
+        log.debug(`Opening new document at ${filePath}`)
+        docId = await this.registerDoc(filePath);
+      } else {
+        log.debug(`Opening existing document ${docId} at ${filePath}`);
+      }
 
       const existingWindow = this.windowManager.get(docId);
       if (existingWindow) {
@@ -320,11 +323,10 @@ export class GristApp {
     if (!docPath) {
       return null;
     }
-    const docId = await this.docRegistry.registerDoc(docPath);
+    const docId = await this.registerDoc(docPath);
 
     if (importUploadId !== undefined) {
-      // TODO: Move getDefaultUser out of DocRegistry.
-      const accessId = this.flexServer.getDocManager().makeAccessId((await this.docRegistry.getDefaultUser()).id);
+      const accessId = this.flexServer.getDocManager().makeAccessId((await this.getDefaultUser()).id);
       const uploadInfo = globalUploadSet.getUploadInfo(importUploadId, accessId);
       const activeDoc = new ActiveDoc(this.flexServer.getDocManager(), docId);
       // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
@@ -345,7 +347,7 @@ export class GristApp {
     };
   }
 
-  public async registerExistingDoc(docPath: string): Promise<string> {
+  public async registerDoc(docPath: string): Promise<string> {
     const defaultUser = await this.getDefaultUser();
     const wss = this.homeDBManager.unwrapQueryResult(
       await this.homeDBManager.getOrgWorkspaces({userId: defaultUser.id}, 0)

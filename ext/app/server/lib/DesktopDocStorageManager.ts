@@ -1,4 +1,3 @@
-import {DocRegistry} from "app/electron/DocRegistry";
 import {HostedStorageManager, HostedStorageOptions} from "app/server/lib/HostedStorageManager";
 import {IDocWorkerMap} from "app/server/lib/DocWorkerMap";
 import {ExternalStorageCreator} from "app/server/lib/ExternalStorage";
@@ -16,7 +15,6 @@ export class DesktopDocStorageManager extends HostedStorageManager {
     private _pathToIdMap: Map<string, string> = new Map();
 
     constructor(
-        private _docRegistry: DocRegistry,
         docsRoot: string,
         docWorkerId: string,
         disableS3: boolean,
@@ -29,9 +27,9 @@ export class DesktopDocStorageManager extends HostedStorageManager {
     }
 
     getPath(docName: string): string {
-        const docPath = this._docRegistry.lookupById(docName);
-        log.debug(`getPath ${docName} => ${docPath}`);
-        // Fall back on default path if DocRegistry cache is out of sync.
+        const docPath = this.lookupById(docName);
+        log.debug(`DesktopStorageManager fetching cached path for ${docName}: ${docPath}`);
+        // Fall back on default path if cache is out of sync.
         return docPath || super.getPath(docName);
     }
 
