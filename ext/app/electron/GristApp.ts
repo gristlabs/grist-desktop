@@ -90,12 +90,11 @@ export class GristApp {
     const port = parseInt(process.env["GRIST_PORT"] as string, 10);
     const mergedServer = await MergedServer.create(port, ["home", "docs", "static", "app"]);
     this.flexServer = mergedServer.flexServer;
-    this.docRegistry = await DocRegistry.create(this.flexServer.getHomeDBManager());
     this.windowManager = new WindowManager(this.flexServer.getGristConfig(),
       // TODO: Move this Doc ID lookup function somewhere else.
       async (docIdOrUrlId) => {
         if (this.storageManager.lookupById(docIdOrUrlId) === null) {
-          // DocRegistry does not know about this doc ID, so this must be an URL ID.
+          // Storage manager does not know about this doc ID, so this must be an URL ID.
           return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
             .select("docs")
             .from(Document, "docs")
@@ -255,7 +254,7 @@ export class GristApp {
       log.debug(`Opening Grist document ${filePath}`);
       let docId = this.storageManager.lookupByPath(filePath);
       if (!docId) {
-        log.debug(`Opening new document at ${filePath}`)
+        log.debug(`Opening new document at ${filePath}`);
         docId = await this.registerDoc(filePath);
       } else {
         log.debug(`Opening existing document ${docId} at ${filePath}`);
@@ -355,8 +354,11 @@ export class GristApp {
 
     for (const doc of wss[0].docs) {
       if (doc.options?.externalId === docPath) {
-        // We might be able to do better.
-        throw Error("DocRegistry cache incoherent. Please try restarting the app.");
+        // If we're trying to re-register an already registered doc, the storage manager's cache might be invalid.
+        // Update the storage manager's cache and try to continue, but log in case we need to later debug this case.
+        log.warn(`Attempting to re-register document ${doc.id} at ${docPath}`);
+        this.storageManager.registerDocPath(doc.id, docPath);
+        return doc.id;
       }
     }
 
