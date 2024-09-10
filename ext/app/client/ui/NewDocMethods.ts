@@ -14,16 +14,17 @@ async function createDocAndOpen() {
 // Invoked by the "Import Document" button.
 async function importDocAndOpen(home: HomeModel) {
   electronOnly();
-  return _importDocAndOpen(home);
+  return _importUploadedFileAndOpen(
+      await homeImports.docImport(home.app)
+  );
 }
 
 // Internal implementation.
-async function _importDocAndOpen(home: HomeModel, fileToImport?: File) {
-  const uploadId = await homeImports.docImport(home.app, fileToImport);
+async function _importUploadedFileAndOpen(uploadId: number | null) {
   if (uploadId === null) { return; }
   const doc = await window.electronAPI.importDoc(uploadId);
   if (doc) {
-    urlState().pushUrl({doc: doc.id});
+    await urlState().pushUrl({doc: doc.id});
   }
 }
 
@@ -35,7 +36,8 @@ window.electronAPI?.onMainProcessImportDoc((fileContents: Buffer, fileName: stri
     while (!window.gristHomeModel || !window.gristHomeModel.app) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    _importDocAndOpen(window.gristHomeModel, new File([fileContents], fileName));
+    const uploadId = await homeImports.fileImport([new File([fileContents], fileName)], window.gristHomeModel.app);
+    await _importUploadedFileAndOpen(uploadId);
   })();
 });
 

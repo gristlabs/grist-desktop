@@ -8,19 +8,28 @@ import { uploadFiles } from 'app/client/lib/uploads';
 /**
  * Imports a document and returns its upload ID, or null if no files were selected.
  */
-async function docImport(app: AppModel, fileToImport?: File): Promise<number|null> {
-  let files: File[];
+export async function docImport(app: AppModel): Promise<number|null> {
+  // We use openFilePicker() and uploadFiles() separately, rather than the selectFiles() helper,
+  // because we only want to connect to a docWorker if there are in fact any files to upload.
 
-  if (fileToImport === undefined) {
-    files = await openFilePicker({
-      multiple: false,
-      accept: IMPORTABLE_EXTENSIONS.filter((extension) => extension !== ".grist").join(","),
-    });
-    if (!files.length) { return null; }
-  } else {
-    files = [fileToImport];
-  }
+  // Start selecting files.  This needs to start synchronously to be seen as a user-initiated
+  // popup, or it would get blocked by default in a typical browser.
+  const files: File[] = await openFilePicker({
+    multiple: false,
+    accept: IMPORTABLE_EXTENSIONS.join(","),
+  });
 
+  if (!files.length) { return null; }
+
+  return await fileImport(files, app);
+}
+
+/**
+ * Imports one or more files and returns its upload ID, or null if no files were selected.
+ */
+
+export async function fileImport(
+    files: File[], app: AppModel): Promise<number | null> {
   const progressUI = app.notifier.createProgressIndicator(files[0].name, byteString(files[0].size));
   const progress = ImportProgress.create(progressUI, progressUI, files[0]);
   try {
@@ -38,4 +47,4 @@ async function docImport(app: AppModel, fileToImport?: File): Promise<number|nul
   }
 }
 
-export const homeImports = {docImport};
+export const homeImports = {docImport, fileImport};
