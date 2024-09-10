@@ -43,7 +43,7 @@ export class DesktopDocStorageManager extends HostedStorageManager {
         }
     };
 
-    async listDocsWithoutFilesOnDisk(homeDb: HomeDBManager): Promise<Document[]> {
+    async listDocsWithoutFilesInCache(homeDb: HomeDBManager): Promise<Document[]> {
         const allDocs = await homeDb.getAllDocs();
         return allDocs.filter((doc) => !fileExists(this.getPath(doc.id)));
     };
