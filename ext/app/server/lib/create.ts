@@ -7,7 +7,7 @@ import {
 import {DesktopDocStorageManager} from "app/server/lib/DesktopDocStorageManager";
 
 const createDesktopStorageManager: HostedDocStorageManagerCreator =
-    (...args) => new DesktopDocStorageManager(...args);
+    async (...args) => new DesktopDocStorageManager(...args);
 
 export const create: ICreate = makeSimpleCreator({
   deploymentType: "electron",
