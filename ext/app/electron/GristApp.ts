@@ -267,7 +267,7 @@ export class GristApp {
       } else if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
         // If a specific window issued the open request, and it is not currently busy with another
         // document, reuse this window.
-        requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
+        await requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
       } else {
         // Otherwise we keep open documents open, and create a new window for the opening document.
         this.windowManager.add(docId).show();
