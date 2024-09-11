@@ -1,3 +1,4 @@
+import { AppModel } from "app/client/models/AppModel";
 import { HomeModel } from 'app/client/models/HomeModel';
 import { electronOnly } from "app/client/electronOnly";
 import { homeImports } from 'app/client/ui/HomeImports';
@@ -33,10 +34,13 @@ async function _importUploadedFileAndOpen(uploadId: number | null) {
 // and is undefined for non-electron visitors. An error here will make the entire page fail to load.
 window.electronAPI?.onMainProcessImportDoc((fileContents: Buffer, fileName: string) => {
   (async() => {
-    while (!window.gristHomeModel || !window.gristHomeModel.app) {
+    let appModel: AppModel | null = null;
+    // Loop to wait for initialisation of the app model.
+    // TODO It would be nicer to create a proper bridge which notifies the user when import isn't available.
+    while (!(appModel = window.gristApp?.topAppModel.appObs.get())) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const uploadId = await homeImports.fileImport([new File([fileContents], fileName)], window.gristHomeModel.app);
+    const uploadId = await homeImports.fileImport([new File([fileContents], fileName)], appModel);
     await _importUploadedFileAndOpen(uploadId);
   })();
 });

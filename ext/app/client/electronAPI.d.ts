@@ -1,3 +1,4 @@
+import { App } from "app/client/ui/App";
 import { HomeModel } from "app/client/models/HomeModel";
 
 export type NewDocument = {
@@ -25,6 +26,6 @@ interface IElectronAPI {
 declare global {
   interface Window {
     electronAPI: IElectronAPI,
-    gristHomeModel: HomeModel,
+    gristApp: App,
   }
 }
