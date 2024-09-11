@@ -19,8 +19,9 @@ import { decodeUrl } from "app/common/gristUrls";
 import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
-import {DesktopDocStorageManager, isDesktopStorageManager} from "../server/lib/DesktopDocStorageManager";
-import {HomeDBManager} from "../../../app/gen-server/lib/homedb/HomeDBManager";
+import {DesktopDocStorageManager, isDesktopStorageManager} from "app/server/lib/DesktopDocStorageManager";
+import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
+import {getDefaultUser} from "app/electron/userUtils";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
@@ -199,7 +200,7 @@ export class GristApp {
   }
 
   public async getDefaultUser() {
-    const user = await this.flexServer.getHomeDBManager().getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
+    const user = await getDefaultUser(this.flexServer.getHomeDBManager());
     if (!user) {
       throw new Error('cannot find default user');
     }

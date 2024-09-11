@@ -7,7 +7,7 @@ import {
 } from "app/server/lib/ICreate";
 import {DesktopDocStorageManager} from "app/server/lib/DesktopDocStorageManager";
 import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
-import { GristApp } from "app/electron/GristApp";
+import { getDefaultUser } from "app/electron/userUtils";
 
 const createDesktopStorageManager: HostedDocStorageManagerCreator = async (...args) => {
   const storageManager = new DesktopDocStorageManager(...args);
@@ -17,7 +17,11 @@ const createDesktopStorageManager: HostedDocStorageManagerCreator = async (...ar
   // but this is a passable workaround for the moment.
   await storageManager.loadFilePathsFromHomeDB(homeDB);
   const docsWithoutFiles = await storageManager.listDocsWithoutFilesInCache(homeDB);
-  const user = await GristApp.instance.getDefaultUser();
+  const user = await getDefaultUser(homeDB);
+  // Can't do anything without a user (which shouldn't happen!), move on without synchronising.
+  if (!user) {
+    return storageManager;
+  }
   const deletions = docsWithoutFiles.map((doc) =>
       homeDB.deleteDocument({
         userId: user.id,
