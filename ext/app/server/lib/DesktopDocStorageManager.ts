@@ -1,11 +1,11 @@
 import {HostedStorageManager, HostedStorageOptions} from "app/server/lib/HostedStorageManager";
-import {IDocWorkerMap} from "app/server/lib/DocWorkerMap";
-import {ExternalStorageCreator} from "app/server/lib/ExternalStorage";
-import log from "grist-core/_build/app/server/lib/log";
-import {IDocStorageManager} from "grist-core/_build/app/server/lib/IDocStorageManager";
-import {Document} from "app/gen-server/entity/Document"
+import {Document} from "app/gen-server/entity/Document";
 import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
 import {fileExists} from "app/electron/fileUtils";
+import {IDocWorkerMap} from "app/server/lib/DocWorkerMap";
+import {ExternalStorageCreator} from "app/server/lib/ExternalStorage";
+import {IDocStorageManager} from "app/server/lib/IDocStorageManager";
+import log from "app/server/lib/log";
 
 export class DesktopDocStorageManager extends HostedStorageManager {
     // Document paths on disk are stored in the HomeDB. However, they need caching here to allow synchronous access,
