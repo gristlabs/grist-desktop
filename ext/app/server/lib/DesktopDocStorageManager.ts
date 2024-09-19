@@ -35,11 +35,12 @@ export class DesktopDocStorageManager extends HostedStorageManager {
 
     async loadFilePathsFromHomeDB(homeDb: HomeDBManager) {
         for (const doc of await homeDb.getAllDocs()) {
-          // All Grist Desktop documents are supposed to have externalId set to their file path.
-          const docPath = doc.options?.externalId;
-          if (docPath && fileExists(docPath)) {
-              this.registerDocPath(doc.id, docPath);
-          }
+            // Most Grist Desktop documents will have externalId set to their file path.
+            // Some won't (e.g created in an older version), so try their default path.
+            const docPath = doc.options?.externalId || super.getPath(doc.id);
+            if (docPath && fileExists(docPath)) {
+                this.registerDocPath(doc.id, docPath);
+            }
         }
     };
 
@@ -77,6 +78,10 @@ export class DesktopDocStorageManager extends HostedStorageManager {
 
     public lookupByPath(docPath: string): string | null {
         return this._pathToIdMap.get(docPath) ?? null;
+    }
+
+    public getCachedPaths(): [string, string][] {
+        return Array.from(this._idToPathMap.entries());
     }
 }
 
