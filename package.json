@@ -72,7 +72,7 @@
       "icon": "core/static/icons/grist.png",
       "target": "AppImage"
     },
-    "afterSign": "scripts/notarize.js",
+    "afterSign": "./scripts/notarize.js",
     "asarUnpack": [
       "core/plugins",
       "core/python",
