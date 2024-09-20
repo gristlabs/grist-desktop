@@ -261,6 +261,15 @@ export class GristApp {
         log.debug(`Opening existing document ${docId} at ${filePath}`);
       }
 
+      const homeDBManager = this.flexServer.getHomeDBManager();
+
+      // It's possible to open the .grist file for a document in trash, which would error.
+      // Restore the document instead before opening
+      await homeDBManager.undeleteDocument({
+        userId: (await this.getDefaultUser()).id,
+        urlId: docId,
+      });
+
       const existingWindow = this.windowManager.get(docId);
       if (existingWindow) {
         // If the document is already open in a window, bring that window up to the user.
