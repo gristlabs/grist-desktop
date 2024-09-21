@@ -17,10 +17,25 @@ class AppMenu extends events.EventEmitter {
     this.rebuildMenu();
   }
 
+  addRecentItem(entry) {
+    this.recentItems.addItem(entry);
+  }
+
   getMenu() { return this._menu; }
 
   rebuildMenu() {
+    const isActive = electron.Menu.getApplicationMenu() === this.getMenu();
     this._menu = electron.Menu.buildFromTemplate(this.buildTemplate());
+    // TODO: Electron does not yet support updating the menu except by reassigning the entire
+    // menu.  There are proposals to allow menu templates include callbacks that
+    // are called on menu open. https://github.com/electron/electron/issues/528
+    if (isActive) {
+      this.setAsCurrentElectronMenu();
+    }
+  }
+
+  setAsCurrentElectronMenu() {
+    electron.Menu.setApplicationMenu(this.getMenu());
   }
 
   buildOpenRecentSubmenu() {
@@ -28,7 +43,7 @@ class AppMenu extends events.EventEmitter {
     this.recentItems.listItems().reverse().forEach(filePath => {
        subMenu.push({
           label: path.basename(filePath),
-          click: event => app.emit('open-file', event, filePath)
+          click: () => app.emit('open-file', undefined, filePath)
        });
     });
     return subMenu;
@@ -61,11 +76,11 @@ class AppMenu extends events.EventEmitter {
       submenu: [{
         label: 'New',
         accelerator: 'CmdOrCtrl+N',
-        click: () => this.emit('menu-file-new')
+        click: (item, focusedWindow) => this.emit('menu-file-new', focusedWindow)
       }, {
         label: 'Open...',
         accelerator: 'CmdOrCtrl+O',
-        click: () => this.emit('menu-file-open')
+        click: (item, focusedWindow) => this.emit('menu-file-open', focusedWindow)
       }, {
         label: 'Open Recent',
         submenu: this.buildOpenRecentSubmenu()

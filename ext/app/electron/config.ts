@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as electron from "electron";
 import * as fse from "fs-extra";
 import * as log from "app/server/lib/log";
-import * as packageJson from "desktop.package.json";
+import * as packageJson from "ext/desktop.package.json";
 import * as path from "path";
 import { commonUrls } from "app/common/gristUrls";
 import { getAvailablePort } from "app/server/lib/serverUtils";
