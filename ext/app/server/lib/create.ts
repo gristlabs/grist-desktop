@@ -38,7 +38,7 @@ const createDesktopStorageManager: HostedDocStorageManagerCreator = async (...ar
 
 export const create: ICreate = makeSimpleCreator({
   deploymentType: "electron",
-  sessionSecret: "something",
+  sessionSecret: "no-longer-needed",
   getLoginSystem: getElectronLoginSystem,
   createHostedDocStorageManager: createDesktopStorageManager,
 });
