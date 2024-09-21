@@ -52,7 +52,7 @@ let initialFileToOpen: string|null = null;
 // The other situation is handled separately.
 // https://www.electronjs.org/docs/latest/api/app#event-open-file-macos
 electron.app.on('open-file', (e, docPath) => {
-  e.preventDefault(); // Electron requires this. See link above.
+  e?.preventDefault(); // Electron requires this. See link above.
   initialFileToOpen = docPath;
 });
 

@@ -38,6 +38,7 @@ export class GristApp {
   // This is referenced by create.ts.
   private flexServer: FlexServer;
   private windowManager: WindowManager;
+  private appMenu: AppMenu;
 
   private constructor() {}
 
@@ -116,18 +117,18 @@ export class GristApp {
       maxCount: 10,
       intialItems: (await serverMethods.getUserConfig()).recentItems
     });
-    const appMenu = new AppMenu(recentItems);
-    electron.Menu.setApplicationMenu(appMenu.getMenu());
-    const updateManager = new UpdateManager(appMenu);
+    this.appMenu = new AppMenu(recentItems);
+    electron.Menu.setApplicationMenu(this.appMenu.getMenu());
+    const updateManager = new UpdateManager(this.appMenu);
     console.log(updateManager ? "updateManager loadable, but not used yet" : "");
 
-    appMenu.on("menu-file-new", async (win: electron.BrowserWindow) => {
+    this.appMenu.on("menu-file-new", async (win: electron.BrowserWindow) => {
       const doc = await this.createDocument(win);
       if (doc) {
         win.loadURL(this.windowManager.getUrl(doc.id));
       }
     });
-    appMenu.on("menu-file-open", async (win: electron.BrowserWindow) => {
+    this.appMenu.on("menu-file-open", async (win: electron.BrowserWindow) => {
       const result = await electron.dialog.showOpenDialog({
         title: "Open or import",
         defaultPath: electron.app.getPath("documents"),
@@ -147,23 +148,10 @@ export class GristApp {
     electron.ipcMain.handle("import-document", (event, importUploadId) =>
       this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!, importUploadId));
 
-    serverMethods.onDocOpen((filePath: string) => {
-      // Add to list of recent docs in the dock (mac) or the JumpList (win)
-      electron.app.addRecentDocument(filePath);
-      // Add to list of recent docs in the menu
-      recentItems.addItem(filePath);
-      serverMethods.updateUserConfig({ recentItems: recentItems.listItems() });
-      // TODO: Electron does not yet support updating the menu except by reassigning the entire
-      // menu.  There are proposals to allow menu templates include callbacks that
-      // are called on menu open. https://github.com/electron/electron/issues/528
-      appMenu.rebuildMenu();
-      electron.Menu.setApplicationMenu(appMenu.getMenu());
-    });
-
     // Now that we are ready, future "open-file" events should just open windows directly.
     electron.app.removeAllListeners("open-file");
     electron.app.on("open-file", (e, filePath) => {
-      e.preventDefault();
+      e?.preventDefault();
       this.openFile(filePath)
         .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
     });
@@ -239,6 +227,19 @@ export class GristApp {
   }
 
   /**
+   * Adds a new entry to the recent documents menu(s).
+   * @param filePath Path of the opened document (file)
+   */
+  public addRecentDocument(filePath: string) {
+    // Add to list of recent docs in the dock (mac) or the JumpList (win)
+    electron.app.addRecentDocument(filePath);
+    // Add to list of recent docs in the menu
+    this.appMenu.addRecentItem(filePath);
+    this.flexServer.electronServerMethods.updateUserConfig({ recentItems: this.appMenu.recentItems.listItems() });
+    this.appMenu.rebuildMenu();
+  }
+
+  /**
    * Opens the file at filepath. File can be a Grist document, or an importable document.
    * @param filePath Path to the file to open. Can be relative.
    * @param requestWindow The window associated with the open request. If this window is not showing
@@ -309,6 +310,8 @@ export class GristApp {
       // prevent us from ending up here, but just in case...
       throw new Error(`Unsupported format ${ext}`);
     }
+
+    this.addRecentDocument(filePath);
   }
 
   /**
