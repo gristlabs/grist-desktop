@@ -104,16 +104,16 @@ export class DocRegistry {
       }
     }
     // Create the entry in the home database.
-    const docId = this.db.unwrapQueryResult(await this.db.addDocument({
+    const document = this.db.unwrapQueryResult(await this.db.addDocument({
       userId: defaultUser.id,
     }, wss[0].id, {
       name: path.basename(docPath, '.grist'),
       options: { externalId: docPath },
     }));
     // Update the in-memory cache.
-    this.pathToIdMap.set(docPath, docId);
-    this.idToPathMap.set(docId, docPath);
-    return docId;
+    this.pathToIdMap.set(docPath, document.id);
+    this.idToPathMap.set(document.id, docPath);
+    return document.id;
   }
 
 }
