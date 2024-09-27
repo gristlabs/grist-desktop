@@ -19,9 +19,9 @@ import { decodeUrl } from "app/common/gristUrls";
 import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
-import {DesktopDocStorageManager, isDesktopStorageManager} from "app/server/lib/DesktopDocStorageManager";
-import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
-import {getDefaultUser} from "app/electron/userUtils";
+import { DesktopDocStorageManager, isDesktopStorageManager } from "app/server/lib/DesktopDocStorageManager";
+import { DocScope, HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
+import { getDefaultUser } from "app/electron/userUtils";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
@@ -263,13 +263,18 @@ export class GristApp {
       }
 
       const homeDBManager = this.flexServer.getHomeDBManager();
+      const scope: DocScope = {
+        userId: (await this.getDefaultUser()).id,
+        urlId: docId,
+      };
 
       // It's possible to open the .grist file for a document in trash, which would error.
       // Restore the document instead before opening
-      await homeDBManager.undeleteDocument({
-        userId: (await this.getDefaultUser()).id,
-        urlId: docId,
-      });
+      const doc = await homeDBManager.getDocImpl(scope);
+      if (doc.removedAt) {
+        await homeDBManager.undeleteDocument(scope);
+      }
+
 
       const existingWindow = this.windowManager.get(docId);
       if (existingWindow) {
@@ -376,7 +381,7 @@ export class GristApp {
     }
 
     // Create the entry in the home database.
-    const docId = this.homeDBManager.unwrapQueryResult(
+    const doc = this.homeDBManager.unwrapQueryResult(
       await this.homeDBManager.addDocument(
         {
           userId: defaultUser.id,
@@ -390,7 +395,7 @@ export class GristApp {
     );
 
     // Inform the storage manager where to find the file for that doc.
-    this.storageManager.registerDocPath(docId, docPath);
-    return docId;
+    this.storageManager.registerDocPath(doc.id, docPath);
+    return doc.id;
   }
 }
