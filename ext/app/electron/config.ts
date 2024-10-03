@@ -87,6 +87,11 @@ export async function loadConfig() {
     path.join(electron.app.getPath("home"), ".grist")
   );
   validateOrFallback(
+    "PYTHON_VERSION_ON_CREATION",
+    (ver) => ["2", "3"].includes(ver),
+    "3"
+  );
+  validateOrFallback(
     "TYPEORM_DATABASE",
     NO_VALIDATION,
     path.join(electron.app.getPath("appData"), "landing.db")
