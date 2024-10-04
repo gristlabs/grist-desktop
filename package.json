@@ -65,7 +65,11 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "scripts/entitlements.mac.plist",
-      "entitlementsInherit": "scripts/entitlements.mac.plist"
+      "entitlementsInherit": "scripts/entitlements.mac.plist",
+      "target": "dmg"
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     },
     "linux": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
