@@ -1,9 +1,13 @@
-import {HostedStorageManager, HostedStorageOptions} from "app/server/lib/HostedStorageManager";
+import {
+  HostedStorageCallbacks,
+  HostedStorageManager,
+  HostedStorageOptions} from "app/server/lib/HostedStorageManager";
 import {Document} from "app/gen-server/entity/Document";
 import {HomeDBManager} from "app/gen-server/lib/homedb/HomeDBManager";
 import {fileExists} from "app/electron/fileUtils";
 import {IDocWorkerMap} from "app/server/lib/DocWorkerMap";
 import {ExternalStorageCreator} from "app/server/lib/ExternalStorage";
+import {GristServer} from "app/server/lib/GristServer";
 import {IDocStorageManager} from "app/server/lib/IDocStorageManager";
 import log from "app/server/lib/log";
 
@@ -15,15 +19,16 @@ export class DesktopDocStorageManager extends HostedStorageManager {
     private _pathToIdMap: Map<string, string> = new Map();
 
     constructor(
+        gristServer: GristServer,
         docsRoot: string,
         docWorkerId: string,
         disableS3: boolean,
         docWorkerMap: IDocWorkerMap,
-        dbManager: HomeDBManager,
+        callbacks: HostedStorageCallbacks,
         createExternalStorage: ExternalStorageCreator,
         options?: HostedStorageOptions
     ) {
-        super(docsRoot, docWorkerId, disableS3, docWorkerMap, dbManager, createExternalStorage, options);
+      super(gristServer, docsRoot, docWorkerId, disableS3, docWorkerMap, callbacks, createExternalStorage, options);
     }
 
     getPath(docName: string): string {
