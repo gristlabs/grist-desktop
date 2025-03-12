@@ -101,6 +101,11 @@ export async function loadConfig() {
     NO_VALIDATION,
     commonUrls.gristLabsWidgetRepository
   );
+  validateOrFallback(
+    "GRIST_SQLITE_MODE",
+    (mode) => ["", "sync", "wal"].includes(mode),
+    "sync"
+  );
 
   const homeDBLocation = path.parse(path.resolve(process.env.TYPEORM_DATABASE as string)).dir;
   if (!fse.existsSync(homeDBLocation)) {
