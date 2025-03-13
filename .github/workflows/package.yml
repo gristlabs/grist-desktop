@@ -96,6 +96,15 @@ jobs:
           npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
 
+        # by not installing optional dependencies, we miss something
+        # needed on macs
+      - name: Add dmg-license if needed
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          yarn global add dmg-license
+          FORCE_COLOR=0 yarn global bin >> "$GITHUB_PATH"
+          echo "NODE_PATH=$(FORCE_COLOR=0 yarn global dir)/node_modules:$NODE_PATH" >> "$GITHUB_ENV"
+
       - name: Hooks and crooks
         run: yarn run setup
         env:
