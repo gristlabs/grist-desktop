@@ -82,8 +82,8 @@ jobs:
 
       - name: Install dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --network-timeout 300000
-      
+        run: yarn install --network-timeout 300000 --ignore-optional
+
       - name: Fix Windows x86 sqlite3 binding
         if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
         run: yarn upgrade sqlite3
