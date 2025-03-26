@@ -8,6 +8,7 @@ on:
       - '*'
 env:
   FORCE_COLOR: 1
+  DEBUG_DMG: true
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
