@@ -8,7 +8,7 @@ import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
 import { Document } from "app/gen-server/entity/Document";
 import { FlexServer } from "app/server/lib/FlexServer";
-import { IMPORTABLE_EXTENSIONS } from "app/client/lib/uploads";
+import { EXTENSIONS_IMPORTABLE_AS_DOC } from "app/client/lib/uploads";
 import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
 import { OptDocSession } from "app/server/lib/DocSession";
@@ -25,7 +25,7 @@ import { getDefaultUser } from "app/electron/userUtils";
 
 const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
 const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
-  IMPORTABLE_EXTENSIONS.filter(ext => ext !== ".grist").map(ext => ext.substring(1))};
+  EXTENSIONS_IMPORTABLE_AS_DOC.filter(ext => ext !== ".grist").map(ext => ext.substring(1))};
 
 type InstanceHandoverInfo = {
   fileToOpen: string|null;
@@ -289,8 +289,8 @@ export class GristApp {
         this.windowManager.add(docId).show();
       }
 
-    } else if (IMPORTABLE_EXTENSIONS.includes(ext)) {
-      // Note: IMPORTABLE_EXTENSIONS comes from grist-core and includes ".grist".
+    } else if (EXTENSIONS_IMPORTABLE_AS_DOC.includes(ext)) {
+      // Note: EXTENSIONS_IMPORTABLE_AS_DOC comes from grist-core and includes ".grist".
 
       log.debug(`Importing from file ${filePath}`);
       const fileContents = fse.readFileSync(filePath);

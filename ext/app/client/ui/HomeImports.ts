@@ -1,5 +1,5 @@
 import { AppModel, reportError } from 'app/client/models/AppModel';
-import { IMPORTABLE_EXTENSIONS } from 'app/client/lib/uploads';
+import { EXTENSIONS_IMPORTABLE_AS_DOC } from 'app/client/lib/uploads';
 import { ImportProgress } from 'app/client/ui/ImportProgress';
 import { byteString } from 'app/common/gutil';
 import { openFilePicker } from 'app/client/ui/FileDialog';
@@ -16,7 +16,7 @@ export async function docImport(app: AppModel): Promise<number|null> {
   // popup, or it would get blocked by default in a typical browser.
   const files: File[] = await openFilePicker({
     multiple: false,
-    accept: IMPORTABLE_EXTENSIONS.join(","),
+    accept: EXTENSIONS_IMPORTABLE_AS_DOC.join(","),
   });
 
   if (!files.length) { return null; }
