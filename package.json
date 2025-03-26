@@ -3,7 +3,7 @@
   "name": "grist-desktop",
   "productName": "Grist Desktop",
   "description": "Grist Desktop",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
