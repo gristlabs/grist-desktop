@@ -140,6 +140,19 @@ class AppMenu extends events.EventEmitter {
         .concat({
           label: 'Grist User Help',
           click: (item, win) => win.webContents.executeJavaScript('gristApp.allCommands.help.run()')
+        }, {
+          label: 'Custom CSS Status',
+          click: (item, win) => {
+            win.webContents.executeJavaScript(`
+              (function() {
+                if (window.gristCustomCssPath) {
+                  alert('Custom CSS is loaded from: ' + window.gristCustomCssPath);
+                } else {
+                  alert('No custom CSS file is loaded. Create ~/.grist/custom.css to customize Grist appearance.');
+                }
+                return true;
+              })();
+            `);
         })
       )
     });
