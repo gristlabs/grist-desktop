@@ -134,13 +134,14 @@ class AppMenu extends events.EventEmitter {
     }, {
       label: 'Help',
       role: 'help',
-      submenu: (
+      submenu: [
         // On Windows, the "Check for Updates" item goes in the rightmost Help menu.
-        (isMac ? [] : [ ...this.buildUpdateItemsTemplate(), { type: 'separator' }])
-        .concat({
+        ...(isMac ? [] : [...this.buildUpdateItemsTemplate(), { type: 'separator' }]),
+        {
           label: 'Grist User Help',
           click: (item, win) => win.webContents.executeJavaScript('gristApp.allCommands.help.run()')
-        }, {
+        },
+        {
           label: 'Custom CSS Status',
           click: (item, win) => {
             win.webContents.executeJavaScript(`
@@ -153,8 +154,9 @@ class AppMenu extends events.EventEmitter {
                 return true;
               })();
             `);
-        })
-      )
+          }
+        }
+      ]
     });
 
     return menuTemplate;
