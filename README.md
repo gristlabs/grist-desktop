@@ -142,13 +142,12 @@ installation instead - see https://support.getgrist.com/self-managed/
 Sandboxing limits the effects of formulas in spreadsheets. It is recommended to use `pyodide`,
 as `gvisor` and `macSandboxExec` are not yet easy to use.
 
-If you turn it off, the full raw power of Python will be available to any Grist
-spreadsheet you open. So:
+If you turn sandboxing off, the full raw power of Python will be available to any Grist
+spreadsheet you open, without limitation to the spreadsheet itself. So if you do this:
 
  * Use only with your own Grist spreadsheets, or
  * Use only with spreadsheets you trust, or
- * Turn sandboxing the heck back on, or
- * Return to the YOLO days of opening spreadsheets and crossing your fingers.
+ * Consider before opening any spreadsheet whether it may contain malicious instructions.
 
 
 ## History
