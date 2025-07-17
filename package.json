@@ -3,13 +3,16 @@
   "name": "grist-desktop",
   "productName": "Grist Desktop",
   "description": "Grist Desktop",
-  "version": "0.2.10",
+  "version": "0.3.2",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
   "license": "Apache-2.0",
   "workspaces": {
-    "packages": ["core", "ext"],
+    "packages": [
+      "core",
+      "ext"
+    ],
     "nohoist": [
       "**/eslint/**",
       "**/typescript-eslint/**",
@@ -23,14 +26,14 @@
   },
   "scripts": {
     "setup": "./scripts/setup.sh && cd core && yarn run install:python",
-    "build": "cd core && yarn run build:prod && resolve-tspaths",
-    "paths": "cd core && resolve-tspaths",
-    "electron:preview": "electron core/_build/ext/app/electron/main.js",
+    "build": "cd core && yarn run build:prod && resolve-tspaths -p tsconfig-ext.json",
+    "paths": "cd core && resolve-tspaths -p tsconfig-ext.json",
+    "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "cd core && rm -f junk.db && node _build/app/server/companion.js sqlite gristify junk.db && ls junk.db"
+    "test": "electron core/_build/ext/app/electron/main.js --version"
   },
   "resolutions": {
     "jquery": "3.5.0",
@@ -44,6 +47,7 @@
     "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -52,32 +56,34 @@
         {
           "target": "portable",
           "arch": ["x64", "arm64"]
+        },
+          "target": "zip"
         }
       ],
       "icon": "core/static/icons/grist.ico"
     },
-    "portable": {
-      "artifactName": "${name}-windows-portable-${version}-${arch}.${ext}"
-    },
     "nsis": {
-      "artifactName": "${name}-windows-installer-${version}-${arch}.${ext}",
       "perMachine": true
     },
     "mac": {
-      "artifactName": "${name}-mac-${version}-${arch}.${ext}",
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.icns",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "scripts/entitlements.mac.plist",
-      "entitlementsInherit": "scripts/entitlements.mac.plist"
+      "entitlementsInherit": "scripts/entitlements.mac.plist",
+      "target": "dmg"
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     },
     "linux": {
-      "artifactName": "${name}-linux-${version}-${arch}.${ext}",
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
       "target": "AppImage"
     },
-    "afterSign": "scripts/notarize.js",
+    "afterSign": "./scripts/notarize.js",
     "asarUnpack": [
       "core/plugins",
       "core/python",
@@ -126,7 +132,44 @@
         "ext": "grist",
         "name": "Grist Document",
         "role": "Editor",
-        "icon": "core/static/icons/gristdoc"
+        "icon": "core/static/icons/gristdoc",
+        "rank": "Owner"
+      },
+      {
+        "ext": "csv",
+        "name": "Comma-Separated Values",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "tsv",
+        "name": "Tab-Separated Values",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "dsv",
+        "name": "Delimiter-Separated Values",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "txt",
+        "name": "Text File",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "xlsx",
+        "name": "Microsoft Excel Spreadsheet",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "xlsm",
+        "name": "Microsoft Excel Open XML Spreadsheet",
+        "role": "Viewer",
+        "rank": "Alternate"
       }
     ]
   }

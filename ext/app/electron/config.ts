@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as electron from "electron";
 import * as fse from "fs-extra";
 import * as log from "app/server/lib/log";
-import * as packageJson from "desktop.package.json";
+import * as packageJson from "ext/desktop.package.json";
 import * as path from "path";
 import { commonUrls } from "app/common/gristUrls";
 import { getAvailablePort } from "app/server/lib/serverUtils";
@@ -87,6 +87,11 @@ export async function loadConfig() {
     path.join(electron.app.getPath("home"), ".grist")
   );
   validateOrFallback(
+    "PYTHON_VERSION_ON_CREATION",
+    (ver) => ["2", "3"].includes(ver),
+    "3"
+  );
+  validateOrFallback(
     "TYPEORM_DATABASE",
     NO_VALIDATION,
     path.join(electron.app.getPath("appData"), "landing.db")
@@ -95,6 +100,11 @@ export async function loadConfig() {
     "GRIST_WIDGET_LIST_URL", // Related to plugins (Would have to be changed if local custom widgets are used?)
     NO_VALIDATION,
     commonUrls.gristLabsWidgetRepository
+  );
+  validateOrFallback(
+    "GRIST_SQLITE_MODE",
+    (mode) => ["", "sync", "wal"].includes(mode),
+    "sync"
   );
 
   const homeDBLocation = path.parse(path.resolve(process.env.TYPEORM_DATABASE as string)).dir;
@@ -109,7 +119,7 @@ export async function loadConfig() {
   process.env.GRIST_SERVE_SAME_ORIGIN = "true";
   process.env.GRIST_DEFAULT_PRODUCT = "Free";
   process.env.GRIST_ORG_IN_PATH = "true";
-  process.env.GRIST_HIDE_UI_ELEMENTS = "helpCenter,billing,templates,multiSite,multiAccounts";
+  process.env.GRIST_HIDE_UI_ELEMENTS = "helpCenter,billing,templates,multiSite,multiAccounts,tutorials";
   process.env.GRIST_CONTACT_SUPPORT_URL = packageJson.repository + "/issues";
   if (process.env.GRIST_DESKTOP_AUTH !== "mixed") {
     process.env.GRIST_FORCE_LOGIN = "true";

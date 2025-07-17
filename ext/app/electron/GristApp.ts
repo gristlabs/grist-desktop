@@ -1,45 +1,82 @@
 import * as electron from "electron";
 import * as fse from "fs-extra";
-import * as gutil from "app/common/gutil";
 import * as log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
-import * as winston from "winston";
-import { ElectronServerMethods, FlexServer } from "app/server/lib/FlexServer";
-import { GristDesktopAuthMode, getMinimalElectronLoginSystem } from "app/electron/logins";
+import { fileCreatable, fileExists } from "app/electron/fileUtils";
+import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
+import { Document } from "app/gen-server/entity/Document";
+import { FlexServer } from "app/server/lib/FlexServer";
+import { EXTENSIONS_IMPORTABLE_AS_DOC } from "app/client/lib/uploads";
+import { MergedServer } from "app/server/MergedServer";
+import { NewDocument } from "app/client/electronAPI";
+import { OptDocSession } from "app/server/lib/DocSession";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
-import { makeId } from "app/server/lib/idUtils";
-import { main as mergedServerMain } from "app/server/mergedServerMain";
+import { WindowManager } from "app/electron/WindowManager";
+import { decodeUrl } from "app/common/gristUrls";
+import { globalUploadSet } from "app/server/lib/uploads";
 import { updateDb } from "app/server/lib/dbUtils";
 import webviewOptions from "app/electron/webviewOptions";
+import { DesktopDocStorageManager, isDesktopStorageManager } from "app/server/lib/DesktopDocStorageManager";
+import { DocScope, HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
+import { getDefaultUser } from "app/electron/userUtils";
+
+const GRIST_DOCUMENT_FILTER = {name: "Grist documents", extensions: ["grist"]};
+const IMPORTABLE_DOCUMENT_FILTER = {name: "Importable documents", extensions:
+  EXTENSIONS_IMPORTABLE_AS_DOC.filter(ext => ext !== ".grist").map(ext => ext.substring(1))};
+
+type InstanceHandoverInfo = {
+  fileToOpen: string|null;
+}
 
 export class GristApp {
+
+  private static _instance: GristApp; // The singleton instance.
+
+  // This is referenced by create.ts.
   private flexServer: FlexServer;
-  private app = electron.app;
-  private appWindows: Set<electron.BrowserWindow> = new Set();       // A set of all our window objects.
-  private appHost: string;               // The hostname to connect to the local node server we start.
-  private pendingPathToOpen: string | undefined = undefined;     // Path to open when app is started to open a document.
+  private windowManager: WindowManager;
+  private appMenu: AppMenu;
 
-  // Function, set once the app is ready, that opens or focuses a window when Grist is started. It
-  // is called on 'ready' and by onInstanceStart (triggered when starting another Grist instance).
-  private onStartup: (optPath?: string) => Promise<void>;
-  private credential: string = makeId();
-  private shouldQuit = false;
-  private authMode: GristDesktopAuthMode;
+  private constructor() {}
 
-  public constructor() {
-    this.authMode = process.env.GRIST_DESKTOP_AUTH as GristDesktopAuthMode;
+  public static get instance(): GristApp {
+    if (!GristApp._instance) {
+      GristApp._instance = new GristApp();
+    }
+    return GristApp._instance;
   }
 
-  public main() {
-    if (!this.app.requestSingleInstanceLock()) {
-      this.app.quit();
-      this.shouldQuit = true;
+  public get storageManager(): DesktopDocStorageManager {
+    const currentStorageManager = this.flexServer.getStorageManager();
+    if (!isDesktopStorageManager(currentStorageManager)) {
+      throw new Error("FlexServer running with incorrect storage manager for desktop.");
     }
-    this.app.on('second-instance', (_, argv, cwd) => {
-      this.onInstanceStart(argv, cwd);
+    return currentStorageManager;
+  }
+
+  public get homeDBManager(): HomeDBManager {
+    return this.flexServer.getHomeDBManager();
+  }
+
+  // TODO: Move this function somewhere else.
+  private isWindowShowingDocument(win: Electron.BrowserWindow) {
+    const url = new URL(win.webContents.getURL());
+    const gristUrl = decodeUrl(this.flexServer.getGristConfig(), url);
+    return gristUrl.doc !== undefined;
+  }
+
+  public async run(initialFileToOpen: string|null) {
+
+    electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
+      const instanceHandoverInfo = _additionalData as InstanceHandoverInfo;
+      if (instanceHandoverInfo.fileToOpen !== null) {
+        // If the new instance didn't want to open any file, we don't need to do anything.
+        this.openFile(instanceHandoverInfo.fileToOpen)
+          .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
+      }
     });
 
     // limits access to the webview api, read the `webviewOptions` module documentation for more
@@ -50,348 +87,84 @@ export class GristApp {
       nodeIntegration: false,
       enableWhiteListOnly: true,
     });
-    
-    // It would be nice to just return when shouldQuit is true, but that's a problem for some tools
-    // (babel?), so we ... don't.
-    // TODO: this is a super old comment, check if we can simplify now.
-    if (this.shouldQuit) {
-      return;
-    }
-
-    this.setupLogging();
-
-    // On Windows, opening a file by double-clicking it invokes Grist with path as the first arg.
-    // This is also a handy way to open files from the command line on Linux.
-    if (process.argv[1] && fse.existsSync(process.argv[1])) {
-     this.pendingPathToOpen = path.resolve(process.cwd(), process.argv[1]);
-    }
-
-    // This is triggered on Mac when opening a .grist file, e.g. by double-clicking on it.
-    this.app.on('open-file', (_, path) => this.pendingPathToOpen = path);
-
-    // on('ready') is too late to set up at this point, but whenReady will happily resolve if the
-    // application is already ready.
-    this.app.whenReady().then(() => this.onReady().catch(reportErrorAndStop));
-  }
-
-  private onInstanceStart(argv: string[], workingDir: string) {
-    argv = this.cleanArgv(argv);
-    // Someone tried to run a second instance, we should either open a file or focus a window.
-    log.debug("onInstanceStart %s in %s", JSON.stringify(argv), workingDir);
-    if (this.onStartup) {
-      this.onStartup(argv[1] ? path.resolve(workingDir, argv[1]) : undefined);
-    }
-  }
-
-  private cleanArgv(argv: string[]) {
-    // Ignoring flags starting with '-' which might be added by electron on Mac (See
-    // https://phab.getgrist.com/T307).
-    return argv.filter((arg) => !arg.startsWith('-'));
-  }
-
-  private openWindowForDoc(docID: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
-    // Create the browser window, and load the document.
-    (openWith || this.createWindow()).loadURL(this.getUrl(docID));
-  }
-
-  // Opens file at filepath for any accepted file type.
-  private async handleOpen(serverMethods: ElectronServerMethods, filepath: string) {
-    log.debug("handleOpen %s", filepath);
-    const ext = path.extname(filepath);
-    switch (ext) {
-      case '.csv':
-      case '.xlsx':
-      case '.xlsm': {
-          const doc = await serverMethods.importDoc(filepath);
-          this.openWindowForDoc(doc.id);
-          break;
-      }
-      default:
-        await this.openGristFile(filepath).catch(e => this.reportError(e));
-        break;
-    }
-  }
-
-  private getUrl(docID?: string) {
-    const url = new URL(this.appHost);
-    if (docID) {
-      url.pathname = 'doc/' + encodeURIComponent(docID);
-    }
-    if (this.authMode !== 'none') {
-      url.searchParams.set('electron_key', this.credential);
-    }
-    return url.href;
-  }
-
-  private async openGristFile(filepath: string, openWith?: {loadURL: (url: string) => Promise<void>}) {
-    const target = await this.normalizePath(filepath);
-    const docsRoot = this.flexServer.docsRoot;
-    const root = await this.normalizePath(docsRoot);
-    console.log("Opening a file", {
-      filepath,
-      target,
-      docsRoot,
-      root,
-    });
-
-    // Here is our dumb strategy for opening random Grist files on the
-    // file system: just mint a key and soft-link to them. If being
-    // professional, Grist should be watching for external modifications.
-    // Baby steps though.
-    let docId: string|undefined;
-    let maybeDocId: string|undefined;
-    if (!path.relative(root, target).startsWith('..')) {
-      const did = path.basename(target, '.grist');
-      const p = path.join(docsRoot, `${did}.grist`);
-      if (await this.normalizePath(p) === target) {
-        maybeDocId = did;
-      }
-    }
-    const db = this.flexServer.getHomeDBManager();
-    const user = await db.getUserByLogin(process.env.GRIST_DEFAULT_EMAIL as string);
-    if (!user) { throw new Error('cannot find default user'); }
-    const wss = db.unwrapQueryResult(await db.getOrgWorkspaces({userId: user.id}, 0));
-    for (const doc of wss[0].docs) {
-      if (doc.options?.externalId === target || doc.id === maybeDocId) {
-        docId = doc.id;
-        break;
-      }
-    }
-    if (!docId) {
-      docId = db.unwrapQueryResult(await db.addDocument({
-        userId: user.id,
-      }, wss[0].id, {
-        name: path.basename(target, '.grist'),
-        options: { externalId: target },
-      }));
-    }
-    const link = path.join(docsRoot, `${docId}.grist`);
-    if (!fse.pathExistsSync(link)) {
-      fse.symlinkSync(target, link);
-    }
-    this.openWindowForDoc(docId, openWith);
-  }
-
-  // Returns the last Grist window that was created.
-  private getLastWindow() {
-    let lastWindow = null;
-    for (const win of this.appWindows) {
-      lastWindow = win;
-    }
-    return lastWindow;
-  }
-
-  private createWindow() {
-    const win = new electron.BrowserWindow({
-      width: 1024,
-      height: 768,
-      webPreferences: {
-        nodeIntegration: false,
-        // TODO: check if this still works (has path information).
-        preload: path.join(__dirname, 'preload.js'),
-        webviewTag: true
-      },
-      backgroundColor: '#42494B',
-      autoHideMenuBar: false,
-    });
-
-    // Add the window to the set of browser windows we maintain.
-    this.appWindows.add(win);
-
-    // Register for title updates
-    win.on('page-title-updated', async (event, title) => {
-      event.preventDefault();
-
-      // Set represented filename (on macOS) to home directory if on Start page
-      if (title === 'Home - Grist') {
-        const docPath = this.app.getPath('documents');
-        win.setTitle(path.basename(docPath));
-        win.setRepresentedFilename(docPath);
-      } else {
-        let docPath = path.resolve(this.app.getPath('documents'), title);
-        docPath += (path.extname(docPath) === '.grist' ? '' : '.grist');
-
-        try {
-          await fse.access(docPath);
-          // If valid path, set to path
-          win.setTitle(path.basename(docPath) + ' (' + path.dirname(docPath) + ')');
-          win.setRepresentedFilename(docPath);
-        } catch(err) {
-          // If not valid path, leave title as-is and don't set the represented file
-          win.setTitle(title);
-          win.setRepresentedFilename('');
-        }
-      }
-    });
-
-    // If browser JS called window.open(), open it in an external browser if it's a non-local URL.
-    win.webContents.setWindowOpenHandler((details) => {
-      if (!gutil.startsWith(details.url, this.appHost)) {
-        electron.shell.openExternal(details.url);
-        return {action: "deny"};
-      }
-      return {action: "allow"};
-    });
-
-    // Remove the window from the set when it's closed.
-    win.on('closed', () => {
-      this.appWindows.delete(win);
-    });
-    return win;
-  }
-
-  /**
-   * Generally, our debug log output is discarded when running on Mac as a standalone application.
-   * For debug output, we will append log to ~/grist_debug.log, but only if it exists.
-   *
-   * So, to enable logging: `touch ~/grist_debug.log`
-   * To disable logging:    `rm ~/grist_debug.log`
-   * To clear the log:      `rm ~/grist_debug.log; touch ~/grist_debug.log`
-   *
-   * In summary:
-   * - When running app from finder or "open" command, no debug output.
-   * - When running from terminal as "Grist.app/Contents/MacOS/Grist, debug output goes to console.
-   * - When ~/grist_debug.log exists, log also to that file.
-   */
-  private setupLogging() {
-    const debugLogPath = (process.env.GRIST_LOG_PATH ||
-      path.join(this.app.getPath('home'), 'grist_debug.log'));
-
-    if (process.env.GRIST_LOG_PATH || fse.existsSync(debugLogPath)) {
-      const output = fse.createWriteStream(debugLogPath, { flags: "a" });
-      output.on('error', (err) => log.error("Failed to open %s: %s", debugLogPath, err));
-      output.on('open', () => {
-        log.info('Logging also to %s', debugLogPath);
-        output.write('\n--- log starting by pid ' + process.pid + ' ---\n');
-
-        const fileTransportOptions = {
-          name: 'debugLog',
-          stream: output,
-          level: 'debug',
-          timestamp: log.timestamp,
-          colorize: true,
-          json: false
-        };
-
-        // TODO: This does not log HTTP requests to the file. For that we may want to use
-        // "express-winston" module, and possibly update winston (we are far behind).
-        log.add(winston.transports.File, fileTransportOptions);
-        winston.add(winston.transports.File, fileTransportOptions);
-      });
-    }    
-  }
-
-  private async onReady() {
-    // APP_HOME_URL is set by loadConfig
-    this.appHost = process.env.APP_HOME_URL as string;
 
     await updateDb();
+    const port = parseInt(process.env["GRIST_PORT"] as string, 10);
+    const mergedServer = await MergedServer.create(port, ["home", "docs", "static", "app"]);
+    this.flexServer = mergedServer.flexServer;
+    this.windowManager = new WindowManager(this.flexServer.getGristConfig(),
+      // TODO: Move this Doc ID lookup function somewhere else.
+      async (docIdOrUrlId) => {
+        if (this.storageManager.lookupById(docIdOrUrlId) === null) {
+          // Storage manager does not know about this doc ID, so this must be an URL ID.
+          return (await this.flexServer.getHomeDBManager().connection.createQueryBuilder()
+            .select("docs")
+            .from(Document, "docs")
+            .where('docs.url_id = :urlId', {urlId: docIdOrUrlId})
+            .getRawAndEntities()).entities[0].id;
+        }
+        // Otherwise it is a doc ID already. Return as-is.
+        return docIdOrUrlId;
+      }
+    );
 
-    this.flexServer = await mergedServerMain(
-      parseInt(process.env["GRIST_PORT"] as string, 10),
-      ['home', 'docs', 'static', 'app'], {
-        loginSystem: getMinimalElectronLoginSystem.bind(null, this.credential, this.authMode),
-      });
+    // Wait for both electron and the Grist server to fully initialize.
+    await Promise.all([mergedServer.run(), electron.app.whenReady()]);
+
     const serverMethods = this.flexServer.electronServerMethods;
-    // This function is what we'll call now, and also in onInstanceStart. The latter is used on
-    // Windows thanks to makeSingleInstance, and triggered when user clicks another .grist file.
-    // We can only set this callback once we have serverMethods and appHost.
-    this.onStartup = async (optPath?: string) => {
-      log.debug("onStartup %s", optPath);
-      if (optPath) {
-        await this.handleOpen(serverMethods, optPath);
-        return;
-      }
-      const win = this.getLastWindow();
-      if (win) {
-        win.show();
-        return;
-      }
-      // We had no file to open, so open a window to the DocList.
-      this.createWindow().loadURL(this.getUrl());
-    };
-
-    // Call onStartup immediately.
-    this.onStartup(this.pendingPathToOpen);
-    this.pendingPathToOpen = undefined;
 
     const recentItems = new RecentItems({
       maxCount: 10,
       intialItems: (await serverMethods.getUserConfig()).recentItems
     });
-    const appMenu = new AppMenu(recentItems);
-    electron.Menu.setApplicationMenu(appMenu.getMenu());
-    const updateManager = new UpdateManager(appMenu);
-    console.log(updateManager ? 'updateManager loadable, but not used yet' : '');
+    this.appMenu = new AppMenu(recentItems);
+    electron.Menu.setApplicationMenu(this.appMenu.getMenu());
+    const updateManager = new UpdateManager(this.appMenu);
+    console.log(updateManager ? "updateManager loadable, but not used yet" : "");
 
-    // TODO: file new still does something, but it doesn't make a lot of sense.
-    appMenu.on('menu-file-new', () => this.createWindow().loadURL(this.getUrl()));
-
-    appMenu.on('menu-file-open', async () => {
+    this.appMenu.on("menu-file-new", async (win: electron.BrowserWindow) => {
+      const doc = await this.createDocument(win);
+      if (doc) {
+        win.loadURL(this.windowManager.getUrl(doc.id));
+      }
+    });
+    this.appMenu.on("menu-file-open", async (win: electron.BrowserWindow) => {
       const result = await electron.dialog.showOpenDialog({
-        title: 'Open existing Grist file',
-        defaultPath: this.app.getPath('documents'),
-        filters: [{ name: 'Grist files', extensions: ['grist'] }],
-        // disabling extensions 'csv', 'xlsx', and 'xlsm' for the moment.
-        properties: ['openFile']
+        title: "Open or import",
+        defaultPath: electron.app.getPath("documents"),
+        filters: [GRIST_DOCUMENT_FILTER, IMPORTABLE_DOCUMENT_FILTER],
+        properties: ["openFile"]
       });
-      const files = result.filePaths;
-      if (files) {
-        await this.handleOpen(serverMethods, files[0]);
+      if (!result.canceled) {
+        await this.openFile(result.filePaths[0], win);
       }
     });
 
-    // If we get a request to show the Open-File dialog, do so, and load the result file if one
-    // is selected.
-    electron.ipcMain.on('show-open-dialog', async (ev) => {
-      const result = await electron.dialog.showOpenDialog({
-        title: 'Open existing Grist file',
-        defaultPath: this.app.getPath('documents'),
-        filters: [{ name: 'Grist files', extensions: ['grist'] }],
-        properties: ['openFile']
-      });
-      const files = result.filePaths;
-      if (files) {
-        // ev.sender is the webContents object that sent this message.
-        this.openGristFile(files[0], ev.sender);
-      }
+    // The following events are sent through the electron context bridge.
+    // "Create Empty Document".
+    electron.ipcMain.handle("create-document", (event) =>
+      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!));
+    // "Import Document", after dealing with file upload.
+    electron.ipcMain.handle("import-document", (event, importUploadId) =>
+      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!, importUploadId));
+
+    // Now that we are ready, future "open-file" events should just open windows directly.
+    electron.app.removeAllListeners("open-file");
+    electron.app.on("open-file", (e, filePath) => {
+      e?.preventDefault();
+      this.openFile(filePath)
+        .catch((e: Error) => electron.dialog.showErrorBox("Cannot open file", e.message));
     });
 
-    serverMethods.onDocOpen((filePath: string) => {
-      // Add to list of recent docs in the dock (mac) or the JumpList (win)
-      this.app.addRecentDocument(filePath);
-      // Add to list of recent docs in the menu
-      recentItems.addItem(filePath);
-      serverMethods.updateUserConfig({ recentItems: recentItems.listItems() });
-      // TODO: Electron does not yet support updating the menu except by reassigning the entire
-      // menu.  There are proposals to allow menu templates include callbacks that
-      // are called on menu open.  https://github.com/electron/electron/issues/528
-      appMenu.rebuildMenu();
-      electron.Menu.setApplicationMenu(appMenu.getMenu());
-    });
-
-    // serverMethods.onBackupMade((bakPath: string) => notifyMigrateBackup(bakPath));
-
-    // Check for updates, and check again periodically (if user declines, it's the interval till
-    // the next reminder, so too short would be annoying).
-    //    if (updateManager.startAutoCheck()) {
-    //      updateManager.schedulePeriodicChecks(6*3600);
-    //    } else {
-    //      log.warn("updateManager not starting (known not to work on Linux)");
-    //    }
-
-    // Now that we are ready, future 'open-file' events should just open windows directly.
-    this.app.removeAllListeners('open-file');
-    this.app.on('open-file', (_, filepath) => this.handleOpen(serverMethods, filepath));
-
-    this.app.on('will-quit', function(event) {
+    // Shut down the Grist server gracefully when the application is closed.
+    electron.app.on("will-quit", function(event) {
       event.preventDefault();
       shutdown.exit(0);
     });
 
     // Quit when all windows are closed.
-    this.app.on('window-all-closed', () => {
-      this.app.quit();
+    electron.app.on("window-all-closed", () => {
+      electron.app.quit();
     });
 
     // Plugins create <webview> elements with a "plugins" partition; here we add a special header
@@ -401,30 +174,228 @@ export class GristApp {
       details.requestHeaders["X-From-Plugin-WebView"] = "true";
       callback({requestHeaders: details.requestHeaders});
     });
-  }
 
-  private reportError(e: Error) {
-    electron.dialog.showMessageBoxSync({
-      type: "info",
-      buttons: ["Ok"],
-      message: "Error",
-      detail: String(e)
-    });
-  }
-
-  private async normalizePath(filepath: string) {
-    // Use realpath if possible.
-    try {
-      filepath = await fse.realpath(filepath);
-    } catch (e) {
-      // if there's a problem, e.g. file doesn't exist or is symlink to
-      // nowhere, don't panic.
+    if (initialFileToOpen === null) {
+      this.windowManager.add(null);
+    } else {
+      try {
+        await this.openFile(initialFileToOpen);
+      } catch(e) {
+        this.windowManager.add(null);
+        electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
+      }
     }
-    return path.normalize(filepath);
   }
-}
 
-function reportErrorAndStop(e: Error) {
-  console.error(e);
-  process.exit(1);
+  public async getDefaultUser() {
+    const user = await getDefaultUser(this.flexServer.getHomeDBManager());
+    if (!user) {
+      throw new Error('cannot find default user');
+    }
+    return user;
+  }
+
+  /**
+   * Show a dialog to ask the user for a location to store a Grist document to be created.
+   * If the user does not provide an extension name, ".grist" will be appended.
+   * Show an error dialog and abort if the file already exists, or cannot be created.
+   *
+   * @param initiatorWindow The electron window that requested to create a new document.
+   * @returns A string representing the picked location, or null if the user aborted.
+   */
+  private async askNewGristDocPath(initiatorWindow: electron.BrowserWindow): Promise<string|null> {
+    const result = await electron.dialog.showSaveDialog(initiatorWindow, {
+      title: "Save new Grist document",
+      buttonLabel: "Save",
+      filters: [GRIST_DOCUMENT_FILTER],
+    });
+    if (result.canceled) {
+      return null;
+    }
+    const docPath = result.filePath.endsWith(".grist")
+      ? result.filePath
+      : result.filePath + ".grist";
+    if (fileExists(docPath)) {
+      electron.dialog.showErrorBox("Cannot create document", `Document ${docPath} already exists.`);
+      return null;
+    }
+    if (!fileCreatable(docPath)) {
+      electron.dialog.showErrorBox("Cannot create document", `Selected location ${docPath} is not writable.`);
+      return null;
+    }
+    return docPath;
+  }
+
+  /**
+   * Adds a new entry to the recent documents menu(s).
+   * @param filePath Path of the opened document (file)
+   */
+  public addRecentDocument(filePath: string) {
+    // Add to list of recent docs in the dock (mac) or the JumpList (win)
+    electron.app.addRecentDocument(filePath);
+    // Add to list of recent docs in the menu
+    this.appMenu.addRecentItem(filePath);
+    this.flexServer.electronServerMethods.updateUserConfig({ recentItems: this.appMenu.recentItems.listItems() });
+    this.appMenu.rebuildMenu();
+  }
+
+  /**
+   * Opens the file at filepath. File can be a Grist document, or an importable document.
+   * @param filePath Path to the file to open. Can be relative.
+   * @param requestWindow The window associated with the open request. If this window is not showing
+   *                      a document already, it will be reused for the newly opened document.
+   */
+  public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
+
+    // Use absolute path only from now on.
+    filePath = path.resolve(filePath);
+    const ext = path.extname(filePath);
+
+    if (ext === ".grist") {
+
+      log.debug(`Opening Grist document ${filePath}`);
+      let docId = this.storageManager.lookupByPath(filePath);
+      if (!docId) {
+        log.debug(`Opening new document at ${filePath}`);
+        docId = await this.registerDoc(filePath);
+      } else {
+        log.debug(`Opening existing document ${docId} at ${filePath}`);
+      }
+
+      const homeDBManager = this.flexServer.getHomeDBManager();
+      const scope: DocScope = {
+        userId: (await this.getDefaultUser()).id,
+        urlId: docId,
+      };
+
+      // It's possible to open the .grist file for a document in trash, which would error.
+      // Restore the document instead before opening
+      const doc = await homeDBManager.getDocImpl(scope);
+      if (doc.removedAt) {
+        await homeDBManager.undeleteDocument(scope);
+      }
+
+
+      const existingWindow = this.windowManager.get(docId);
+      if (existingWindow) {
+        // If the document is already open in a window, bring that window up to the user.
+        existingWindow.show();
+      } else if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        // If a specific window issued the open request, and it is not currently busy with another
+        // document, reuse this window.
+        await requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
+      } else {
+        // Otherwise we keep open documents open, and create a new window for the opening document.
+        this.windowManager.add(docId).show();
+      }
+
+    } else if (EXTENSIONS_IMPORTABLE_AS_DOC.includes(ext)) {
+      // Note: EXTENSIONS_IMPORTABLE_AS_DOC comes from grist-core and includes ".grist".
+
+      log.debug(`Importing from file ${filePath}`);
+      const fileContents = fse.readFileSync(filePath);
+
+      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
+        // Reuse an existing window, see above branch.
+        // Return to the home page first, since the handler function only exists there.
+        await requestWindow.webContents.loadURL(this.windowManager.getUrl());
+        // The window is already fully loaded, so we can directly send the signal.
+        requestWindow.webContents.send("import-document", fileContents, path.basename(filePath));
+      } else {
+        const win = this.windowManager.add(null);
+        // The window is newly created. We must wait until it is loaded before sending the signal.
+        win.webContents.on("did-finish-load", () => {
+          win.webContents.send("import-document", fileContents, path.basename(filePath));
+        });
+        // The signal will be handled by importDocAndOpen, which automatically redirects for us.
+      }
+
+    } else {
+      // We can only handle Grist documents and importable documents. The file picker filter should
+      // prevent us from ending up here, but just in case...
+      throw new Error(`Unsupported format ${ext}`);
+    }
+
+    this.addRecentDocument(filePath);
+  }
+
+  /**
+   * Show a dialog asking the user for a location, and create a new Grist document there.
+   * The document is added to the home DB, but not actually created in the filesystem until opened.
+   * If importUploadId is specified, import data from the uploaded file associated with such ID. This implements the
+   * home page import functionality of grist-core.
+   *
+   * TODO: Investigate ways to map the source file into the sandbox without "uploading" it.
+   * The actual import is done by the data engine, which runs in a sandbox by default, hence cannot access arbitrary
+   * files on the host filesystem.
+   * It is suboptimal to have to "upload" the file first, but this reuses grist-core's infrastructure to help us avoid
+   * dealing with various sandbox flavors individually.
+   *
+   * @param initiatorWindow The electron window that issued this request.
+   * @param importUploadId The upload ID.
+   * @returns A promise that resolves to a representation of the saved document, or null if the operation is aborted.
+   */
+  public async createDocument(initiatorWindow: electron.BrowserWindow, importUploadId?: number): Promise<NewDocument|null> {
+    const docPath = await this.askNewGristDocPath(initiatorWindow);
+    if (!docPath) {
+      return null;
+    }
+    const docId = await this.registerDoc(docPath);
+
+    if (importUploadId !== undefined) {
+      const accessId = this.flexServer.getDocManager().makeAccessId((await this.getDefaultUser()).id);
+      const uploadInfo = globalUploadSet.getUploadInfo(importUploadId, accessId);
+      const activeDoc = new ActiveDoc(this.flexServer.getDocManager(), docId);
+      // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
+      // leading to an error when grist-core later moves the uploaded file.
+      await activeDoc.docPluginManager!.ready;
+      // Fake a session required by the server. "system" mode gives us the owner role on the new document.
+      const fakeDocSession: OptDocSession = {client: null, mode: "system"};
+      await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
+      // This uses the same oneStepImport function that grist-core DocManager's _doImport invokes.
+      // TODO: Show a loading UI when the import is in progress.
+      // The import process could take several seconds for a small csv file, or longer for larger files.
+      await activeDoc.oneStepImport(fakeDocSession, uploadInfo);
+    }
+
+    return {
+      id: docId,
+      path: docPath
+    };
+  }
+
+  public async registerDoc(docPath: string): Promise<string> {
+    const defaultUser = await this.getDefaultUser();
+    const wss = this.homeDBManager.unwrapQueryResult(
+      await this.homeDBManager.getOrgWorkspaces({userId: defaultUser.id}, 0)
+    );
+
+    for (const doc of wss[0].docs) {
+      if (doc.options?.externalId === docPath) {
+        // If we're trying to re-register an already registered doc, the storage manager's cache might be invalid.
+        // Update the storage manager's cache and try to continue, but log in case we need to later debug this case.
+        log.warn(`Attempting to re-register document ${doc.id} at ${docPath}`);
+        this.storageManager.registerDocPath(doc.id, docPath);
+        return doc.id;
+      }
+    }
+
+    // Create the entry in the home database.
+    const doc = this.homeDBManager.unwrapQueryResult(
+      await this.homeDBManager.addDocument(
+        {
+          userId: defaultUser.id,
+        },
+        wss[0].id,
+        {
+          name: path.basename(docPath, '.grist'),
+          options: {externalId: docPath},
+        }
+      )
+    );
+
+    // Inform the storage manager where to find the file for that doc.
+    this.storageManager.registerDocPath(doc.id, docPath);
+    return doc.id;
+  }
 }

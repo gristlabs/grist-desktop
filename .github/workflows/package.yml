@@ -8,6 +8,9 @@ on:
       - '*'
 env:
   FORCE_COLOR: 1
+  # This makes the macos-13 packaging work.
+  # I don't know why. Your guess is as good as mine.
+  DEBUG_DMG: true
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -32,14 +35,14 @@ jobs:
           - x64
           - arm64
         node:
-          - 18
+          - 20
         include:
           - os: macos-14
-            node: 18
+            node: 20
             host: arm64
             target: arm64
           - os: windows-2022
-            node: 18
+            node: 20
             host: x64
             target: x86
           - os: windows-11-arm
@@ -89,7 +92,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --network-timeout 300000
+        run: yarn install --network-timeout 300000 --ignore-optional
 
       - name: Fix Windows x86 sqlite3 binding
         if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
@@ -98,6 +101,15 @@ jobs:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
+
+        # by not installing optional dependencies, we miss something
+        # needed on macs
+      - name: Add dmg-license if needed
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          yarn global add dmg-license
+          FORCE_COLOR=0 yarn global bin >> "$GITHUB_PATH"
+          echo "NODE_PATH=$(FORCE_COLOR=0 yarn global dir)/node_modules:$NODE_PATH" >> "$GITHUB_ENV"
 
       - name: Hooks and crooks
         run: yarn run setup
@@ -119,15 +131,39 @@ jobs:
           DEBUG: electron-builder
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Windows portable build
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.host }}-${{ matrix.target }}
-          path: |
-            dist/grist-desktop-*.exe
-            dist/grist-desktop-*.AppImage
-            dist/grist-desktop-*.dmg
+          name: windows-portable-${{ matrix.target }}
+          path: dist/grist-desktop-*.zip
+          if-no-files-found: "error"
+
+      - name: Upload Windows installer build
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-${{ matrix.target }}
+          path: dist/grist-desktop-*.exe
+          if-no-files-found: "error"
+
+      - name: Upload Linux build
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.target }}
+          path: dist/grist-desktop-*.AppImage
+          if-no-files-found: "error"
+
+      - name: Upload macOS build
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: dist/grist-desktop-*.dmg
           if-no-files-found: "error"
