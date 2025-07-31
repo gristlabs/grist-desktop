@@ -1,6 +1,6 @@
 import * as electron from "electron";
 import * as fse from "fs-extra";
-import * as log from "app/server/lib/log";
+import log from "app/server/lib/log";
 import * as path from "path";
 import * as winston from "winston";
 

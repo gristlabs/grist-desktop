@@ -1,6 +1,6 @@
 import * as electron from "electron";
 import * as electronUpdater from "electron-updater";
-import * as log from "app/server/lib/log";
+import log from "app/server/lib/log";
 import * as version from "app/common/version";
 
 export class UpdateManager {
