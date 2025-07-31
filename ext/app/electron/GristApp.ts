@@ -1,6 +1,6 @@
 import * as electron from "electron";
 import * as fse from "fs-extra";
-import * as log from "app/server/lib/log";
+import log from "app/server/lib/log";
 import * as path from "path";
 import * as shutdown from "app/server/lib/shutdown";
 import { fileCreatable, fileExists } from "app/electron/fileUtils";
@@ -11,7 +11,7 @@ import { FlexServer } from "app/server/lib/FlexServer";
 import { EXTENSIONS_IMPORTABLE_AS_DOC } from "app/client/lib/uploads";
 import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
-import { OptDocSession } from "app/server/lib/DocSession";
+import { makeExceptionalDocSession, OptDocSession } from "app/server/lib/DocSession";
 import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
@@ -350,7 +350,7 @@ export class GristApp {
       // leading to an error when grist-core later moves the uploaded file.
       await activeDoc.docPluginManager!.ready;
       // Fake a session required by the server. "system" mode gives us the owner role on the new document.
-      const fakeDocSession: OptDocSession = {client: null, mode: "system"};
+      const fakeDocSession: OptDocSession = makeExceptionalDocSession('system');
       await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
       // This uses the same oneStepImport function that grist-core DocManager's _doImport invokes.
       // TODO: Show a loading UI when the import is in progress.
