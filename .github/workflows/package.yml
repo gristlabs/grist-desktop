@@ -114,6 +114,20 @@ jobs:
           RUN_OS: ${{ matrix.os }}
           RUN_ARCH: ${{ matrix.target }}
 
+      - name: Fix Windows symlink issue
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target1 = "$PWD\\core\\ext\\core.package.json"
+          $link1 = "$PWD\\core\\package.json"
+          $target2 = "$PWD\\core\\ext\\desktop.package.json"
+          $link2 = "$PWD\\package.json"
+          if (Test-Path $target1) { Remove-Item $target1 -Force }
+          if (Test-Path $target2) { Remove-Item $target2 -Force }
+          New-Item -ItemType SymbolicLink -Path $target1 -Target $link1
+          New-Item -ItemType SymbolicLink -Path $target2 -Target $link2
+
       - name: Build
         run: yarn run build
 
