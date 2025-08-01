@@ -50,7 +50,12 @@
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "target": [
         {
-          "target": "nsis"
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "arm64"]
         },
         {
           "target": "zip"
