@@ -143,8 +143,17 @@ echo ""
 echo "======================================================================="
 echo "Configure Grist to include external Electron code during build"
 
+# We basically want core/ext to be a link to ext, for a lightly
+# customized build of Grist. But there are two relative symlinks in ext to
+# version information that now confuse the electron builder. So we make
+# core/ext a real directory and place symlinks within it. Electron builder
+# appears to cope okay with this. Links are absolute and unnested to make
+# Windows happy.
 rm -rf core/ext
-ln -s ../ext core/ext
+mkdir core/ext
+for f in $(cd ext; ls); do
+  ln -s $(readlink -f $PWD/ext/$f) core/ext/$f
+done
 
 echo ""
 echo "======================================================================="
