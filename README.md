@@ -1,9 +1,15 @@
-# Grist Desktop
+# Grist Desktop (Fork with Custom CSS Support)
 
-This is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
+This is a fork of the official [Grist Desktop](https://github.com/gristlabs/grist-desktop) application, which is an Electron build of [Grist](https://github.com/gristlabs/grist-core/).
 Use it to easily open and edit Grist spreadsheets on your computer. It does not
 need the internet, and will work fine on a desert island (assuming you can find a
 power outlet). It is not tied to any online account or service.
+
+## New Features in this Fork
+
+- **Custom CSS Support**: Load custom styling from `~/.grist/custom.css` to customize the appearance of Grist
+- **CSS Status Menu**: Added a "Custom CSS Status" option in the Help menu to check if custom CSS is loaded
+- **Unsigned Package Option**: Added a command to build and package the application without code signing
 
 This build is handy for all sorts of things, like editing splits for
 ML training runs, analyzing some CSV or JSON data, or preparing some
@@ -56,8 +62,42 @@ yarn install
 yarn run setup
 yarn run build
 yarn run electron:preview
-yarn run electron
 ```
+
+### Building an unsigned package
+
+If you want to package the application without code signing (avoiding the need for Apple ID credentials):
+
+```
+yarn run electron:package-unsigned
+```
+
+This will create a fully functioning application in the `dist` directory without attempting to code sign or notarize it.
+
+### Creating a custom CSS file
+
+To customize the appearance of Grist, create a file at `~/.grist/custom.css` with your CSS rules:
+
+```css
+/* Example custom CSS */
+body {
+  /* Red border to verify CSS is loaded */
+  border: 5px solid red !important;
+}
+
+/* Style the header */
+.page_header {
+  background-color: #ffcc00 !important;
+}
+
+/* Style table headers */
+.column_names {
+  background-color: #e0f7fa !important;
+  font-weight: bold !important;
+}
+```
+
+Open a document in Grist Desktop to see your custom styles applied.
 
 ## Note for Windows users on importing documents
 
@@ -95,6 +135,9 @@ when Grist Desktop initializes its database during the first launch. If you want
 to change this after initialization, you need to manually reset the database,
 re-initialize it and import your documents back. Usually you should not need to
 worry about this. Default: `you@example.com`
+
+**`GRIST_CUSTOM_CSS_PATH`**: The path to a custom CSS file to load. If not set, defaults to `~/.grist/custom.css`.
+Set to empty string to disable custom CSS loading.
 
 **`GRIST_HOST`**: The IP address to serve the Grist server from. It is not
 recommended to set this. See this [note](#note-on-using-grist-desktop-as-a-server)

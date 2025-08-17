@@ -3,6 +3,8 @@ import * as path from "path";
 import { GristLoadConfig, decodeUrl } from "app/common/gristUrls";
 import { BrowserWindow } from "electron";
 import { ElectronLoginSystem } from "./LoginSystem";
+import { loadCustomCss } from "./fileUtils";
+import * as log from "app/server/lib/log";
 
 export class WindowManager {
 
@@ -91,6 +93,32 @@ export class WindowManager {
     });
 
     win.loadURL(this.getUrl(docId));
+
+    // Load custom CSS after the window is loaded
+    win.webContents.on("did-finish-load", async () => {
+      const customCss = await loadCustomCss();
+      if (customCss) {
+        const { cssContent, cssPath } = customCss;
+        try {
+          // Inject the CSS into the page
+          await win.webContents.executeJavaScript(`
+            (function() {
+              const style = document.createElement('style');
+              style.id = 'grist-custom-user-css';
+              style.textContent = \`${cssContent.replace(/`/g, '\\`')}\`; // Escape backticks in CSS
+              document.head.appendChild(style);
+              
+              // Store CSS path in window for status display
+              window.gristCustomCssPath = "${cssPath.replace(/\\/g, '\\\\')}"; // Escape backslashes for Windows paths
+              console.log("Loaded custom CSS from " + window.gristCustomCssPath);
+            })();
+          `);
+          log.debug(`Injected custom CSS from ${cssPath} into window`);
+        } catch (err) {
+          log.warn(`Failed to inject custom CSS: ${err}`);
+        }
+      }
+    });
 
     return win;
   }

@@ -33,6 +33,7 @@
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
+    "electron:package-unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder build --publish never",
     "test": "electron core/_build/ext/app/electron/main.js --version"
   },
   "resolutions": {
