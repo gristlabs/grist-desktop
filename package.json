@@ -8,6 +8,7 @@
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
   "license": "Apache-2.0",
+  "desktopName": "com.getgrist.desktop.desktop",
   "workspaces": {
     "packages": [
       "core",
@@ -31,7 +32,7 @@
     "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
-  "electron:flatpak": "electron-builder build --linux flatpak",
+    "electron:flatpak": "electron-builder build --linux flatpak",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
     "test": "electron core/_build/ext/app/electron/main.js --version"
@@ -50,8 +51,8 @@
     "win": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "target": [
-        { "target": "nsis" },
-        { "target": "zip" }
+        {"target": "nsis"},
+        {"target": "zip"}
       ],
       "icon": "core/static/icons/grist.ico"
     },
@@ -74,13 +75,9 @@
     "linux": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
-      "category": "Office",
-      "target": [
-        "AppImage",
-        "flatpak"
-      ]
+      "target": "AppImage"
     },
-  "flatpak": {
+    "flatpak": {
       "branch": "stable",
       "runtime": "org.freedesktop.Platform",
       "runtimeVersion": "23.08",
@@ -97,6 +94,21 @@
         "--talk-name=org.freedesktop.Notifications",
         "--talk-name=org.freedesktop.secrets",
         "--filesystem=home"
+      ],
+      "desktop": {
+        "Name": "Grist",
+        "Comment": "Spreadsheet software to end data chaos",
+        "Icon": "com.getgrist.desktop",
+        "Categories": ["Office"]
+      },
+      "files": [
+        ["dist/icons/16x16.png", "/app/share/icons/hicolor/16x16/apps/com.getgrist.desktop.png"],
+        ["dist/icons/32x32.png", "/app/share/icons/hicolor/32x32/apps/com.getgrist.desktop.png"],
+        ["dist/icons/48x48.png", "/app/share/icons/hicolor/48x48/apps/com.getgrist.desktop.png"],
+        ["dist/icons/64x64.png", "/app/share/icons/hicolor/64x64/apps/com.getgrist.desktop.png"],
+        ["dist/icons/128x128.png", "/app/share/icons/hicolor/128x128/apps/com.getgrist.desktop.png"],
+        ["dist/icons/256x256.png", "/app/share/icons/hicolor/256x256/apps/com.getgrist.desktop.png"],
+        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.desktop.png"]
       ]
     },
     "afterSign": "./scripts/notarize.js",

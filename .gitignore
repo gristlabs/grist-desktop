@@ -11,3 +11,4 @@ stash
 NOTES.txt
 dock
 .flatpak-tmp/
+build/icons/
