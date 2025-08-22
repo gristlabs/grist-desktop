@@ -59,6 +59,23 @@ yarn run electron:preview
 yarn run electron
 ```
 
+## Build as Flatpak (Linux)
+
+Requirements: Flatpak and Flatpak Builder, plus Electron Builder.
+
+On a Debian/Ubuntu system you can install prerequisites with:
+
+- flatpak
+- flatpak-builder
+
+Then run:
+
+```
+./scripts/flatpak-build.sh
+```
+
+This will ensure the needed runtimes are installed, build the app, and create a Flatpak in the `dist/` directory.
+
 ## Note for Windows users on importing documents
 
 Due to technical limitations, Grist Desktop relies on symlinks to manage imported
