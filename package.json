@@ -108,7 +108,8 @@
         ["dist/icons/64x64.png", "/app/share/icons/hicolor/64x64/apps/com.getgrist.desktop.png"],
         ["dist/icons/128x128.png", "/app/share/icons/hicolor/128x128/apps/com.getgrist.desktop.png"],
         ["dist/icons/256x256.png", "/app/share/icons/hicolor/256x256/apps/com.getgrist.desktop.png"],
-        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.desktop.png"]
+        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.desktop.png"],
+        ["dist/icons/scalable.svg", "/app/share/icons/hicolor/scalable/apps/com.getgrist.desktop.svg"]
       ]
     },
     "afterSign": "./scripts/notarize.js",

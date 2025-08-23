@@ -15,6 +15,9 @@ for size in "${SIZES[@]}"; do
     rsvg-convert -w "$size" -h "$size" "$ICON_SRC" -o "$ICON_OUT_DIR/${size}x${size}.png"
 done
 
+echo "Copying SVG icon for Flatpak..."
+cp "$ICON_SRC" "$ICON_OUT_DIR/scalable.svg"
+
 echo "Ensuring Flathub remote exists (needed for runtimes)..."
 if ! flatpak remote-list | grep -q "^flathub"; then
   flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
