@@ -83,15 +83,36 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-${{ matrix.target }}-yarn-
 
+      - name: Configure Windows x86 build environment
+        if: startsWith(matrix.os, 'windows') && matrix.target == 'x86'
+        run: |
+          # Install build tools globally to ensure they're available
+          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
+          # Download Node.js headers for x86 architecture specifically
+          $(yarn global bin)/node-gyp install --arch=ia32
+          # Set global npm configuration for x86 cross-compilation
+          npm config set target_arch ia32 --global
+          npm config set build_from_source true --global
+          npm config set fallback_to_build true --global
+          npm config set cache_lock_stale 60000 --global
+        env:
+          npm_config_build_from_source: true
+          npm_config_target_arch: ia32
+          npm_config_fallback_to_build: true
+
       - name: Install dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --network-timeout 300000 --ignore-optional
+        env:
+          npm_config_build_from_source: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'true' || '' }}
+          npm_config_target_arch: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'ia32' || '' }}
+          npm_config_fallback_to_build: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'true' || '' }}
 
       - name: Fix Windows x86 sqlite3 binding
         if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
         run: |
-          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
-          yarn upgrade sqlite3
+          # Specifically rebuild sqlite3 for x86 if needed
+          cd core && yarn rebuild @gristlabs/sqlite3
         # Prebuilt binding is for x64. We must build from source for x86 target.
         # See:
         # https://stackoverflow.com/questions/72553650/how-to-get-node-sqlite3-working-on-mac-m1
