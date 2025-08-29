@@ -89,16 +89,20 @@ jobs:
           # Install build tools globally to ensure they're available
           yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
           # Download Node.js headers for x86 architecture specifically
-          $(yarn global bin)/node-gyp install --arch=ia32
+          $(yarn global bin)/node-gyp install --arch=ia32 --dist-url=https://nodejs.org/dist/
           # Set global npm configuration for x86 cross-compilation
           npm config set target_arch ia32 --global
           npm config set build_from_source true --global
           npm config set fallback_to_build true --global
           npm config set cache_lock_stale 60000 --global
+          npm config set msvs_version 2022 --global
+          npm config set disturl https://nodejs.org/dist/ --global
         env:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
+          npm_config_msvs_version: "2022"
+          npm_config_disturl: "https://nodejs.org/dist/"
 
       - name: Install dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
@@ -107,6 +111,8 @@ jobs:
           npm_config_build_from_source: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'true' || '' }}
           npm_config_target_arch: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'ia32' || '' }}
           npm_config_fallback_to_build: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'true' || '' }}
+          npm_config_msvs_version: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && '2022' || '' }}
+          npm_config_disturl: ${{ startsWith(matrix.os, 'windows') && matrix.target == 'x86' && 'https://nodejs.org/dist/' || '' }}
 
       - name: Fix Windows x86 sqlite3 binding
         if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
@@ -121,6 +127,8 @@ jobs:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
+          npm_config_msvs_version: "2022"
+          npm_config_disturl: "https://nodejs.org/dist/"
 
         # by not installing optional dependencies, we miss something
         # needed on macs
