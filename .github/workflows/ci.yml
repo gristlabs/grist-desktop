@@ -110,7 +110,7 @@ jobs:
             rm -rf node_modules/@gristlabs/sqlite3 || true
             
             echo "Reinstalling @gristlabs/sqlite3 from source..."
-            yarn add @gristlabs/sqlite3@5.1.4-grist.8 --verbose 2>&1 | tee sqlite3-rebuild-log.txt
+            yarn add @gristlabs/sqlite3@5.1.4-grist.8 -W --verbose 2>&1 | tee sqlite3-rebuild-log.txt
             
             if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
               echo "✅ SUCCESS: ia32 binary was built after forced reinstall!"
