@@ -91,10 +91,8 @@ jobs:
         if: steps.yarn-cache.outputs.cache-hit != 'true' && startsWith(matrix.os, 'windows') && matrix.target == 'x86'
         shell: bash
         run: |
-          yarn global add --network-timeout 600000 node-gyp
           # Download Node.js headers for x86 architecture to fix missing 'uv.h' error
-          YARN_BIN_DIR=$(yarn global bin | sed 's/\r$//' | sed 's/\\/\//g')
-          "$YARN_BIN_DIR/node-gyp" install --arch=ia32
+          npx node-gyp install --arch=ia32
           yarn upgrade @gristlabs/sqlite3
         # Prebuilt binding is for x64. We must build from source for x86 target.
         # See:

@@ -40,17 +40,13 @@ jobs:
       - name: Test simplified Windows x86 sqlite3 build fix
         shell: bash
         run: |
-          echo "=== Testing simplified approach based on package.yml ==="
+          echo "=== Testing Windows x86 sqlite3 build with npm approach ==="
           
-          # Install global tools
-          yarn global add node-gyp
-          
-          # Get proper yarn global bin path for Windows
-          YARN_BIN_DIR=$(yarn global bin | sed 's/\r$//' | sed 's/\\/\//g')
-          echo "Yarn global bin: $YARN_BIN_DIR"
+          # Try multiple approaches to find working node-gyp
+          echo "=== Approach 1: Using npx node-gyp ==="
           
           # Download Node.js headers for ia32 - this should fix the missing 'uv.h' error
-          "$YARN_BIN_DIR/node-gyp" install --arch=ia32
+          npx node-gyp install --arch=ia32
           
           # Remove existing bindings to force rebuild
           rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* || true
