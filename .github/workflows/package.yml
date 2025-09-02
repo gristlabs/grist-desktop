@@ -93,7 +93,10 @@ jobs:
         run: |
           # Download Node.js headers for x86 architecture to fix missing 'uv.h' error
           npx node-gyp install --arch=ia32
-          yarn upgrade @gristlabs/sqlite3
+          
+          # Rebuild sqlite3 from source with proper platform detection
+          cd node_modules/@gristlabs/sqlite3
+          npx node-gyp rebuild --arch=ia32
         # Prebuilt binding is for x64. We must build from source for x86 target.
         # See:
         # https://stackoverflow.com/questions/72553650/how-to-get-node-sqlite3-working-on-mac-m1
@@ -101,6 +104,8 @@ jobs:
         env:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
+          npm_config_target_platform: win32
+          npm_config_target_libc: msvcrt
           npm_config_fallback_to_build: true
           npm_config_msvs_version: "2022"
 

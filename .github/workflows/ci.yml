@@ -37,24 +37,25 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      - name: Test simplified Windows x86 sqlite3 build fix
+      - name: Test comprehensive Windows x86 sqlite3 build fix with platform detection
         shell: bash
         run: |
-          echo "=== Testing Windows x86 sqlite3 build with npm approach ==="
+          echo "=== Testing Windows x86 sqlite3 build with comprehensive platform detection ==="
           
-          # Try multiple approaches to find working node-gyp
-          echo "=== Approach 1: Using npx node-gyp ==="
-          
-          # Download Node.js headers for ia32 - this should fix the missing 'uv.h' error
+          # Download Node.js headers for ia32 first
           npx node-gyp install --arch=ia32
           
           # Remove existing bindings to force rebuild
           rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* || true
           
-          # Rebuild sqlite3 from source
-          yarn upgrade @gristlabs/sqlite3
+          # Direct rebuild with node-gyp in sqlite3 directory for proper platform detection
+          cd node_modules/@gristlabs/sqlite3
+          npx node-gyp rebuild --arch=ia32
           
           echo "=== Checking build result ==="
+          cd ../../..
+          
+          echo "Checking for expected binary location:"
           if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
             echo "✅ SUCCESS: Windows x86 sqlite3 build completed!"
             
@@ -65,13 +66,21 @@ jobs:
               console.log('Version:', sqlite3.VERSION);
             "
           else
-            echo "❌ FAILED: Expected binary not found"
+            echo "❌ FAILED: Expected binary not found at napi-v6-win32-ia32"
             echo "Available bindings:"
             ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
+            
+            # Check if it was built with unknown platform
+            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
+              echo "⚠️  Found binary with 'unknown' platform identifier"
+              echo "This indicates platform detection is not working correctly"
+            fi
             exit 1
           fi
         env:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
+          npm_config_target_platform: win32
+          npm_config_target_libc: msvcrt
           npm_config_fallback_to_build: true
           npm_config_msvs_version: "2022"
