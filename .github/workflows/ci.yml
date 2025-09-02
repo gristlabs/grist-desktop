@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      - name: Test Windows x86 sqlite3 build approaches
+      - name: Test Windows x86 sqlite3 build using packaging workflow approach
         shell: bash
         run: |
           set -x
@@ -68,15 +68,27 @@ jobs:
           ls "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin" || echo "Enterprise not found"
           ls "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin" || echo "BuildTools not found"
           
-          echo "=== Approach 1: Direct npm install with ia32 config ==="
-          cd core
-          npm config set target_arch ia32
-          npm config set msvs_version 2022
-          npm config set python python3
-          npm config list
+          echo "=== Current sqlite3 binding status ==="
+          if [ -d "node_modules/@gristlabs/sqlite3/lib/binding" ]; then
+            echo "Current bindings:"
+            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/"
+          else
+            echo "No sqlite3 bindings directory found"
+          fi
           
-          echo "Attempting to install @gristlabs/sqlite3 directly..."
-          npm install @gristlabs/sqlite3@5.1.4-grist.8 --save-optional --no-audit --no-fund --verbose 2>&1 | tee sqlite3-build-log.txt
+          echo "=== Testing the actual packaging workflow approach ==="
+          echo "Installing global tools..."
+          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
+          
+          echo "Download Node.js headers for x86 architecture to fix missing 'uv.h' error"
+          $(yarn global bin)/node-gyp install --arch=ia32 --verbose
+          
+          echo "=== Approach 1: Force rebuild sqlite3 from source using workspace yarn upgrade ==="
+          echo "First, removing existing sqlite3 binary to force rebuild..."
+          rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* || true
+          
+          # Use yarn upgrade with specific target arch - mirroring the package.yml approach
+          yarn upgrade @gristlabs/sqlite3 --verbose 2>&1 | tee sqlite3-build-log.txt
           
           echo "=== Build result analysis ==="
           if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
@@ -90,51 +102,98 @@ jobs:
             echo "=== Error analysis from build log ==="
             grep -i "error\|fail\|cannot" sqlite3-build-log.txt || echo "No obvious errors found in log"
             
-            echo "=== Approach 2: Pre-download headers then install ==="
-            echo "Downloading ia32 headers..."
-            npx node-gyp install --arch=ia32 --verbose
+            echo "=== Approach 2: Force complete reinstall of sqlite3 ==="
+            echo "Removing sqlite3 completely..."
+            rm -rf node_modules/@gristlabs/sqlite3 || true
             
-            echo "Headers downloaded to:"
-            ls ~/.cache/node-gyp/ || echo "No node-gyp cache found"
-            find ~/.cache/node-gyp/ -name "*.h" | head -10 || echo "No header files found"
-            
-            echo "Retry install with pre-downloaded headers..."
-            npm install @gristlabs/sqlite3@5.1.4-grist.8 --save-optional --no-audit --no-fund --verbose
+            echo "Reinstalling @gristlabs/sqlite3 from source..."
+            yarn add @gristlabs/sqlite3@5.1.4-grist.8 --verbose 2>&1 | tee sqlite3-rebuild-log.txt
             
             if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-              echo "✅ SUCCESS: ia32 binary was built after pre-downloading headers!"
+              echo "✅ SUCCESS: ia32 binary was built after forced reinstall!"
             else
-              echo "❌ STILL FAILED after pre-downloading headers"
+              echo "❌ STILL FAILED after forced reinstall"
+              echo "=== Error analysis from rebuild log ==="
+              grep -i "error\|fail\|cannot" sqlite3-rebuild-log.txt || echo "No obvious errors found in rebuild log"
+              
+              echo "=== Approach 3: Try npm install directly in workspace ==="
+              npm install @gristlabs/sqlite3@5.1.4-grist.8 --verbose 2>&1 | tee sqlite3-npm-log.txt
+              
+              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+                echo "✅ SUCCESS: ia32 binary was built with npm!"
+              else
+                echo "❌ ALL APPROACHES FAILED"
+                echo "=== Error analysis from npm log ==="
+                grep -i "error\|fail\|cannot" sqlite3-npm-log.txt || echo "No obvious errors found in npm log"
+              fi
             fi
           fi
         env:
           npm_config_build_from_source: true
+          npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
+          npm_config_msvs_version: "2022"
 
-      - name: Verify test results
+      - name: Verify test results and test binary functionality
         shell: bash
         run: |
           echo "=== Final verification ==="
-          cd core
           if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
             echo "✅ SUCCESS: Windows x86 sqlite3 build completed successfully!"
             echo "File details:"
             ls -la "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
             file "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" || echo "file command not available"
             
-            echo "=== Test the binary works ==="
+            echo "=== Test the binary works from root ==="
             node -e "
               try {
                 const sqlite3 = require('@gristlabs/sqlite3');
                 console.log('✅ SQLite3 module loaded successfully');
                 console.log('Version:', sqlite3.VERSION);
+                console.log('Source ID:', sqlite3.SQLITE_VERSION_NUMBER);
               } catch (error) {
                 console.error('❌ Failed to load SQLite3 module:', error.message);
                 process.exit(1);
               }
             "
+            
+            echo "=== Test the binary works from core workspace ==="
+            cd core
+            node -e "
+              try {
+                const sqlite3 = require('@gristlabs/sqlite3');
+                console.log('✅ SQLite3 module loaded successfully from core workspace');
+                console.log('Version:', sqlite3.VERSION);
+                console.log('Source ID:', sqlite3.SQLITE_VERSION_NUMBER);
+              } catch (error) {
+                console.error('❌ Failed to load SQLite3 module from core workspace:', error.message);
+                process.exit(1);
+              }
+            "
+            
+            echo "=== Test database operations ==="
+            node -e "
+              const sqlite3 = require('@gristlabs/sqlite3').verbose();
+              const db = new sqlite3.Database(':memory:');
+              db.serialize(() => {
+                db.run('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+                db.run('INSERT INTO test (name) VALUES (?)', ['Windows x86 test']);
+                db.get('SELECT * FROM test WHERE id = ?', [1], (err, row) => {
+                  if (err) {
+                    console.error('❌ Database operation failed:', err.message);
+                    process.exit(1);
+                  }
+                  console.log('✅ Database operations successful:', row);
+                });
+              });
+              db.close();
+            "
           else
             echo "❌ FAILED: Windows x86 sqlite3 build failed"
             echo "This indicates the build issue is not yet resolved"
+            echo "=== Debug: Available files in sqlite3 binding directory ==="
+            find node_modules -name "*.node" -type f | head -10 || echo "No .node files found"
+            echo "=== Debug: Current sqlite3 bindings ==="
+            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
             exit 1
           fi
