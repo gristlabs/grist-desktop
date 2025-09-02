@@ -81,7 +81,10 @@ jobs:
           yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
           
           echo "Download Node.js headers for x86 architecture to fix missing 'uv.h' error"
-          $(yarn global bin)/node-gyp install --arch=ia32 --verbose
+          # Get yarn global bin path and clean it up for Windows/bash compatibility
+          YARN_GLOBAL_BIN=$(yarn global bin | tr -d '\r' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | sed 's/\\/\//g')
+          echo "Yarn global bin path: $YARN_GLOBAL_BIN"
+          "$YARN_GLOBAL_BIN/node-gyp" install --arch=ia32 --verbose
           
           echo "=== Approach 1: Force rebuild sqlite3 from source using workspace yarn upgrade ==="
           echo "First, removing existing sqlite3 binary to force rebuild..."
