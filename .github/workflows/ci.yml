@@ -55,12 +55,12 @@ jobs:
             local approach_name="$1"
             echo "=== Checking $approach_name result ==="
             
-            # Check in both possible locations
+            # Check in both possible locations with correct msvcrt pattern
             local binding_file=""
-            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-              binding_file="node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
-            elif [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-              binding_file="core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
+            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-ia32/node_sqlite3.node" ]; then
+              binding_file="node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-ia32/node_sqlite3.node"
+            elif [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-ia32/node_sqlite3.node" ]; then
+              binding_file="core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-ia32/node_sqlite3.node"
             fi
             
             if [ -n "$binding_file" ]; then
@@ -80,8 +80,9 @@ jobs:
               echo "Available bindings in core:"
               ls -la "core/node_modules/@gristlabs/sqlite3/lib/binding/" 2>/dev/null || echo "No core bindings directory"
               
-              # Check for unknown platform
-              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ] || [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
+              # Check for unknown platform with correct msvcrt pattern too
+              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ] || [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ] || \
+                 [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-unknown-ia32/node_sqlite3.node" ] || [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-msvcrt-unknown-ia32/node_sqlite3.node" ]; then
                 echo "⚠️  Found 'unknown-ia32' binary - platform detection issue"
               fi
             fi
