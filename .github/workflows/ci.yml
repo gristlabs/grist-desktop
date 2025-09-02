@@ -30,14 +30,10 @@ jobs:
     steps:
       - name: Set up bash association
         run: |
-          ls
-          ls "c:\\"
-          ls "c:\\Program Files"
-          ls "c:\\Program Files/Git"
-          ls "c:\\Program Files/Git/bin"
+          echo "Setting up Windows environment..."
+          dir "C:\Program Files\Git\bin"
           cmd /c assoc .sh=bashscript
           cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
-          cmd /c ftype
 
       - uses: actions/checkout@v4
         with:
@@ -60,35 +56,85 @@ jobs:
         run: yarn install --network-timeout 300000 --ignore-optional
 
       - name: Test Windows x86 sqlite3 build approaches
+        shell: bash
         run: |
-          echo "Testing multiple approaches to fix Windows x86 sqlite3 build..."
+          set -x
+          echo "=== Environment Information ==="
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Yarn version: $(yarn --version)"
+          echo "Platform: $(node -e "console.log(process.platform, process.arch)")"
+          echo "VS Build Tools location:"
+          ls "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin" || echo "Enterprise not found"
+          ls "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin" || echo "BuildTools not found"
           
-          # Approach 1: Install node-gyp globally and download headers first
-          echo "=== Approach 1: Install node-gyp and download headers ==="
-          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
+          echo "=== Approach 1: Direct npm install with ia32 config ==="
+          cd core
+          npm config set target_arch ia32
+          npm config set msvs_version 2022
+          npm config set python python3
+          npm config list
           
-          # Download Node.js headers for x86 architecture
-          echo "Downloading Node.js headers for ia32..."
-          $(yarn global bin)/node-gyp install --arch=ia32
+          echo "Attempting to install @gristlabs/sqlite3 directly..."
+          npm install @gristlabs/sqlite3@5.1.4-grist.8 --save-optional --no-audit --no-fund --verbose 2>&1 | tee sqlite3-build-log.txt
           
-          # Check if headers were downloaded
-          echo "Checking for downloaded headers..."
-          ls -la ~/.cache/node-gyp/ || echo "No ~/.cache/node-gyp/ directory found"
-          
-          # Try to upgrade sqlite3 with specific configuration
-          echo "Upgrading sqlite3 with x86 configuration..."
-          yarn upgrade sqlite3
+          echo "=== Build result analysis ==="
+          if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+            echo "✅ SUCCESS: ia32 binary was built!"
+            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/"
+          else
+            echo "❌ FAILED: ia32 binary not found"
+            echo "Available bindings:"
+            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
+            
+            echo "=== Error analysis from build log ==="
+            grep -i "error\|fail\|cannot" sqlite3-build-log.txt || echo "No obvious errors found in log"
+            
+            echo "=== Approach 2: Pre-download headers then install ==="
+            echo "Downloading ia32 headers..."
+            npx node-gyp install --arch=ia32 --verbose
+            
+            echo "Headers downloaded to:"
+            ls ~/.cache/node-gyp/ || echo "No node-gyp cache found"
+            find ~/.cache/node-gyp/ -name "*.h" | head -10 || echo "No header files found"
+            
+            echo "Retry install with pre-downloaded headers..."
+            npm install @gristlabs/sqlite3@5.1.4-grist.8 --save-optional --no-audit --no-fund --verbose
+            
+            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+              echo "✅ SUCCESS: ia32 binary was built after pre-downloading headers!"
+            else
+              echo "❌ STILL FAILED after pre-downloading headers"
+            fi
+          fi
         env:
           npm_config_build_from_source: true
-          npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
-          npm_config_msvs_version: "2022"
 
-      - name: Hooks and crooks
-        run: yarn run setup
-        env:
-          RUN_OS: ${{ matrix.os }}
-          RUN_ARCH: ${{ matrix.target }}
-
-      - name: Build
-        run: yarn run build
+      - name: Verify test results
+        shell: bash
+        run: |
+          echo "=== Final verification ==="
+          cd core
+          if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+            echo "✅ SUCCESS: Windows x86 sqlite3 build completed successfully!"
+            echo "File details:"
+            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
+            file "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" || echo "file command not available"
+            
+            echo "=== Test the binary works ==="
+            node -e "
+              try {
+                const sqlite3 = require('@gristlabs/sqlite3');
+                console.log('✅ SQLite3 module loaded successfully');
+                console.log('Version:', sqlite3.VERSION);
+              } catch (error) {
+                console.error('❌ Failed to load SQLite3 module:', error.message);
+                process.exit(1);
+              }
+            "
+          else
+            echo "❌ FAILED: Windows x86 sqlite3 build failed"
+            echo "This indicates the build issue is not yet resolved"
+            exit 1
+          fi
