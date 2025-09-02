@@ -37,50 +37,121 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      - name: Test comprehensive Windows x86 sqlite3 build fix with platform detection
+      - name: Test multiple approaches for Windows x86 sqlite3 build
         shell: bash
         run: |
-          echo "=== Testing Windows x86 sqlite3 build with comprehensive platform detection ==="
+          echo "=== Testing multiple approaches for Windows x86 sqlite3 build ==="
           
-          # Download Node.js headers for ia32 first
+          # Set up common environment variables
+          export npm_config_build_from_source=true
+          export npm_config_target_arch=ia32
+          export npm_config_target_platform=win32
+          export npm_config_target_libc=msvcrt
+          export npm_config_fallback_to_build=true
+          export npm_config_msvs_version="2022"
+          
+          # Function to check build result
+          check_build() {
+            local approach_name="$1"
+            echo "=== Checking $approach_name result ==="
+            
+            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+              echo "✅ SUCCESS ($approach_name): Windows x86 sqlite3 binary found!"
+              
+              # Test if it actually loads
+              if node -e "const sqlite3 = require('@gristlabs/sqlite3'); console.log('SQLite3 version:', sqlite3.VERSION);" 2>/dev/null; then
+                echo "✅ FULLY WORKING ($approach_name): SQLite3 loads and works!"
+                return 0
+              else
+                echo "⚠️  PARTIAL SUCCESS ($approach_name): Binary exists but doesn't load properly"
+              fi
+            else
+              echo "❌ FAILED ($approach_name): Expected binary not found"
+              echo "Available bindings:"
+              ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" 2>/dev/null || echo "No bindings directory"
+              
+              # Check for unknown platform
+              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
+                echo "⚠️  Found 'unknown-ia32' binary - platform detection issue"
+              fi
+            fi
+            return 1
+          }
+          
+          # Clean function
+          clean_bindings() {
+            echo "Cleaning existing bindings..."
+            rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* 2>/dev/null || true
+            rm -rf node_modules/@gristlabs/sqlite3/build 2>/dev/null || true
+          }
+          
+          # APPROACH 1: Current method with node-gyp in sqlite3 directory
+          echo "=== APPROACH 1: Direct node-gyp rebuild in sqlite3 directory ==="
+          clean_bindings
           npx node-gyp install --arch=ia32
-          
-          # Remove existing bindings to force rebuild
-          rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* || true
-          
-          # Direct rebuild with node-gyp in sqlite3 directory for proper platform detection
           cd node_modules/@gristlabs/sqlite3
           npx node-gyp rebuild --arch=ia32
-          
-          echo "=== Checking build result ==="
           cd ../../..
+          if check_build "Approach 1"; then exit 0; fi
           
-          echo "Checking for expected binary location:"
-          if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-            echo "✅ SUCCESS: Windows x86 sqlite3 build completed!"
-            
-            # Quick functionality test
-            node -e "
-              const sqlite3 = require('@gristlabs/sqlite3');
-              console.log('✅ SQLite3 loaded successfully');
-              console.log('Version:', sqlite3.VERSION);
-            "
-          else
-            echo "❌ FAILED: Expected binary not found at napi-v6-win32-ia32"
-            echo "Available bindings:"
-            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
-            
-            # Check if it was built with unknown platform
-            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
-              echo "⚠️  Found binary with 'unknown' platform identifier"
-              echo "This indicates platform detection is not working correctly"
-            fi
-            exit 1
-          fi
-        env:
-          npm_config_build_from_source: true
-          npm_config_target_arch: ia32
-          npm_config_target_platform: win32
-          npm_config_target_libc: msvcrt
-          npm_config_fallback_to_build: true
-          npm_config_msvs_version: "2022"
+          # APPROACH 2: yarn upgrade with environment variables
+          echo "=== APPROACH 2: yarn upgrade with environment variables ==="
+          clean_bindings
+          yarn upgrade @gristlabs/sqlite3 --no-lockfile 2>&1 | grep -v "Skipping copying" || true
+          if check_build "Approach 2"; then exit 0; fi
+          
+          # APPROACH 3: npm rebuild in sqlite3 directory
+          echo "=== APPROACH 3: npm rebuild in sqlite3 directory ==="
+          clean_bindings
+          cd node_modules/@gristlabs/sqlite3
+          npm rebuild --arch=ia32
+          cd ../../..
+          if check_build "Approach 3"; then exit 0; fi
+          
+          # APPROACH 4: Manual binding setup with node-gyp
+          echo "=== APPROACH 4: Manual binding setup ==="
+          clean_bindings
+          npx node-gyp install --arch=ia32
+          mkdir -p node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32
+          cd node_modules/@gristlabs/sqlite3
+          export target_platform=win32
+          export target_arch=ia32
+          export target_libc=msvcrt
+          npx node-gyp rebuild --arch=ia32 --target_platform=win32
+          cd ../../..
+          if check_build "Approach 4"; then exit 0; fi
+          
+          # APPROACH 5: Force manual platform setup with node-gyp configure
+          echo "=== APPROACH 5: Manual node-gyp configure ==="
+          clean_bindings
+          npx node-gyp install --arch=ia32
+          cd node_modules/@gristlabs/sqlite3
+          npx node-gyp clean
+          npx node-gyp configure --arch=ia32 --target_platform=win32 --msvs_version=2022
+          npx node-gyp build
+          cd ../../..
+          if check_build "Approach 5"; then exit 0; fi
+          
+          # APPROACH 6: Setting platform detection environment at OS level
+          echo "=== APPROACH 6: OS-level platform detection ==="
+          clean_bindings
+          export PROCESSOR_ARCHITECTURE=x86
+          export Platform=Win32
+          npx node-gyp install --arch=ia32
+          cd node_modules/@gristlabs/sqlite3
+          npx node-gyp clean
+          npx node-gyp configure --arch=ia32 --target_platform=win32
+          npx node-gyp build
+          cd ../../..
+          if check_build "Approach 6"; then exit 0; fi
+          
+          echo "=== ALL APPROACHES FAILED ==="
+          echo "Final diagnostic information:"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "yarn version: $(yarn --version)"
+          echo "Architecture: $PROCESSOR_ARCHITECTURE"
+          echo "Platform: $Platform"
+          echo "Available bindings after all attempts:"
+          find node_modules/@gristlabs/sqlite3 -name "*.node" 2>/dev/null || echo "No .node files found"
+          exit 1
