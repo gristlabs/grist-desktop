@@ -55,8 +55,16 @@ jobs:
             local approach_name="$1"
             echo "=== Checking $approach_name result ==="
             
+            # Check in both possible locations
+            local binding_file=""
             if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-              echo "✅ SUCCESS ($approach_name): Windows x86 sqlite3 binary found!"
+              binding_file="node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
+            elif [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
+              binding_file="core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
+            fi
+            
+            if [ -n "$binding_file" ]; then
+              echo "✅ SUCCESS ($approach_name): Windows x86 sqlite3 binary found at $binding_file!"
               
               # Test if it actually loads
               if node -e "const sqlite3 = require('@gristlabs/sqlite3'); console.log('SQLite3 version:', sqlite3.VERSION);" 2>/dev/null; then
@@ -67,11 +75,13 @@ jobs:
               fi
             else
               echo "❌ FAILED ($approach_name): Expected binary not found"
-              echo "Available bindings:"
-              ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" 2>/dev/null || echo "No bindings directory"
+              echo "Available bindings in root:"
+              ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" 2>/dev/null || echo "No root bindings directory"
+              echo "Available bindings in core:"
+              ls -la "core/node_modules/@gristlabs/sqlite3/lib/binding/" 2>/dev/null || echo "No core bindings directory"
               
               # Check for unknown platform
-              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
+              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ] || [ -f "core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
                 echo "⚠️  Found 'unknown-ia32' binary - platform detection issue"
               fi
             fi
@@ -83,66 +93,127 @@ jobs:
             echo "Cleaning existing bindings..."
             rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* 2>/dev/null || true
             rm -rf node_modules/@gristlabs/sqlite3/build 2>/dev/null || true
+            rm -rf core/node_modules/@gristlabs/sqlite3/lib/binding/* 2>/dev/null || true
+            rm -rf core/node_modules/@gristlabs/sqlite3/build 2>/dev/null || true
           }
           
-          # APPROACH 1: Current method with node-gyp in sqlite3 directory
-          echo "=== APPROACH 1: Direct node-gyp rebuild in sqlite3 directory ==="
+          # APPROACH 1: node-pre-gyp with proper module_name variable
+          echo "=== APPROACH 1: node-pre-gyp rebuild with proper module_name ==="
           clean_bindings
-          npx node-gyp install --arch=ia32
-          cd node_modules/@gristlabs/sqlite3
-          npx node-gyp rebuild --arch=ia32
-          cd ../../..
+          npx node-gyp install --arch=ia32 || true
+          
+          # Try core directory first
+          if [ -d "core/node_modules/@gristlabs/sqlite3" ]; then
+            cd core/node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-pre-gyp rebuild --target_arch=ia32 --target_platform=win32 || true
+            cd ../../..
+          elif [ -d "node_modules/@gristlabs/sqlite3" ]; then
+            cd node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-pre-gyp rebuild --target_arch=ia32 --target_platform=win32 || true
+            cd ../..
+          else
+            echo "❌ Cannot find @gristlabs/sqlite3 directory"
+          fi
           if check_build "Approach 1"; then exit 0; fi
           
-          # APPROACH 2: yarn upgrade with environment variables
-          echo "=== APPROACH 2: yarn upgrade with environment variables ==="
+          # APPROACH 2: Direct node-gyp rebuild in sqlite3 directory
+          echo "=== APPROACH 2: Direct node-gyp rebuild in sqlite3 directory ==="
           clean_bindings
-          yarn upgrade @gristlabs/sqlite3 --no-lockfile 2>&1 | grep -v "Skipping copying" || true
+          npx node-gyp install --arch=ia32 || true
+          
+          if [ -d "core/node_modules/@gristlabs/sqlite3" ]; then
+            cd core/node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-gyp rebuild --arch=ia32 || true
+            cd ../../..
+          elif [ -d "node_modules/@gristlabs/sqlite3" ]; then
+            cd node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-gyp rebuild --arch=ia32 || true
+            cd ../..
+          else
+            echo "❌ Cannot find @gristlabs/sqlite3 directory"
+          fi
           if check_build "Approach 2"; then exit 0; fi
           
-          # APPROACH 3: npm rebuild in sqlite3 directory
-          echo "=== APPROACH 3: npm rebuild in sqlite3 directory ==="
+          # APPROACH 3: yarn upgrade with environment variables
+          echo "=== APPROACH 3: yarn upgrade with environment variables ==="
           clean_bindings
-          cd node_modules/@gristlabs/sqlite3
-          npm rebuild --arch=ia32
-          cd ../../..
+          export module_name=node_sqlite3
+          yarn upgrade @gristlabs/sqlite3 --no-lockfile 2>&1 | grep -v "Skipping copying" || true
           if check_build "Approach 3"; then exit 0; fi
           
-          # APPROACH 4: Manual binding setup with node-gyp
-          echo "=== APPROACH 4: Manual binding setup ==="
+          # APPROACH 4: npm rebuild in sqlite3 directory
+          echo "=== APPROACH 4: npm rebuild in sqlite3 directory ==="
           clean_bindings
-          npx node-gyp install --arch=ia32
-          mkdir -p node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32
-          cd node_modules/@gristlabs/sqlite3
-          export target_platform=win32
-          export target_arch=ia32
-          export target_libc=msvcrt
-          npx node-gyp rebuild --arch=ia32 --target_platform=win32
-          cd ../../..
+          
+          if [ -d "core/node_modules/@gristlabs/sqlite3" ]; then
+            cd core/node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npm rebuild --arch=ia32 || true
+            cd ../../..
+          elif [ -d "node_modules/@gristlabs/sqlite3" ]; then
+            cd node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npm rebuild --arch=ia32 || true
+            cd ../..
+          else
+            echo "❌ Cannot find @gristlabs/sqlite3 directory"
+          fi
           if check_build "Approach 4"; then exit 0; fi
           
-          # APPROACH 5: Force manual platform setup with node-gyp configure
-          echo "=== APPROACH 5: Manual node-gyp configure ==="
+          # APPROACH 5: Manual binding setup with node-gyp
+          echo "=== APPROACH 5: Manual binding setup ==="
           clean_bindings
-          npx node-gyp install --arch=ia32
-          cd node_modules/@gristlabs/sqlite3
-          npx node-gyp clean
-          npx node-gyp configure --arch=ia32 --target_platform=win32 --msvs_version=2022
-          npx node-gyp build
-          cd ../../..
+          npx node-gyp install --arch=ia32 || true
+          mkdir -p node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32 || true
+          mkdir -p core/node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32 || true
+          
+          if [ -d "core/node_modules/@gristlabs/sqlite3" ]; then
+            cd core/node_modules/@gristlabs/sqlite3
+            export target_platform=win32
+            export target_arch=ia32
+            export target_libc=msvcrt
+            export module_name=node_sqlite3
+            npx node-gyp rebuild --arch=ia32 --target_platform=win32 || true
+            cd ../../..
+          elif [ -d "node_modules/@gristlabs/sqlite3" ]; then
+            cd node_modules/@gristlabs/sqlite3
+            export target_platform=win32
+            export target_arch=ia32
+            export target_libc=msvcrt
+            export module_name=node_sqlite3
+            npx node-gyp rebuild --arch=ia32 --target_platform=win32 || true
+            cd ../..
+          else
+            echo "❌ Cannot find @gristlabs/sqlite3 directory"
+          fi
           if check_build "Approach 5"; then exit 0; fi
           
-          # APPROACH 6: Setting platform detection environment at OS level
-          echo "=== APPROACH 6: OS-level platform detection ==="
+          # APPROACH 6: Force manual platform setup with node-gyp configure
+          echo "=== APPROACH 6: Manual node-gyp configure ==="
           clean_bindings
-          export PROCESSOR_ARCHITECTURE=x86
-          export Platform=Win32
-          npx node-gyp install --arch=ia32
-          cd node_modules/@gristlabs/sqlite3
-          npx node-gyp clean
-          npx node-gyp configure --arch=ia32 --target_platform=win32
-          npx node-gyp build
-          cd ../../..
+          npx node-gyp install --arch=ia32 || true
+          
+          if [ -d "core/node_modules/@gristlabs/sqlite3" ]; then
+            cd core/node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-gyp clean || true
+            npx node-gyp configure --arch=ia32 --target_platform=win32 --msvs_version=2022 || true
+            npx node-gyp build || true
+            cd ../../..
+          elif [ -d "node_modules/@gristlabs/sqlite3" ]; then
+            cd node_modules/@gristlabs/sqlite3
+            export module_name=node_sqlite3
+            npx node-gyp clean || true
+            npx node-gyp configure --arch=ia32 --target_platform=win32 --msvs_version=2022 || true
+            npx node-gyp build || true
+            cd ../..
+          else
+            echo "❌ Cannot find @gristlabs/sqlite3 directory"
+          fi
           if check_build "Approach 6"; then exit 0; fi
           
           echo "=== ALL APPROACHES FAILED ==="
@@ -153,5 +224,10 @@ jobs:
           echo "Architecture: $PROCESSOR_ARCHITECTURE"
           echo "Platform: $Platform"
           echo "Available bindings after all attempts:"
-          find node_modules/@gristlabs/sqlite3 -name "*.node" 2>/dev/null || echo "No .node files found"
+          find . -name "*.node" 2>/dev/null || echo "No .node files found"
+          echo "SQLite3 package locations:"
+          find . -name "@gristlabs" -type d 2>/dev/null || echo "No @gristlabs directories found"
+          echo "Current working directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
           exit 1
