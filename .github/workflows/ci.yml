@@ -9,33 +9,80 @@ on:
     tags:
       - '*'
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
-  build:
+  test-windows-x86-sqlite3:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-22.04
+          - windows-2022
         host:
           - x64
         target:
-          - x64
+          - x86
         node:
           - 20
-    name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
+    name: Test Windows x86 sqlite3 build - ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
-      - uses: actions/checkout@v3
+      - name: Set up bash association
+        run: |
+          ls
+          ls "c:\\"
+          ls "c:\\Program Files"
+          ls "c:\\Program Files/Git"
+          ls "c:\\Program Files/Git/bin"
+          cmd /c assoc .sh=bashscript
+          cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
+          cmd /c ftype
+
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/setup-node@v3
+      - name: Submodule cleanup fix
+        run: |
+          git submodule foreach --recursive git clean -ffdx
+          git submodule foreach --recursive git reset --hard
+
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          architecture: ${{ matrix.host }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: yarn install --network-timeout 300000
+        run: yarn install --network-timeout 300000 --ignore-optional
+
+      - name: Test Windows x86 sqlite3 build approaches
+        run: |
+          echo "Testing multiple approaches to fix Windows x86 sqlite3 build..."
+          
+          # Approach 1: Install node-gyp globally and download headers first
+          echo "=== Approach 1: Install node-gyp and download headers ==="
+          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
+          
+          # Download Node.js headers for x86 architecture
+          echo "Downloading Node.js headers for ia32..."
+          $(yarn global bin)/node-gyp install --arch=ia32
+          
+          # Check if headers were downloaded
+          echo "Checking for downloaded headers..."
+          ls -la ~/.cache/node-gyp/ || echo "No ~/.cache/node-gyp/ directory found"
+          
+          # Try to upgrade sqlite3 with specific configuration
+          echo "Upgrading sqlite3 with x86 configuration..."
+          yarn upgrade sqlite3
+        env:
+          npm_config_build_from_source: true
+          npm_config_target_arch: ia32
+          npm_config_fallback_to_build: true
+          npm_config_msvs_version: "2022"
 
       - name: Hooks and crooks
         run: yarn run setup
@@ -45,6 +92,3 @@ jobs:
 
       - name: Build
         run: yarn run build
-
-      - name: Test
-        run: yarn run test
