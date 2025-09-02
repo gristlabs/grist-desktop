@@ -14,27 +14,9 @@ env:
 
 jobs:
   test-windows-x86-sqlite3:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2022
-        host:
-          - x64
-        target:
-          - x86
-        node:
-          - 20
-    name: Test Windows x86 sqlite3 build - ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
+    runs-on: windows-2022
+    name: Test Windows x86 sqlite3 build
     steps:
-      - name: Set up bash association
-        run: |
-          echo "Setting up Windows environment..."
-          dir "C:\Program Files\Git\bin"
-          cmd /c assoc .sh=bashscript
-          cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
-
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -46,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 20
 
       - uses: actions/setup-python@v5
         with:
@@ -55,175 +37,45 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      - name: Test Windows x86 sqlite3 build using packaging workflow approach
+      - name: Test simplified Windows x86 sqlite3 build fix
         shell: bash
         run: |
-          set -x
-          echo "=== Environment Information ==="
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "Yarn version: $(yarn --version)"
-          echo "Platform: $(node -e "console.log(process.platform, process.arch)")"
-          echo "VS Build Tools location:"
-          ls "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin" || echo "Enterprise not found"
-          ls "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin" || echo "BuildTools not found"
+          echo "=== Testing simplified approach based on package.yml ==="
           
-          echo "=== Current sqlite3 binding status ==="
-          if [ -d "node_modules/@gristlabs/sqlite3/lib/binding" ]; then
-            echo "Current bindings:"
-            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/"
-          else
-            echo "No sqlite3 bindings directory found"
-          fi
+          # Install global tools
+          yarn global add node-gyp
           
-          echo "=== Testing the actual packaging workflow approach ==="
-          echo "Installing global tools..."
-          yarn global add --network-timeout 600000 node-gyp node-pre-gyp node-gyp-build node-gyp-build-optional-packages
+          # Get proper yarn global bin path for Windows
+          YARN_BIN_DIR=$(yarn global bin | sed 's/\r$//' | sed 's/\\/\//g')
+          echo "Yarn global bin: $YARN_BIN_DIR"
           
-          echo "Download Node.js headers for x86 architecture to fix missing 'uv.h' error"
-          # Get yarn global bin path and clean it up for Windows/bash compatibility
-          YARN_GLOBAL_BIN=$(yarn global bin | tr -d '\r' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | sed 's/\\/\//g')
-          echo "Yarn global bin path: $YARN_GLOBAL_BIN"
-          "$YARN_GLOBAL_BIN/node-gyp" install --arch=ia32 --verbose
+          # Download Node.js headers for ia32 - this should fix the missing 'uv.h' error
+          "$YARN_BIN_DIR/node-gyp" install --arch=ia32
           
-          echo "=== Approach 1: Force rebuild sqlite3 from source using workspace yarn upgrade ==="
-          echo "First, removing existing sqlite3 binary to force rebuild..."
+          # Remove existing bindings to force rebuild
           rm -rf node_modules/@gristlabs/sqlite3/lib/binding/* || true
           
-          # Use yarn upgrade with specific target arch - mirroring the package.yml approach
-          # Filter out noisy "Skipping copying" warnings to reduce log noise
-          yarn upgrade @gristlabs/sqlite3 --verbose 2>&1 | grep -v "Skipping copying" | tee sqlite3-build-log.txt
+          # Rebuild sqlite3 from source
+          yarn upgrade @gristlabs/sqlite3
           
-          echo "=== Build result analysis ==="
+          echo "=== Checking build result ==="
           if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-            echo "✅ SUCCESS: ia32 binary was built!"
-            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/"
+            echo "✅ SUCCESS: Windows x86 sqlite3 build completed!"
+            
+            # Quick functionality test
+            node -e "
+              const sqlite3 = require('@gristlabs/sqlite3');
+              console.log('✅ SQLite3 loaded successfully');
+              console.log('Version:', sqlite3.VERSION);
+            "
           else
-            echo "❌ FAILED: ia32 binary not found"
+            echo "❌ FAILED: Expected binary not found"
             echo "Available bindings:"
             ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
-            
-            echo "=== Debug: Check what was actually built ==="
-            find node_modules/@gristlabs/sqlite3 -name "*.node" -type f || echo "No .node files found"
-            
-            echo "=== Error analysis from build log ==="
-            grep -i "error\|fail\|cannot" sqlite3-build-log.txt || echo "No obvious errors found in log"
-            
-            echo "=== Approach 2: Force complete reinstall with proper target platform settings ==="
-            echo "Removing sqlite3 completely..."
-            rm -rf node_modules/@gristlabs/sqlite3 || true
-            
-            echo "Reinstalling @gristlabs/sqlite3 from source with comprehensive build settings..."
-            # Set more comprehensive environment variables to ensure proper platform detection
-            export npm_config_target_platform=win32
-            export npm_config_target_libc=msvcrt
-            export npm_config_cache_lock_stale=60000
-            export npm_config_node_gyp=$(yarn global bin | tr -d '\r' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | sed 's/\\/\//g')/node-gyp
-            
-            yarn add @gristlabs/sqlite3@5.1.4-grist.8 -W --verbose 2>&1 | grep -v "Skipping copying" | tee sqlite3-rebuild-log.txt
-            
-            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-              echo "✅ SUCCESS: ia32 binary was built after forced reinstall!"
-            else
-              echo "❌ STILL FAILED after forced reinstall"
-              echo "=== Debug: Check what was actually built ==="
-              find node_modules/@gristlabs/sqlite3 -name "*.node" -type f || echo "No .node files found"
-              
-              echo "=== Error analysis from rebuild log ==="
-              grep -i "error\|fail\|cannot" sqlite3-rebuild-log.txt || echo "No obvious errors found in rebuild log"
-              
-              echo "=== Approach 3: Direct node-gyp rebuild with explicit platform settings ==="
-              cd node_modules/@gristlabs/sqlite3
-              
-              # Use node-gyp directly with explicit platform settings
-              "$YARN_GLOBAL_BIN/node-gyp" rebuild --arch=ia32 --target_platform=win32 --verbose 2>&1 | grep -v "Skipping copying" | tee ../../../sqlite3-direct-rebuild-log.txt
-              cd ../../..
-              
-              if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-                echo "✅ SUCCESS: ia32 binary was built with direct node-gyp!"
-              else
-                echo "❌ ALL APPROACHES FAILED"
-                echo "=== Debug: Final check of what was built ==="
-                find node_modules/@gristlabs/sqlite3 -name "*.node" -type f || echo "No .node files found"
-                echo "=== Error analysis from direct rebuild log ==="
-                grep -i "error\|fail\|cannot" sqlite3-direct-rebuild-log.txt || echo "No obvious errors found in direct rebuild log"
-              fi
-            fi
+            exit 1
           fi
         env:
           npm_config_build_from_source: true
           npm_config_target_arch: ia32
           npm_config_fallback_to_build: true
           npm_config_msvs_version: "2022"
-
-      - name: Verify test results and test binary functionality
-        shell: bash
-        run: |
-          echo "=== Final verification ==="
-          if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" ]; then
-            echo "✅ SUCCESS: Windows x86 sqlite3 build completed successfully!"
-            echo "File details:"
-            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node"
-            file "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-ia32/node_sqlite3.node" || echo "file command not available"
-            
-            echo "=== Test the binary works from root ==="
-            node -e "
-              try {
-                const sqlite3 = require('@gristlabs/sqlite3');
-                console.log('✅ SQLite3 module loaded successfully');
-                console.log('Version:', sqlite3.VERSION);
-                console.log('Source ID:', sqlite3.SQLITE_VERSION_NUMBER);
-              } catch (error) {
-                console.error('❌ Failed to load SQLite3 module:', error.message);
-                process.exit(1);
-              }
-            "
-            
-            echo "=== Test the binary works from core workspace ==="
-            cd core
-            node -e "
-              try {
-                const sqlite3 = require('@gristlabs/sqlite3');
-                console.log('✅ SQLite3 module loaded successfully from core workspace');
-                console.log('Version:', sqlite3.VERSION);
-                console.log('Source ID:', sqlite3.SQLITE_VERSION_NUMBER);
-              } catch (error) {
-                console.error('❌ Failed to load SQLite3 module from core workspace:', error.message);
-                process.exit(1);
-              }
-            "
-            
-            echo "=== Test database operations ==="
-            node -e "
-              const sqlite3 = require('@gristlabs/sqlite3').verbose();
-              const db = new sqlite3.Database(':memory:');
-              db.serialize(() => {
-                db.run('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-                db.run('INSERT INTO test (name) VALUES (?)', ['Windows x86 test']);
-                db.get('SELECT * FROM test WHERE id = ?', [1], (err, row) => {
-                  if (err) {
-                    console.error('❌ Database operation failed:', err.message);
-                    process.exit(1);
-                  }
-                  console.log('✅ Database operations successful:', row);
-                });
-              });
-              db.close();
-            "
-          else
-            echo "❌ FAILED: Windows x86 sqlite3 build failed"
-            echo "This indicates the build issue is not yet resolved"
-            echo "=== Debug: Available .node files in project ==="
-            find node_modules -name "*.node" -type f | head -10 || echo "No .node files found"
-            echo "=== Debug: Current sqlite3 bindings ==="
-            ls -la "node_modules/@gristlabs/sqlite3/lib/binding/" || echo "No bindings directory"
-            echo "=== Debug: What was actually built ==="
-            find node_modules/@gristlabs/sqlite3 -name "*.node" -type f || echo "No sqlite3 .node files found"
-            echo "=== Debug: Check for platform detection issues ==="
-            if [ -f "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/node_sqlite3.node" ]; then
-              echo "⚠️  Found 'unknown-ia32' binary - this indicates platform detection issues"
-              echo "The build process is not correctly detecting the target platform"
-              ls -la "node_modules/@gristlabs/sqlite3/lib/binding/napi-v6-win32-unknown-ia32/"
-            fi
-            exit 1
-          fi
