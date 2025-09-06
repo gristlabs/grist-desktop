@@ -110,12 +110,6 @@ jobs:
           FORCE_COLOR=0 yarn global bin >> "$GITHUB_PATH"
           echo "NODE_PATH=$(FORCE_COLOR=0 yarn global dir)/node_modules:$NODE_PATH" >> "$GITHUB_ENV"
 
-      - name: Install Flatpak dependencies
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
-
       - name: Hooks and crooks
         run: yarn run setup
         env:
@@ -209,11 +203,6 @@ jobs:
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      - name: Install Flatpak dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
-
       - name: Hooks and crooks
         run: yarn run setup
         env:
@@ -228,12 +217,9 @@ jobs:
 
       - name: Package Flatpak
         run: |
-          # Add flathub remote for dependencies
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          # Install required runtimes
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.electronjs.Electron2.BaseApp//23.08
-          # Build Flatpak package
-          yarn run electron:flatpak
+          # Use the flatpak build script which handles all dependencies and icon generation
+          chmod +x ./scripts/flatpak-build.sh
+          ./scripts/flatpak-build.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DEBUG: electron-builder
