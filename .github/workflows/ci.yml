@@ -48,3 +48,17 @@ jobs:
 
       - name: Test
         run: yarn run test
+
+      - name: Install Flatpak dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
+
+      - name: Test Flatpak build
+        run: |
+          # Add flathub remote for dependencies
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          # Install required runtimes
+          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.electronjs.Electron2.BaseApp//23.08
+          # Test that flatpak packaging works
+          yarn run electron:flatpak
