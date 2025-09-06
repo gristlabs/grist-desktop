@@ -215,6 +215,11 @@ jobs:
       - name: Test
         run: yarn run test
 
+      - name: Install Flatpak dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
+
       - name: Package Flatpak
         run: |
           # Use the flatpak build script which handles all dependencies and icon generation
