@@ -8,7 +8,7 @@
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
   "license": "Apache-2.0",
-  "desktopName": "com.getgrist.desktop.desktop",
+  "desktopName": "com.getgrist.grist",
   "workspaces": {
     "packages": [
       "core",
@@ -43,7 +43,7 @@
     "chromedriver": "110.0.0"
   },
   "build": {
-    "appId": "com.getgrist.desktop",
+    "appId": "com.getgrist.grist",
     "npmRebuild": false,
     "compression": "normal",
     "includeSubNodeModules": true,
@@ -93,12 +93,22 @@
         "--device=dri",
         "--talk-name=org.freedesktop.Notifications",
         "--talk-name=org.freedesktop.secrets",
-        "--filesystem=home"
+        "--filesystem=home",
+        "--allow=multiarch",
+        "--allow=devel",
+        "--filesystem=xdg-cache/tmp:create",
+        "--filesystem=/tmp:create",
+        "--filesystem=/usr/bin",
+        "--filesystem=/usr/lib:ro",
+        "--filesystem=/usr/local:ro",
+        "--env=TMPDIR=/tmp",
+        "--env=GRIST_SANDBOX_FLAVOR=unsandboxed",
+        "--env=PATH=/app/bin:/usr/bin:/usr/local/bin"
       ],
       "desktop": {
         "Name": "Grist",
         "Comment": "Spreadsheet software to end data chaos",
-        "Icon": "com.getgrist.desktop",
+        "Icon": "com.getgrist.grist",
         "Categories": ["Office"],
         "MimeType": "text/csv;text/tab-separated-values;text/plain;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel.sheet.macroEnabled.12;"
       },
@@ -110,14 +120,14 @@
         "application/vnd.ms-excel.sheet.macroEnabled.12"
       ],
       "files": [
-        ["dist/icons/16x16.png", "/app/share/icons/hicolor/16x16/apps/com.getgrist.desktop.png"],
-        ["dist/icons/32x32.png", "/app/share/icons/hicolor/32x32/apps/com.getgrist.desktop.png"],
-        ["dist/icons/48x48.png", "/app/share/icons/hicolor/48x48/apps/com.getgrist.desktop.png"],
-        ["dist/icons/64x64.png", "/app/share/icons/hicolor/64x64/apps/com.getgrist.desktop.png"],
-        ["dist/icons/128x128.png", "/app/share/icons/hicolor/128x128/apps/com.getgrist.desktop.png"],
-        ["dist/icons/256x256.png", "/app/share/icons/hicolor/256x256/apps/com.getgrist.desktop.png"],
-        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.desktop.png"],
-        ["dist/icons/scalable.svg", "/app/share/icons/hicolor/scalable/apps/com.getgrist.desktop.svg"]
+        ["dist/icons/16x16.png", "/app/share/icons/hicolor/16x16/apps/com.getgrist.grist.png"],
+        ["dist/icons/32x32.png", "/app/share/icons/hicolor/32x32/apps/com.getgrist.grist.png"],
+        ["dist/icons/48x48.png", "/app/share/icons/hicolor/48x48/apps/com.getgrist.grist.png"],
+        ["dist/icons/64x64.png", "/app/share/icons/hicolor/64x64/apps/com.getgrist.grist.png"],
+        ["dist/icons/128x128.png", "/app/share/icons/hicolor/128x128/apps/com.getgrist.grist.png"],
+        ["dist/icons/256x256.png", "/app/share/icons/hicolor/256x256/apps/com.getgrist.grist.png"],
+        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.grist.png"],
+        ["dist/icons/scalable.svg", "/app/share/icons/hicolor/scalable/apps/com.getgrist.grist.svg"]
       ]
     },
     "afterSign": "./scripts/notarize.js",

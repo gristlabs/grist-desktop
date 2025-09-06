@@ -8,6 +8,7 @@ SIZES=(16 32 48 64 128 256 512)
 echo "Checking Flatpak tooling..."
 command -v flatpak >/dev/null || { echo "flatpak not found. Please install flatpak"; exit 1; }
 command -v flatpak-builder >/dev/null || { echo "flatpak-builder not found. Please install flatpak-builder"; exit 1; }
+command -v rsvg-convert >/dev/null || { echo "rsvg-convert not found. Please install librsvg2-bin"; exit 1; }
 
 echo "Generating PNG icons for Flatpak..."
 mkdir -p "$ICON_OUT_DIR"
