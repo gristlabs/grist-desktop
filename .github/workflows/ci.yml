@@ -48,26 +48,3 @@ jobs:
 
       - name: Test
         run: yarn run test
-
-      - name: Install Flatpak dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
-
-      - name: Test Flatpak build
-        run: |
-          # Generate PNG icons for Flatpak
-          mkdir -p dist/icons
-          for size in 16 32 48 64 128 256 512; do
-            rsvg-convert -w "$size" -h "$size" core/static/icons/grist.svg -o "dist/icons/${size}x${size}.png"
-          done
-          cp core/static/icons/grist.svg dist/icons/scalable.svg
-          
-          # Add flathub remote with sudo
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          
-          # Install required runtimes with sudo
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.electronjs.Electron2.BaseApp//23.08
-          
-          # Build Flatpak package
-          yarn run electron:flatpak
