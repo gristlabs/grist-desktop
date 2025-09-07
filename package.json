@@ -85,7 +85,6 @@
       "base": "org.electronjs.Electron2.BaseApp",
       "baseVersion": "23.08",
       "finishArgs": [
-        "--share=network",
         "--share=ipc",
         "--socket=x11",
         "--socket=wayland",
@@ -95,15 +94,9 @@
         "--talk-name=org.freedesktop.secrets",
         "--filesystem=home",
         "--allow=multiarch",
-        "--allow=devel",
         "--filesystem=xdg-cache/tmp:create",
-        "--filesystem=/tmp:create",
-        "--filesystem=/usr/bin",
-        "--filesystem=/usr/lib:ro",
-        "--filesystem=/usr/local:ro",
         "--env=TMPDIR=/tmp",
-        "--env=GRIST_SANDBOX_FLAVOR=unsandboxed",
-        "--env=PATH=/app/bin:/usr/bin:/usr/local/bin"
+        "--env=GRIST_SANDBOX_FLAVOR=unsandboxed"
       ],
       "desktop": {
         "Name": "Grist",
