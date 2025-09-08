@@ -33,7 +33,7 @@
     "electron:linux": "electron-builder build --linux",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "electron core/_build/ext/app/electron/main.js --version"
+    "test": "./scripts/smoke-test.sh"
   },
   "resolutions": {
     "jquery": "3.5.0",
