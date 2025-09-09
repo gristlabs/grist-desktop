@@ -8,9 +8,6 @@ on:
       - '*'
 env:
   FORCE_COLOR: 1
-  # This makes the macos-13 packaging work.
-  # I don't know why. Your guess is as good as mine.
-  DEBUG_DMG: true
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -23,21 +20,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-13
-          - ubuntu-22.04
-          - windows-2022
-        host:
-          - x64
-        target:
-          - x64
-        node:
-          - 20
         include:
           - os: macos-14
             node: 20
             host: arm64
             target: arm64
+          - os: ubuntu-22.04
+            node: 20
+            host: x64
+            target: x64
+          - os: windows-2022
+            node: 20
+            host: x64
+            target: x64
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: Set up bash association

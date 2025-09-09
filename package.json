@@ -69,7 +69,14 @@
       "gatekeeperAssess": false,
       "entitlements": "scripts/entitlements.mac.plist",
       "entitlementsInherit": "scripts/entitlements.mac.plist",
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
     },
     "dmg": {
       "writeUpdateInfo": false
