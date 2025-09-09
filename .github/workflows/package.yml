@@ -8,9 +8,6 @@ on:
       - '*'
 env:
   FORCE_COLOR: 1
-  # This makes the macos-13 packaging work.
-  # I don't know why. Your guess is as good as mine.
-  DEBUG_DMG: true
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -104,10 +101,6 @@ jobs:
 
       - name: Test
         run: yarn run test
-
-      - name: Increase keychain lock timeout
-        if: startsWith(matrix.os, 'macos')
-        run: security set-keychain-settings -t 3600 -u build.keychain
 
       - name: Package
         # github endpoints hang up quite a bit, add one retry.
