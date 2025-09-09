@@ -105,6 +105,10 @@ jobs:
       - name: Test
         run: yarn run test
 
+      - name: Increase keychain lock timeout
+        if: startsWith(matrix.os, 'macos')
+        run: security set-keychain-settings -t 3600 -u build.keychain
+
       - name: Package
         # github endpoints hang up quite a bit, add one retry.
         run: yarn run electron:ci || yarn run electron:ci
