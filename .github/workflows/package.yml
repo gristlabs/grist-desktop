@@ -108,7 +108,7 @@ jobs:
         env:
           TARGET_ARCH: ${{ matrix.target }}
           GITHUB_TOKEN: ${{ github.token }}
-          DEBUG: electron-builder
+          DEBUG: electron-builder electron-notarize*
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
