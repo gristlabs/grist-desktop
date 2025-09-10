@@ -123,7 +123,12 @@
       "!core/static/bootstrap-datepicker",
       "!core/static/jquery",
       "!core/static/jqueryui",
-      "!core/static/hljs.default.css"
+      "!core/static/hljs.default.css",
+      "!core/static/mocha.js",
+      "!core/static/mocha.css",
+      "!core/static/sinon.js",
+      "!core/static/swagger-ui-bundle.js",
+      "!core/static/swagger-ui.css"
     ],
     "directories": {
       "buildResources": "."
