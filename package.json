@@ -118,7 +118,12 @@
       "!node_modules/app-builder-bin",
       "!node_modules/7zip-bin",
       "!node_modules/geckodriver",
-      "!node_modules/esbuild-linux-64"
+      "!node_modules/esbuild-linux-64",
+      "!node_modules/typescript",
+      "!core/test/**/*",
+      "!core/cpython.tar.gz",
+      "!core/documentation/**/*",
+      "!**/test_*.py"
     ],
     "directories": {
       "buildResources": "."
