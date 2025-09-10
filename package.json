@@ -124,7 +124,6 @@
       "!node_modules/typescript-eslint",
       "!node_modules/eslint",
       "!node_modules/@eslint/**/*",
-      "!node_modules/electron",
       "!node_modules/@electron/**/*",
       "!node_modules/electron-builder",
       "!node_modules/globals",
