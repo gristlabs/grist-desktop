@@ -44,7 +44,6 @@
     "appId": "com.getgrist.desktop",
     "npmRebuild": false,
     "compression": "normal",
-    "includeSubNodeModules": true,
     "icon": "core/static/icons/grist.png",
     "win": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
@@ -100,6 +99,7 @@
       "core/python/**/*",
       "core/node_modules/**/*",
       "node_modules/**/*",
+      "**/node_modules/**/*",
       "!**/*.map",
       "!**/chromedriver/*",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
