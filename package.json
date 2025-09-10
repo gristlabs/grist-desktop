@@ -99,7 +99,6 @@
       "core/python/**/*",
       "core/node_modules/**/*",
       "node_modules/**/*",
-      "**/node_modules/**/*",
       "!**/*.map",
       "!**/chromedriver/*",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
