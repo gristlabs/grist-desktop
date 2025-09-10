@@ -120,6 +120,7 @@
       "!node_modules/geckodriver",
       "!node_modules/esbuild-linux-64",
       "!node_modules/typescript",
+      "!node_modules/ts-interface-builder",
       "!core/test/**/*",
       "!core/cpython.tar.gz",
       "!core/documentation/**/*",
