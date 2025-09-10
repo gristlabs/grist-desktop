@@ -118,7 +118,21 @@
       "!node_modules/app-builder-bin",
       "!node_modules/7zip-bin",
       "!node_modules/geckodriver",
-      "!node_modules/esbuild-linux-64"
+      "!node_modules/esbuild-linux-64",
+      "!node_modules/typescript",
+      "!node_modules/ts-interface-builder",
+      "!node_modules/typescript-eslint",
+      "!node_modules/eslint",
+      "!node_modules/@eslint/**/*",
+      "!node_modules/@electron/**/*",
+      "!node_modules/electron-builder",
+      "!node_modules/globals",
+      "!node_modules/resolve-tspaths",
+      "!node_modules/@types/**/*",
+      "!core/test/**/*",
+      "!core/cpython.tar.gz",
+      "!core/documentation/**/*",
+      "!**/test_*.py"
     ],
     "directories": {
       "buildResources": "."
