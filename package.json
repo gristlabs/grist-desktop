@@ -80,10 +80,22 @@
     },
     "afterSign": "./scripts/notarize.js",
     "asarUnpack": [
-      "core/plugins",
-      "core/python",
-      "core/sandbox_venv3",
-      "core/sandbox",
+      {
+        "from": "core/plugins",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "core/python",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "core/sandbox_venv3",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "core/sandbox",
+        "filter": ["**/*"]
+      },
       "node_modules/@msgpackr-extract/**/*.node",
       "node_modules/nice-napi/**/*.node",
       "node_modules/iconv-core/**/*.node",
