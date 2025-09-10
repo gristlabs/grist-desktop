@@ -118,7 +118,12 @@
       "!node_modules/app-builder-bin",
       "!node_modules/7zip-bin",
       "!node_modules/geckodriver",
-      "!node_modules/esbuild-linux-64"
+      "!node_modules/esbuild-linux-64",
+      "!core/static/bootstrap",
+      "!core/static/bootstrap-datepicker",
+      "!core/static/jquery",
+      "!core/static/jqueryui",
+      "!core/static/hljs.default.css"
     ],
     "directories": {
       "buildResources": "."
