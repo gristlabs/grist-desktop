@@ -84,7 +84,11 @@
       "core/python",
       "core/sandbox_venv3",
       "core/sandbox",
-      "**/*.node",
+      "node_modules/@msgpackr-extract/**/*.node",
+      "node_modules/nice-napi/**/*.node",
+      "node_modules/iconv-core/**/*.node",
+      "node_modules/@grist-labs/sqlite3/**/*.node",
+      "node_modules/fsevents/**/*.node",
       "node_modules/node-fetch"
     ],
     "files": [
