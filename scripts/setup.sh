@@ -140,7 +140,6 @@ echo "======================================================================="
 echo "Fix paths for static resources that are node_module symlinks in core"
 if [ ! -e core/static_ext ] ; then
   mkdir core/static_ext
-  ln -s ../../node_modules/bootstrap core/static_ext/bootstrap
   ln -s ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepicker
   ln -s ../../node_modules/jquery core/static_ext/jquery
   ln -s ../../node_modules/components-jqueryui core/static_ext/jqueryui
