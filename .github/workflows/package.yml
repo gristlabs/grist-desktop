@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-13
+          - macos-15-intel
           - ubuntu-22.04
           - windows-2022
         host:
@@ -32,12 +32,12 @@ jobs:
         target:
           - x64
         node:
-          - 20
+          - 22
         include:
           - os: macos-14
-            node: 20
             host: arm64
             target: arm64
+            node: 22
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       - name: Set up bash association
