@@ -3,7 +3,7 @@
   "name": "grist-desktop",
   "productName": "Grist Desktop",
   "description": "Grist Desktop",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "main": "core/_build/ext/app/electron/main.js",
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
@@ -34,12 +34,13 @@
   "electron:flatpak": "electron-builder build --linux flatpak",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "electron core/_build/ext/app/electron/main.js --version"
+    "test": "./scripts/smoke-test.sh"
   },
   "resolutions": {
     "jquery": "3.5.0",
     "ts-interface-checker": "1.0.2",
-    "chromedriver": "110.0.0"
+    "chromedriver": "110.0.0",
+    "@types/underscore": "1.11.0"
   },
   "build": {
     "appId": "com.getgrist.desktop",
@@ -138,7 +139,21 @@
       "!node_modules/app-builder-bin",
       "!node_modules/7zip-bin",
       "!node_modules/geckodriver",
-      "!node_modules/esbuild-linux-64"
+      "!node_modules/esbuild-linux-64",
+      "!node_modules/typescript",
+      "!node_modules/ts-interface-builder",
+      "!node_modules/typescript-eslint",
+      "!node_modules/eslint",
+      "!node_modules/@eslint/**/*",
+      "!node_modules/@electron/**/*",
+      "!node_modules/electron-builder",
+      "!node_modules/globals",
+      "!node_modules/resolve-tspaths",
+      "!node_modules/@types/**/*",
+      "!core/test/**/*",
+      "!core/cpython.tar.gz",
+      "!core/documentation/**/*",
+      "!**/test_*.py"
     ],
     "directories": {
       "buildResources": "."
