@@ -71,7 +71,9 @@ function fetch_python {
 }
 
 function unpack_python {
-  cd core && tar xfz cpython.tar.gz && cd ..
+  cd core
+  tar xfz cpython.tar.gz
+  cd ..
 }
 
 function fetch_msapi {
@@ -83,9 +85,15 @@ function fetch_msapi {
 
 function unpack_msapi {
   if [[ "$arch" = "x86" ]]; then
-    cd core && unzip api.zip && cp api-ms-win-core-path-blender/x86/*.dll python/ && cd ..
+    cd core
+    unzip api.zip
+    cp api-ms-win-core-path-blender/x86/*.dll python/
+    cd ..
   elif [[ "$arch" = "x64" ]]; then
-    cd core && unzip api.zip && cp api-ms-win-core-path-blender/x64/*.dll python/ && cd ..
+    cd core
+    unzip api.zip
+    cp api-ms-win-core-path-blender/x64/*.dll python/
+    cd ..
   else
     not_implemented
   fi
