@@ -25,18 +25,6 @@ if ! flatpak remote-list | grep -q "^flathub"; then
 fi
 
 echo "Installing required runtimes if missing..."
-flatpak install -y --noninteractive flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.electronjs.Electron2.BaseApp//23.08 || true
+flatpak install -y --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 org.electronjs.Electron2.BaseApp//25.08 || true
 
-echo "Installing dependencies..."
-yarn install
-
-echo "Project setup (Python env etc.)..."
-yarn run setup
-
-echo "Building app (production)..."
-yarn run build
-
-echo "Packaging Flatpak..."
-yarn run electron:flatpak
-
-echo "Done. Look in the dist/ folder for the .flatpak file."
+echo "Done. The flatpak can now be built using the normal linux build process (yarn run electron:linux)"

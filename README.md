@@ -59,7 +59,7 @@ yarn run electron:preview
 yarn run electron
 ```
 
-## Build as Flatpak (Linux)
+## Build as Flatpak (Linux) - additional steps
 
 Requirements: Flatpak and Flatpak Builder, plus Electron Builder.
 
@@ -67,14 +67,15 @@ On a Debian/Ubuntu system you can install prerequisites with:
 
 - flatpak
 - flatpak-builder
+- librsvg2-bin (For icon generation)
 
-Then run:
-
+You can then prepare for the Flatpak build using: 
 ```
-./scripts/flatpak-build.sh
+./scripts/prepare-flatpak.sh
 ```
 
-This will ensure the needed runtimes are installed, build the app, and create a Flatpak in the `dist/` directory.
+This will generate the icons and ensure all flatpak runtimes are installed. 
+The flatpak can then be built using the normal build process above.
 
 ## Note for Windows users on importing documents
 

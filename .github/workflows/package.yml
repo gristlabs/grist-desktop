@@ -105,6 +105,17 @@ jobs:
       - name: Test
         run: yarn run test
 
+
+      - name: Prepare Flatpak dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
+          
+          # Create ./dist to prevent it being created by prepare-flatpak and owned by root (due to sudo)
+          mkdir -p ./dist
+          sudo ./scripts/prepare-flatpak.sh
+
       - name: Package
         # github endpoints hang up quite a bit, add one retry.
         run: yarn run electron:ci || yarn run electron:ci
@@ -135,12 +146,20 @@ jobs:
           path: dist/grist-desktop-*.exe
           if-no-files-found: "error"
 
-      - name: Upload Linux build
+      - name: Upload Linux AppImage build
         if: startsWith(matrix.os, 'ubuntu')
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.target }}
           path: dist/grist-desktop-*.AppImage
+          if-no-files-found: "error"
+
+      - name: Upload Linux Flatpak build
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-flatpak-${{ matrix.target }}
+          path: dist/grist-desktop-*.flatpak
           if-no-files-found: "error"
 
       - name: Upload macOS build
@@ -149,84 +168,4 @@ jobs:
         with:
           name: macos-${{ matrix.target }}
           path: dist/grist-desktop-*.dmg
-          if-no-files-found: "error"
-
-  flatpak:
-    runs-on: ubuntu-22.04
-    name: Flatpak build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Submodule cleanup fix  # See https://github.com/actions/checkout/issues/358
-        run: |
-          git submodule foreach --recursive git clean -ffdx
-          git submodule foreach --recursive git reset --hard
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: |
-            node_modules
-            core/node_modules
-          key: ubuntu-22.04-x64-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ubuntu-22.04-x64-yarn-
-
-      - name: Install dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --network-timeout 300000 --ignore-optional
-
-      - name: Hooks and crooks
-        run: yarn run setup
-        env:
-          RUN_OS: ubuntu-22.04
-          RUN_ARCH: x64
-
-      - name: Build
-        run: yarn run build
-
-      - name: Test
-        run: yarn run test
-
-      - name: Install Flatpak dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
-
-      - name: Package Flatpak
-        run: |
-          # Generate PNG icons for Flatpak
-          mkdir -p dist/icons
-          for size in 16 32 48 64 128 256 512; do
-            rsvg-convert -w "$size" -h "$size" core/static/icons/grist.svg -o "dist/icons/${size}x${size}.png"
-          done
-          cp core/static/icons/grist.svg dist/icons/scalable.svg
-          
-          # Add flathub remote with sudo
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          
-          # Install required runtimes with sudo
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.electronjs.Electron2.BaseApp//23.08
-          
-          # Build Flatpak package
-          yarn run electron:flatpak
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          DEBUG: electron-builder
-
-      - name: Upload Flatpak build
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-flatpak
-          path: dist/grist-desktop-*.flatpak
           if-no-files-found: "error"
