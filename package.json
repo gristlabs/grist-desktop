@@ -8,6 +8,7 @@
   "repository": "https://github.com/gristlabs/grist-desktop",
   "author": "Grist Labs Inc. <info@getgrist.com>",
   "license": "Apache-2.0",
+  "desktopName": "com.getgrist.grist",
   "workspaces": {
     "packages": [
       "core",
@@ -31,6 +32,7 @@
     "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
+    "electron:flatpak": "electron-builder build --linux flatpak",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
     "test": "./scripts/smoke-test.sh"
@@ -41,7 +43,7 @@
     "chromedriver": "110.0.0"
   },
   "build": {
-    "appId": "com.getgrist.desktop",
+    "appId": "com.getgrist.grist",
     "npmRebuild": false,
     "compression": "normal",
     "includeSubNodeModules": true,
@@ -49,12 +51,8 @@
     "win": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "target": [
-        {
-          "target": "nsis"
-        },
-        {
-          "target": "zip"
-        }
+        {"target": "nsis"},
+        {"target": "zip"}
       ],
       "icon": "core/static/icons/grist.ico"
     },
@@ -77,7 +75,76 @@
     "linux": {
       "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
       "icon": "core/static/icons/grist.png",
-      "target": "AppImage"
+      "category": "Office",
+      "target": [
+        "AppImage",
+        "flatpak"
+      ]
+    },
+  "flatpak": {
+      "branch": "stable",
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "23.08",
+      "sdk": "org.freedesktop.Sdk",
+      "base": "org.electronjs.Electron2.BaseApp",
+      "baseVersion": "23.08",
+      "finishArgs": [
+        "--share=network",
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=pulseaudio",
+        "--device=dri",
+        "--talk-name=org.freedesktop.Notifications",
+        "--talk-name=org.freedesktop.secrets",
+        "--filesystem=home"
+      ]
+    },
+    "flatpak": {
+      "branch": "stable",
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "23.08",
+      "sdk": "org.freedesktop.Sdk",
+      "base": "org.electronjs.Electron2.BaseApp",
+      "baseVersion": "23.08",
+      "finishArgs": [
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=pulseaudio",
+        "--device=dri",
+        "--talk-name=org.freedesktop.Notifications",
+        "--talk-name=org.freedesktop.secrets",
+        "--filesystem=home",
+        "--allow=multiarch",
+        "--filesystem=xdg-cache/tmp:create",
+        "--env=TMPDIR=/tmp",
+        "--env=GRIST_SANDBOX_FLAVOR=unsandboxed"
+      ],
+      "desktop": {
+        "Name": "Grist",
+        "Comment": "Spreadsheet software to end data chaos",
+        "Icon": "com.getgrist.grist",
+        "Categories": ["Office"],
+        "MimeType": "text/csv;text/tab-separated-values;text/plain;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel.sheet.macroEnabled.12;"
+      },
+      "mimeTypes": [
+        "text/csv",
+        "text/tab-separated-values",
+        "text/plain",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel.sheet.macroEnabled.12"
+      ],
+      "files": [
+        ["dist/icons/16x16.png", "/app/share/icons/hicolor/16x16/apps/com.getgrist.grist.png"],
+        ["dist/icons/32x32.png", "/app/share/icons/hicolor/32x32/apps/com.getgrist.grist.png"],
+        ["dist/icons/48x48.png", "/app/share/icons/hicolor/48x48/apps/com.getgrist.grist.png"],
+        ["dist/icons/64x64.png", "/app/share/icons/hicolor/64x64/apps/com.getgrist.grist.png"],
+        ["dist/icons/128x128.png", "/app/share/icons/hicolor/128x128/apps/com.getgrist.grist.png"],
+        ["dist/icons/256x256.png", "/app/share/icons/hicolor/256x256/apps/com.getgrist.grist.png"],
+        ["dist/icons/512x512.png", "/app/share/icons/hicolor/512x512/apps/com.getgrist.grist.png"],
+        ["dist/icons/scalable.svg", "/app/share/icons/hicolor/scalable/apps/com.getgrist.grist.svg"]
+      ]
     },
     "afterSign": "./scripts/notarize.js",
     "asarUnpack": [

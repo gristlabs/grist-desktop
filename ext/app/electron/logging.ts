@@ -26,7 +26,8 @@ export function setupLogging() {
     output.on("error", (err) => log.error("Failed to open %s: %s", debugLogPath, err));
     output.on("open", () => {
       log.info("Logging also to %s", debugLogPath);
-      output.write("\n--- log starting by pid " + process.pid + " ---\n");
+      const pid = process.pid || 'unknown';
+      output.write("\n--- log starting by pid " + pid + " ---\n");
 
       const fileTransportOptions = {
         name: "debugLog",
