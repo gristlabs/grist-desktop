@@ -32,7 +32,7 @@
     "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
     "electron:linux": "electron-builder build --linux",
-    "electron:flatpak": "electron-builder build --linux flatpak",
+    "electron:linux:appimage": "electron-builder build --linux appimage",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
     "test": "./scripts/smoke-test.sh"
@@ -81,32 +81,13 @@
         "flatpak"
       ]
     },
-  "flatpak": {
-      "branch": "stable",
-      "runtime": "org.freedesktop.Platform",
-      "runtimeVersion": "23.08",
-      "sdk": "org.freedesktop.Sdk",
-      "base": "org.electronjs.Electron2.BaseApp",
-      "baseVersion": "23.08",
-      "finishArgs": [
-        "--share=network",
-        "--share=ipc",
-        "--socket=x11",
-        "--socket=wayland",
-        "--socket=pulseaudio",
-        "--device=dri",
-        "--talk-name=org.freedesktop.Notifications",
-        "--talk-name=org.freedesktop.secrets",
-        "--filesystem=home"
-      ]
-    },
     "flatpak": {
       "branch": "stable",
       "runtime": "org.freedesktop.Platform",
-      "runtimeVersion": "23.08",
+      "runtimeVersion": "25.08",
       "sdk": "org.freedesktop.Sdk",
       "base": "org.electronjs.Electron2.BaseApp",
-      "baseVersion": "23.08",
+      "baseVersion": "25.08",
       "finishArgs": [
         "--share=ipc",
         "--socket=x11",
