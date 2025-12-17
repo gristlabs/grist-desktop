@@ -77,6 +77,18 @@ You can then prepare for the Flatpak build using:
 This will generate the icons and ensure all flatpak runtimes are installed. 
 The flatpak can then be built using the normal build process above.
 
+> **Note:** Grist needs two additional environment variables set in order to run with Python sandboxed inside a Flatpak,
+> or `GRIST_SANDBOX_FLAVOR=unsandboxed` (which isn't recommended).
+>
+> These environment variables are:
+> - `GRIST_SANDBOX="/app/bin/grist-desktop"`
+> - `GRIST_SANDBOX_APPEND_ARGS="--type=unimportant"`
+>
+> This is a workaround for a Flatpak electron(-builder) issue that prevents Grist spawning workers when using the Pyodide sandbox.
+> Electron-builder uses the Zypak sandbox wrapper, which causes errors when Grist tries to spawn itself via the same inode.
+>
+> `--type=X` causes Zypak to skip the inode check, allowing Grist to fork a new Pyodide sandbox process.
+
 ## Note for Windows users on importing documents
 
 Due to technical limitations, Grist Desktop relies on symlinks to manage imported
