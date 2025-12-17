@@ -100,7 +100,9 @@
         "--allow=multiarch",
         "--filesystem=xdg-cache/tmp:create",
         "--env=TMPDIR=/tmp",
-        "--env=GRIST_SANDBOX_FLAVOR=unsandboxed"
+        "--env=GRIST_SANDBOX_FLAVOR=pyodide",
+        "--env=GRIST_SANDBOX=/app/bin/grist-desktop",
+        "--env=GRIST_SANDBOX_APPEND_ARGS=\"--type=unimportant\""
       ],
       "desktop": {
         "Name": "Grist",
