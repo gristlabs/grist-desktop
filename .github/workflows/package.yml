@@ -112,6 +112,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
           
+          # Create ./dist to prevent it being created by prepare-flatpak and owned by root (due to sudo)
+          mkdir -p ./dist
           sudo ./scripts/prepare-flatpak.sh
 
       - name: Package
@@ -153,6 +155,7 @@ jobs:
           if-no-files-found: "error"
 
       - name: Upload Linux Flatpak build
+        if: startsWith(matrix.os, 'ubuntu')
         uses: actions/upload-artifact@v4
         with:
           name: linux-flatpak
