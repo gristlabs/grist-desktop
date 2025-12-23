@@ -105,6 +105,17 @@ jobs:
       - name: Test
         run: yarn run test
 
+
+      - name: Prepare Flatpak dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder librsvg2-bin
+          
+          # Create ./dist to prevent it being created by prepare-flatpak and owned by root (due to sudo)
+          mkdir -p ./dist
+          sudo ./scripts/prepare-flatpak.sh
+
       - name: Package
         # github endpoints hang up quite a bit, add one retry.
         run: yarn run electron:ci || yarn run electron:ci
@@ -135,12 +146,20 @@ jobs:
           path: dist/grist-desktop-*.exe
           if-no-files-found: "error"
 
-      - name: Upload Linux build
+      - name: Upload Linux AppImage build
         if: startsWith(matrix.os, 'ubuntu')
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.target }}
           path: dist/grist-desktop-*.AppImage
+          if-no-files-found: "error"
+
+      - name: Upload Linux Flatpak build
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-flatpak-${{ matrix.target }}
+          path: dist/grist-desktop-*.flatpak
           if-no-files-found: "error"
 
       - name: Upload macOS build
