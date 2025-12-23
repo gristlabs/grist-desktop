@@ -158,7 +158,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         uses: actions/upload-artifact@v4
         with:
-          name: linux-flatpak
+          name: linux-flatpak-${{ matrix.target }}
           path: dist/grist-desktop-*.flatpak
           if-no-files-found: "error"
 
