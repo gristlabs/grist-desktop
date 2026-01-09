@@ -197,3 +197,5 @@ cd core/sandbox/pyodide
 #   https://github.com/actions/runner-images/issues/7253
 bash ./setup.sh
 make fetch_packages
+# need at least one file for the directory to get unpacked by pyodide
+touch _build/cache/EMPTY
