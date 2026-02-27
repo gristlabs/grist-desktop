@@ -343,19 +343,26 @@ export class GristApp {
     const docId = await this.registerDoc(docPath);
 
     if (importUploadId !== undefined) {
-      const accessId = this.flexServer.getDocManager().makeAccessId((await this.getDefaultUser()).id);
+      const docManager = this.flexServer.getDocManager();
+      const accessId = docManager.makeAccessId((await this.getDefaultUser()).id);
       const uploadInfo = globalUploadSet.getUploadInfo(importUploadId, accessId);
-      const activeDoc = new ActiveDoc(this.flexServer.getDocManager(), docId);
-      // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
-      // leading to an error when grist-core later moves the uploaded file.
-      await activeDoc.docPluginManager!.ready;
       // Fake a session required by the server. "system" mode gives us the owner role on the new document.
       const fakeDocSession: OptDocSession = makeExceptionalDocSession('system');
-      await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
-      // This uses the same oneStepImport function that grist-core DocManager's _doImport invokes.
-      // TODO: Show a loading UI when the import is in progress.
-      // The import process could take several seconds for a small csv file, or longer for larger files.
-      await activeDoc.oneStepImport(fakeDocSession, uploadInfo);
+      const srcFile = uploadInfo.files[0];
+
+      if (path.extname(srcFile.origName).toLowerCase() === '.grist') {
+        // A .grist file is already a complete document — validate and copy it into place.
+        await docManager.importGristDoc(fakeDocSession, docId, srcFile.absPath);
+      } else {
+        const activeDoc = new ActiveDoc(docManager, docId);
+        // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
+        // leading to an error when grist-core later moves the uploaded file.
+        await activeDoc.docPluginManager!.ready;
+        await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
+        // TODO: Show a loading UI when the import is in progress.
+        // The import process could take several seconds for a small csv file, or longer for larger files.
+        await activeDoc.oneStepImport(fakeDocSession, uploadInfo);
+      }
     }
 
     return {
