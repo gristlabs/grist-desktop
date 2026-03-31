@@ -18,7 +18,8 @@
       "**/eslint/**",
       "**/typescript-eslint/**",
       "**/globals/**",
-      "**/@eslint/js/**"
+      "**/@eslint/js/**",
+      "**/lru-cache"
     ]
   },
   "devDependencies": {
