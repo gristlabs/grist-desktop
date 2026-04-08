@@ -140,6 +140,9 @@ which is still supported but deprecated. When both are set, `GRIST_DESKTOP_AUTH`
 has higher precedence. If you are still using `GRIST_ELECTRON_AUTH`, please consider
 switching to `GRIST_DESKTOP_AUTH`. Default: `strict`
 
+**`GRIST_DESKTOP_USE_UPDATE`**: Whether to show auto-update functionality or not. Must
+be one of `true` or `false`. Default: `true`
+
 **`GRIST_SANDBOX_FLAVOR`**: The sandbox mechanism to use. It is recommended to stick
 to the default. Must be one of `pyodide`, `gvisor`, `macSandboxExec` and
 `unsandboxed`. See this [note](#note-on-sandboxing) for more info. Default: `pyodide`
