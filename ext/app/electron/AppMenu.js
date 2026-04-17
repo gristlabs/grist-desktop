@@ -5,6 +5,8 @@ const path       = require('path');
 const isMac      = process.platform === 'darwin';
 // const isWin   = process.platform === 'win32';
 
+const useUpdate  = process.env.GRIST_DESKTOP_USE_UPDATE === 'true';
+
 const app        = electron.app;
 const appName    = electron.app.getName();
 
@@ -58,7 +60,7 @@ class AppMenu extends events.EventEmitter {
         submenu: [
           { role: 'about' },
           // On Mac, the "Check for Updates" item goes into the leftmost "Grist" menu.
-          ...this.buildUpdateItemsTemplate(),
+          ...(useUpdate ? this.buildUpdateItemsTemplate() : []),
 
           { type: 'separator' },
           { role: 'services', },
@@ -136,7 +138,7 @@ class AppMenu extends events.EventEmitter {
       role: 'help',
       submenu: (
         // On Windows, the "Check for Updates" item goes in the rightmost Help menu.
-        (isMac ? [] : [ ...this.buildUpdateItemsTemplate(), { type: 'separator' }])
+        ((useUpdate && !isMac) ? [ ...this.buildUpdateItemsTemplate(), { type: 'separator' }] : [])
         .concat({
           label: 'Grist User Help',
           click: (item, win) => win.webContents.executeJavaScript('gristApp.allCommands.help.run()')
