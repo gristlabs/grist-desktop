@@ -8,11 +8,10 @@
     <p>Columns work like they do in databases: they are named, and they hold one kind of data. They can also be filled by formula, spreadsheet-style, with automatic updates when referenced cells change.</p>
     <ul>
       <li>Python formulas, with many Excel functions available.</li>
-      <li>A portable, self-contained file format, based on SQlite.</li>
+      <li>A portable, self-contained file format, based on SQLite.</li>
       <li>Convenient editing and formatting features, including references, attachments, conditional formatting, and Markdown formatting.</li>
       <li>Drag and drop dashboards, with charts, cards, calendars, summary tables, filters, and more.</li>
       <li>Import from and export to CSV or Excel files. Supports incremental imports.</li>
-      <li>Files can be displayed on a static website with <code>grist-static</code>.</li>
       <li>The app can also be hosted online, or files can be displayed on a static website.</li>
     </ul>
   </description>
