@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>com.getgrist.grist</id>
+  <name>Grist</name>
+  <summary>A modern relational spreadsheet</summary>
+  <description>
+    <p>Grist is a modern relational spreadsheet. It combines the flexibility of a spreadsheet with the robustness of a database.</p>
+    <p>Columns work like they do in databases: they are named, and they hold one kind of data. They can also be filled by formula, spreadsheet-style, with automatic updates when referenced cells change.</p>
+    <ul>
+      <li>Python formulas, with many Excel functions available.</li>
+      <li>A portable, self-contained file format, based on SQLite.</li>
+      <li>Convenient editing and formatting features, including references, attachments, conditional formatting, and Markdown formatting.</li>
+      <li>Drag and drop dashboards, with charts, cards, calendars, summary tables, filters, and more.</li>
+      <li>Import from and export to CSV or Excel files. Supports incremental imports.</li>
+      <li>The app can also be hosted online, or files can be displayed on a static website.</li>
+    </ul>
+  </description>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer id="com.getgrist">
+    <name>Grist Labs Inc.</name>
+  </developer>
+  <launchable type="desktop-id">com.getgrist.grist.desktop</launchable>
+  <url type="homepage">https://www.getgrist.com</url>
+  <url type="help">https://support.getgrist.com/</url>
+  <url type="bugtracker">https://github.com/gristlabs/grist-desktop/issues</url>
+  <url type="vcs-browser">https://github.com/gristlabs/grist-desktop</url>
+  <url type="translate">https://hosted.weblate.org/engage/grist/</url>
+  <branding>
+    <color type="primary" scheme_preference="light">#16a772</color>
+    <color type="primary" scheme_preference="dark">#000b17</color>
+  </branding>
+  <categories>
+    <category>Office</category>
+    <category>Database</category>
+    <category>Spreadsheet</category>
+  </categories>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Sample investment spreadsheet, showing graphs and summary tables</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-investment-1-overview.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sample CRM spreadsheet, showing two tables and a card</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-lightweight-crm.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sample class enrollment spreadsheet, showing tables and cards</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-class-enrollment.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sample investment spreadsheet, showing tables and a card</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-investment-2-companies.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sample investment spreadsheet, showing a table and column details</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-investment-3-column-details.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sample investment spreadsheet, showing raw data and document history</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-investment-4-raw-data-tables.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Home screen, showing a video tour and previously opened documents</caption>
+      <image>https://raw.githubusercontent.com/gristlabs/grist-desktop/refs/heads/main/metadata/screenshots-linux/screenshot-home.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.3.11" date="2026-04-17">
+      <description>
+        <p>Initial Flathub release.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
