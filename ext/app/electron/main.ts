@@ -70,16 +70,6 @@ electronProgram
   .argument("[file]", "File to open, can be Grist document or importable document")
   .action(async (docPath: string | undefined, options: { cli: boolean }) => {
     if (options.cli) {
-      // Somewhere, some electron API may get used that triggers
-      // chromium to start up and then fail if there's no display.
-      // Turn off all the things that could fail (may be more?)
-      electron.app.commandLine.appendSwitch('headless');
-      electron.app.commandLine.appendSwitch('disable-gpu');
-      electron.app.commandLine.appendSwitch('no-sandbox');
-      electron.app.commandLine.appendSwitch('disable-gpu-compositing');
-      electron.app.commandLine.appendSwitch('disable-software-rasterizer');
-      electron.app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
-
       const cliIndex = process.argv.indexOf("--cli");
       if (cliIndex === -1) { throw new Error('Cannot find command'); }
       const cliArgs = ['node', 'grist-desktop', ...process.argv.slice(cliIndex + 1)];
