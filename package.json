@@ -186,8 +186,8 @@
       "!core/cpython.tar.gz",
       "!core/python",
       "!core/documentation",
-      "!core/sandbox/pyodide/_build/worker/node_modules/deno/deno",
-      "!core/sandbox/pyodide/_build/worker/node_modules/deno/deno.exe",
+      "!core/sandbox/pyodide/worker/node_modules/deno/deno",
+      "!core/sandbox/pyodide/worker/node_modules/deno/deno.exe",
       "!**/test_*.py"
     ],
     "directories": {
