@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000
 
+      - name: Check version consistency
+        run: node ./scripts/check-metainfo-version-matches.js
+
       - name: Hooks and crooks
         run: yarn run setup
         env:
