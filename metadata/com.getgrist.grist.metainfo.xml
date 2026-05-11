@@ -66,6 +66,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.12" date="2026-05-11">
+      <description>
+        <p>Updates core Grist version to v1.7.13</p>
+      </description>
+    </release>
     <release version="0.3.11" date="2026-04-17">
       <description>
         <p>Initial Flathub release.</p>
