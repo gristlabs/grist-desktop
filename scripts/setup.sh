@@ -51,7 +51,7 @@ fi
 if [[ "$os" = "linux-musl"* ]]; then
   os="linux"
 fi
-if [[ "$os" = "msys"* ]]; then
+if [[ "$os" = "msys"* || "$os" = "cygwin"* ]]; then
   os="windows"
 fi
 if [[ "$os" = "darwin"* ]]; then
