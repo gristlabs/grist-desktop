@@ -123,8 +123,6 @@ function python_for_windows {
   unpack_msapi
 }
 
-alias
-
 function python_for_mac {
   if [[ "$arch" = "x64" ]]; then
     fetch_python ${PYTHON_BUILD_DATE}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD_DATE}-x86_64-apple-darwin-install_only.tar.gz
