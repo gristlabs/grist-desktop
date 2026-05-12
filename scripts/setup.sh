@@ -51,7 +51,7 @@ fi
 if [[ "$os" = "linux-musl"* ]]; then
   os="linux"
 fi
-if [[ "$os" = "msys"* ]]; then
+if [[ "$os" = "msys"* || "$os" = "cygwin"* ]]; then
   os="windows"
 fi
 if [[ "$os" = "darwin"* ]]; then
@@ -122,6 +122,8 @@ function python_for_windows {
   unpack_python
   unpack_msapi
 }
+
+alias
 
 function python_for_mac {
   if [[ "$arch" = "x64" ]]; then
