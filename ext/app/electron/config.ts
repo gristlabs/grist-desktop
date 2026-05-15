@@ -24,6 +24,16 @@ function validateOrFallback(envKey: string, validator: (value: string) => boolea
   }
 }
 
+function findUserRoot(): string {
+  // GRIST_USER_ROOT used to be ~/.grist but was moved to appData.
+  // Prefer the new location, but use the old if it has a plugins folder.
+  // Note that it is only used for plugins, so check that folder.
+  const userRoot = electron.app.getPath("userData");
+  const oldUserRoot = path.join(electron.app.getPath("home"), ".grist");
+  if (fse.existsSync(path.join(userRoot, "plugins"))) return userRoot;
+  if (fse.existsSync(path.join(oldUserRoot, "plugins"))) return oldUserRoot;
+  return userRoot;
+}
 
 export async function loadConfig() {
   dotenv.config();
@@ -89,7 +99,7 @@ export async function loadConfig() {
   validateOrFallback(
     "GRIST_USER_ROOT",
     NO_VALIDATION,
-    path.join(electron.app.getPath("home"), ".grist")
+    findUserRoot()
   );
   validateOrFallback(
     "PYTHON_VERSION_ON_CREATION",

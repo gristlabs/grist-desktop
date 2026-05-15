@@ -152,13 +152,15 @@ to the default. Must be one of `pyodide`, `gvisor`, `macSandboxExec` and
 Grist Desktop works. For the time being, Grist Desktop works by launching a Grist server
 in the background. These variables can configure where the Grist server should store its files.
 By default, `GRIST_INST_DIR` is set to `getPath("userData")` defined by Electron;
-`GRIST_DATA_DIR` is set to `getPath("documents")`; `GRIST_USER_ROOT` is set to `.grist`
-in your home directory. `TYPEORM_DATABASE` is set to `landing.db` under
-`getPath("appData")`. If you change them, make sure to move existing data accordingly.
-See [grist-core documentation](https://github.com/gristlabs/grist-core) for details.
-You might want to store your Grist documents somewhere else and have a clean "Documents"
-folder. In this case, set `GRIST_DATA_DIR` to your desired location and move all `.grist`
-files there.
+`GRIST_DATA_DIR` is set to `getPath("documents")`;
+`GRIST_USER_ROOT` is set to `getPath("userData")` (unless `~/.grist/plugins` exists,
+then `~/.grist` is used, for backwards compatibility);
+`TYPEORM_DATABASE` is set to `landing.db` under `getPath("appData")`.
+If you change them, make sure to move existing data accordingly.  See [grist-core
+documentation](https://github.com/gristlabs/grist-core) for details.  You might
+want to store your Grist documents somewhere else and have a clean "Documents"
+folder. In this case, set `GRIST_DATA_DIR` to your desired location and move
+all `.grist` files there.
 
 ### Note on using Grist Desktop as a server
 
