@@ -147,14 +147,12 @@ be one of `true` or `false`. Default: `true`
 to the default. Must be one of `pyodide`, `gvisor`, `macSandboxExec` and
 `unsandboxed`. See this [note](#note-on-sandboxing) for more info. Default: `pyodide`
 
-**`GRIST_INST_DIR`**, **`GRIST_DATA_DIR`**, **`GRIST_USER_ROOT`** and
-**`TYPEORM_DATABASE`**: These are a bit technical and require some understanding of how
-Grist Desktop works. For the time being, Grist Desktop works by launching a Grist server
-in the background. These variables can configure where the Grist server should store its files.
-By default, `GRIST_INST_DIR` is set to `getPath("userData")` defined by Electron;
+**`GRIST_INST_DIR`**, **`GRIST_DATA_DIR`** and **`TYPEORM_DATABASE`**: These are a bit
+technical and require some understanding of how Grist Desktop works. For the time being,
+Grist Desktop works by launching a Grist server in the background. These variables can
+configure where the Grist server should store its files. By default,
+`GRIST_INST_DIR` is set to `getPath("userData")` defined by Electron;
 `GRIST_DATA_DIR` is set to `getPath("documents")`;
-`GRIST_USER_ROOT` is set to `getPath("userData")` (unless `~/.grist/plugins` exists,
-then `~/.grist` is used, for backwards compatibility);
 `TYPEORM_DATABASE` is set to `landing.db` under `getPath("appData")`.
 If you change them, make sure to move existing data accordingly.  See [grist-core
 documentation](https://github.com/gristlabs/grist-core) for details.  You might
@@ -162,10 +160,17 @@ want to store your Grist documents somewhere else and have a clean "Documents"
 folder. In this case, set `GRIST_DATA_DIR` to your desired location and move
 all `.grist` files there.
 
+**`GRIST_USER_ROOT`**: for installing local plugins. By default, this is set to
+`getPath("userData")`, which would be `~/.config/Grist Desktop` on Linux. Note that if
+`~/.grist/plugins` exists (and not `~/.config/Grist Desktop/plugins`), `~/.grist` is
+used instead, for backwards compatibility.
+For Windows the default location is `C:\users\AppData\Grist Desktop`, and for the
+Flatpak from Flathub `~/.var/app/com.getgrist.grist/config/Grist Desktop`.
+
 ### Note on using Grist Desktop as a server
 
 If you are sure you are in a trusted environment, you can use the app as a
-quick way to set up a simple Grist server, but be aware that data is being 
+quick way to set up a simple Grist server, but be aware that data is being
 sent using plain http and not encrypted https, so network traffic could be
 readable in transit. And there is no login mechanism built in.
 

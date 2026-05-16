@@ -30,8 +30,12 @@ function findUserRoot(): string {
   // Note that it is only used for plugins, so check that folder.
   const userRoot = electron.app.getPath("userData");
   const oldUserRoot = path.join(electron.app.getPath("home"), ".grist");
-  if (fse.existsSync(path.join(userRoot, "plugins"))) return userRoot;
-  if (fse.existsSync(path.join(oldUserRoot, "plugins"))) return oldUserRoot;
+  if (fse.existsSync(path.join(userRoot, "plugins"))) {
+    return userRoot;
+  }
+  if (fse.existsSync(path.join(oldUserRoot, "plugins"))) {
+    return oldUserRoot;
+  }
   return userRoot;
 }
 
