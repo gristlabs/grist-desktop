@@ -54,3 +54,9 @@ jobs:
 
       - name: Test
         run: yarn run test
+
+      - name: Build core browser tests
+        run: yarn run build:tests
+
+      - name: Run core browser tests against the desktop app
+        run: yarn run test:electron:upstream

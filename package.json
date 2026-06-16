@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@types/trusted-types": "2.0.7",
+    "chromedriver": "146",
     "fast-xml-parser": "^5.7.3",
     "resolve-tspaths": "^0.8.19",
     "typescript": "4.7.4"
@@ -31,6 +32,7 @@
   "scripts": {
     "setup": "./scripts/setup.sh && cd core && yarn run install:python",
     "build": "cd core && yarn run build:prod && resolve-tspaths -p tsconfig-ext.json",
+    "build:tests": "cd core && ./node_modules/.bin/tsc --build test/tsconfig.json && resolve-tspaths -p test/tsconfig.json",
     "paths": "cd core && resolve-tspaths -p tsconfig-ext.json",
     "electron:preview": "electron --trace-warnings core/_build/ext/app/electron/main.js",
     "electron:dir": "electron-builder build --linux --dir",
@@ -38,12 +40,13 @@
     "electron:linux:appimage": "electron-builder build --linux appimage",
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
-    "test": "./scripts/smoke-test.sh"
+    "test": "./scripts/smoke-test.sh && yarn run test:electron",
+    "test:electron": "./scripts/test-electron.js",
+    "test:electron:upstream": "./scripts/test-electron.js --upstream"
   },
   "resolutions": {
     "jquery": "3.5.0",
-    "ts-interface-checker": "1.0.2",
-    "chromedriver": "110.0.0"
+    "ts-interface-checker": "1.0.2"
   },
   "build": {
     "appId": "com.getgrist.grist",

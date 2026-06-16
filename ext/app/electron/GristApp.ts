@@ -112,6 +112,10 @@ export class GristApp {
     // Wait for both electron and the Grist server to fully initialize.
     await Promise.all([mergedServer.run(), electron.app.whenReady()]);
 
+    if (process.env.GRIST_TESTING_SOCKET) {
+      await this.flexServer.addTestingHooks();
+    }
+
     const serverMethods = this.flexServer.electronServerMethods;
 
     const recentItems = new RecentItems({
