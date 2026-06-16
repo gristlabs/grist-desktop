@@ -140,7 +140,7 @@ export async function loadConfig() {
   process.env.GRIST_ORG_IN_PATH = "true";
   process.env.GRIST_HIDE_UI_ELEMENTS = "helpCenter,billing,templates,multiSite,multiAccounts,tutorials";
   process.env.GRIST_CONTACT_SUPPORT_URL = packageJson.repository + "/issues";
-  if (process.env.GRIST_DESKTOP_AUTH !== "mixed") {
+  if (process.env.GRIST_DESKTOP_AUTH !== "mixed" && process.env.GRIST_FORCE_LOGIN === undefined) {
     process.env.GRIST_FORCE_LOGIN = "true";
   }
 
