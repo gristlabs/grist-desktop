@@ -66,6 +66,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.13" date="2026-06-25">
+      <description>
+        <p>Updates core Grist version to v1.7.15</p>
+      </description>
+    </release>
     <release version="0.3.12" date="2026-05-11">
       <description>
         <p>Updates core Grist version to v1.7.13</p>
