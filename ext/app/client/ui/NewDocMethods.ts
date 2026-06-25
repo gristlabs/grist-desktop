@@ -40,7 +40,15 @@ window.electronAPI?.onMainProcessImportDoc((fileContents: Buffer, fileName: stri
     while (!(appModel = window.gristApp?.topAppModel.appObs.get())) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const uploadId = await homeImports.fileImport([new File([fileContents], fileName)], appModel);
+
+    // Makes a second copy only if the buffer is backed by a SharedArrayBuffer.
+    // Generally our inputs are from fs.readFile, which should only return ArrayBuffer.
+    // However that's an implementation detail, so we guard here.
+    const fileDataBuffer = fileContents.buffer instanceof SharedArrayBuffer ?
+        Uint8Array.from(fileContents) :
+        new Uint8Array(fileContents.buffer, fileContents.byteOffset, fileContents.byteLength);
+
+    const uploadId = await homeImports.fileImport([new File([fileDataBuffer], fileName)], appModel);
     await _importUploadedFileAndOpen(uploadId);
   })();
 });
