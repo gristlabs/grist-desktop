@@ -105,6 +105,11 @@ Grist Desktop 0.2.10 has been confirmed to work with this permission granted. If
 you are unwilling to grant it, please stay tuned as we work on a new solution
 that does not involve symlinks.
 
+## Custom Widgets
+
+You can add custom widgets that work offline. See
+[docs/custom-widgets.md](docs/custom-widgets.md) for a tutorial.
+
 ## Configure
 
 There's no configuration needed if you are just running Grist Desktop as a
