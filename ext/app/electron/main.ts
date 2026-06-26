@@ -22,8 +22,10 @@ import * as packageJson from "ext/desktop.package.json";
 import { GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 import { setupLogging } from "./logging";
+import { IS_TEST_MODE, filterArgvForCommander, installDialogStubs } from "app/electron/testMode";
 
 applyPatch();
+installDialogStubs();
 
 // Mimic the behavior of a packaged app, where argv will not include "electron" and its arguments.
 // Example:
@@ -85,11 +87,16 @@ electronProgram
     initialFileToOpen = docPath ?? null;
   });
 
+if (IS_TEST_MODE) {
+  electronProgram.allowUnknownOption().allowExcessArguments();
+}
+
 async function main() {
   // Commander.js has "node" and "electron" modes, but they don't handle the quirks above well enough.
   // Thus, we manually handle CLI arguments Commander doesn't need to see.
   // Here, slice to ignore argv[0].
-  await electronProgram.parseAsync(process.argv.slice(1), { from: "user" });
+  const argsForCommander = filterArgvForCommander(process.argv.slice(1));
+  await electronProgram.parseAsync(argsForCommander, { from: "user" });
   if (exitCode) {
     electron.app.exit(exitCode);
   } else if (exitCode === 0) {
