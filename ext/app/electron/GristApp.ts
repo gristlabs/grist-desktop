@@ -16,8 +16,9 @@ import RecentItems from "app/common/RecentItems";
 import { UpdateManager } from "app/electron/UpdateManager";
 import { WindowManager } from "app/electron/WindowManager";
 import { decodeUrl } from "app/common/gristUrls";
-import { globalUploadSet } from "app/server/lib/uploads";
+import { InactivityTimer } from "app/common/InactivityTimer";
 import { updateDb } from "app/server/lib/dbUtils";
+import { UploadInfo } from "app/server/lib/uploads";
 import webviewOptions from "app/electron/webviewOptions";
 import { DesktopDocStorageManager, isDesktopStorageManager } from "app/server/lib/DesktopDocStorageManager";
 import { DocScope, HomeDBManager } from "app/gen-server/lib/homedb/HomeDBManager";
@@ -145,8 +146,8 @@ export class GristApp {
     electron.ipcMain.handle("create-document", (event) =>
       this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!));
     // "Import Document", after dealing with file upload.
-    electron.ipcMain.handle("import-document", (event, importUploadId) =>
-      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!, importUploadId));
+    electron.ipcMain.handle("import-document", (event) =>
+      this.createDocument(electron.BrowserWindow.fromWebContents(event.sender)!, { importPath: "dialog" }));
 
     // Now that we are ready, future "open-file" events should just open windows directly.
     electron.app.removeAllListeners("open-file");
@@ -286,37 +287,27 @@ export class GristApp {
         await requestWindow.webContents.loadURL(this.windowManager.getUrl(docId));
       } else {
         // Otherwise we keep open documents open, and create a new window for the opening document.
-        this.windowManager.add(docId).show();
+        (await this.windowManager.add(docId)).show();
       }
-
+      this.addRecentDocument(filePath);
     } else if (EXTENSIONS_IMPORTABLE_AS_DOC.includes(ext)) {
       // Note: EXTENSIONS_IMPORTABLE_AS_DOC comes from grist-core and includes ".grist".
 
       log.debug(`Importing from file ${filePath}`);
-      const fileContents = fse.readFileSync(filePath);
 
-      if (requestWindow && !this.isWindowShowingDocument(requestWindow)) {
-        // Reuse an existing window, see above branch.
-        // Return to the home page first, since the handler function only exists there.
-        await requestWindow.webContents.loadURL(this.windowManager.getUrl());
-        // The window is already fully loaded, so we can directly send the signal.
-        requestWindow.webContents.send("import-document", fileContents, path.basename(filePath));
-      } else {
-        const win = this.windowManager.add(null);
-        // The window is newly created. We must wait until it is loaded before sending the signal.
-        win.webContents.on("did-finish-load", () => {
-          win.webContents.send("import-document", fileContents, path.basename(filePath));
-        });
-        // The signal will be handled by importDocAndOpen, which automatically redirects for us.
+      const targetWindow = requestWindow && !this.isWindowShowingDocument(requestWindow) ?
+          requestWindow :
+          await this.windowManager.add(null);
+
+      const newDoc = await this.createDocument(targetWindow, { importPath: filePath });
+      if (newDoc) {
+        await targetWindow.webContents.loadURL(this.windowManager.getUrl(newDoc.id));
       }
-
     } else {
       // We can only handle Grist documents and importable documents. The file picker filter should
       // prevent us from ending up here, but just in case...
       throw new Error(`Unsupported format ${ext}`);
     }
-
-    this.addRecentDocument(filePath);
   }
 
   /**
@@ -332,38 +323,89 @@ export class GristApp {
    * dealing with various sandbox flavors individually.
    *
    * @param initiatorWindow The electron window that issued this request.
-   * @param importUploadId The upload ID.
+   * @param options Options for how the document should be created.
+   * @param options.importPath The path to import from, or "dialog" to show an open file dialog.
    * @returns A promise that resolves to a representation of the saved document, or null if the operation is aborted.
    */
-  public async createDocument(initiatorWindow: electron.BrowserWindow, importUploadId?: number): Promise<NewDocument|null> {
+  public async createDocument(
+      initiatorWindow: electron.BrowserWindow,
+      options: { importPath?: "dialog" | string } = {}
+  ): Promise<NewDocument|null> {
+    let srcDocPath: string | null = null;
+    if (options?.importPath === "dialog") {
+      const result = await electron.dialog.showOpenDialog(initiatorWindow, {
+        title: "Import file as new document",
+        buttonLabel: "Import",
+        filters: [GRIST_DOCUMENT_FILTER, IMPORTABLE_DOCUMENT_FILTER],
+      });
+      if (result.canceled) {
+        return null;
+      }
+      srcDocPath = result.filePaths[0];
+    }
+    srcDocPath ??= options.importPath ?? null;
+
     const docPath = await this.askNewGristDocPath(initiatorWindow);
     if (!docPath) {
       return null;
     }
     const docId = await this.registerDoc(docPath);
 
-    if (importUploadId !== undefined) {
-      const docManager = this.flexServer.getDocManager();
-      const accessId = docManager.makeAccessId((await this.getDefaultUser()).id);
-      const uploadInfo = globalUploadSet.getUploadInfo(importUploadId, accessId);
-      // Fake a session required by the server. "system" mode gives us the owner role on the new document.
-      const fakeDocSession: OptDocSession = makeExceptionalDocSession('system');
-      const srcFile = uploadInfo.files[0];
+    if (srcDocPath) {
+      let errorMessage: string | undefined;
+      try {
+        const fileName = path.basename(srcDocPath);
+        const fileSize = await fse.stat(srcDocPath).then(stat => stat.size);
 
-      if (path.extname(srcFile.origName).toLowerCase() === '.grist') {
-        // A .grist file is already a complete document — validate and copy it into place.
-        await docManager.importGristDoc(fakeDocSession, docId, srcFile.absPath);
-      } else {
-        const activeDoc = new ActiveDoc(docManager, docId);
-        // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
-        // leading to an error when grist-core later moves the uploaded file.
-        await activeDoc.docPluginManager!.ready;
-        await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
-        // TODO: Show a loading UI when the import is in progress.
-        // The import process could take several seconds for a small csv file, or longer for larger files.
-        await activeDoc.oneStepImport(fakeDocSession, uploadInfo);
+        initiatorWindow.webContents.send('import-started', fileName, fileSize);
+
+        const docManager = this.flexServer.getDocManager();
+        // Fake a session required by the server. "system" mode gives us the owner role on the new document.
+        const fakeDocSession: OptDocSession = makeExceptionalDocSession('system');
+
+        if (path.extname(srcDocPath).toLowerCase() === '.grist') {
+          // A .grist file is already a complete document — validate and copy it into place.
+          await docManager.importGristDoc(fakeDocSession, docId, srcDocPath);
+        } else {
+          const activeDoc = new ActiveDoc(docManager, docId);
+          // Wait for the docPluginManager to fully initialize. If we don't do this, its _tmpDir will possibly be undefined,
+          // leading to an error when grist-core later moves the uploaded file.
+          await activeDoc.docPluginManager!.ready;
+          await activeDoc.loadDoc(fakeDocSession, {forceNew: true, skipInitialTable: true});
+
+          // Required to run oneStepImport. The lack of "tmpDir" should cause oneStepImport
+          // to copy the file instead of move it.
+          const fakeUploadInfo: UploadInfo = {
+            uploadId: -1,
+            files: [{
+              absPath: await fse.realpath(srcDocPath),
+              origName: fileName,
+              ext: path.extname(srcDocPath),
+              size: fileSize,
+            }],
+            tmpDir: null,
+            cleanupCallback: () => {
+            },
+            cleanupTimer: new InactivityTimer(() => {
+            }, 0),
+            accessId: "unused",
+          };
+
+          // TODO: Show a loading UI when the import is in progress.
+          // The import process could take several seconds for a small csv file, or longer for larger files.
+          await activeDoc.oneStepImport(fakeDocSession, fakeUploadInfo);
+        }
+      } catch (e) {
+        errorMessage = e.message ?? "Unknown import error";
+        throw e;
+      } finally {
+        if (!initiatorWindow.isDestroyed()) {
+          initiatorWindow.webContents.send('import-ended', errorMessage);
+        }
       }
     }
+
+    this.addRecentDocument(docPath);
 
     return {
       id: docId,

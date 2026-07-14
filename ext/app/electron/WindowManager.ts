@@ -44,7 +44,7 @@ export class WindowManager {
     return this.docIdToWindowMap.get(docId) ?? null;
   }
 
-  public add(docId: string | null): BrowserWindow {
+  public async add(docId: string | null): Promise<BrowserWindow> {
 
     if (docId) {
       const win = this.docIdToWindowMap.get(docId);
@@ -90,7 +90,7 @@ export class WindowManager {
       return {action: "allow"};
     });
 
-    win.loadURL(this.getUrl(docId));
+    await win.loadURL(this.getUrl(docId));
 
     return win;
   }
@@ -103,4 +103,10 @@ export class WindowManager {
     return ElectronLoginSystem.instance.authenticateURL(url).href;
   }
 
+}
+
+export function sendToWindowIfNotDestroyed(win: BrowserWindow, channel: string, ...args: any[]) {
+  if (!win.isDestroyed()) {
+    win.webContents.send(channel, ...args);
+  }
 }
