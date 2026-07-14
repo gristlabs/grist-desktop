@@ -35,7 +35,10 @@ jobs:
           architecture: ${{ matrix.host }}
 
       - name: Install dependencies
-        run: yarn install --network-timeout 300000
+        # Match the Packaging workflow, which skips optional dependencies
+        # because they add msgextract which fails on windows. Installing them
+        # here would hide packaging-only build failures.
+        run: yarn install --network-timeout 300000 --ignore-optional
 
       - name: Check version consistency
         run: node ./scripts/check-metainfo-version-matches.js
