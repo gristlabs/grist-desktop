@@ -41,8 +41,8 @@ const CDP_UNSUPPORTED = /getWindowForTarget|UnknownCommand/i;
   };
 })();
 
-const ELECTRON_BIN = path.join(REPO_ROOT, 'node_modules/electron/dist/electron');
-const CHROMEDRIVER_BIN = path.join(REPO_ROOT, 'node_modules/chromedriver/lib/chromedriver/chromedriver');
+const ELECTRON_BIN = require('electron');
+const CHROMEDRIVER_BIN = require('chromedriver').path;
 const APP_ENTRY = path.join(REPO_ROOT, 'core/_build/ext/app/electron/main.js');
 
 const PORT = parseInt(process.env.GRIST_PORT || '8585', 10);
