@@ -32,9 +32,11 @@ jobs:
         run: yarn install --network-timeout 300000 --ignore-optional
 
       # Must happen before the build: core is compiled from source.
-      - name: Patch core logging to a readable file
+      - name: Patch core for probing
         shell: bash
-        run: node ./scripts/probe-patch-log.js
+        run: |
+          node ./scripts/probe-patch-log.js
+          node ./scripts/probe-patch-pyodide.js
 
       - name: Hooks and crooks
         run: yarn run setup
@@ -48,49 +50,37 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      # G: instrument the socket, default agent. 10 reps to hit the ~20% race.
-      - name: G - socket lifecycle, default agent
+      - name: What is actually on disk
         shell: bash
-        env:
-          GRIST_LOG_LEVEL: debug
-          GRIST_LOG_HTTP: 'true'
-          GRIST_LOG_FILE: server-default-agent.log
         run: |
           set +e
-          node ./scripts/test-electron.js --upstream AclProbe
-          echo "G_EXIT=$?"
+          ls -la core/sandbox/pyodide/_build/packages/ | head -8
+          echo "wheel count: $(ls core/sandbox/pyodide/_build/packages/*.whl | wc -l)"
+          ls core/sandbox/pyodide/_build/packages/ | grep -i sorted
 
-      # H: same, but with an agent that has no keepAlive and no timeout.
-      - name: H - socket lifecycle, fresh agent
+      # Does pyodide load its wheels from windows paths?
+      - name: P - pyodide, both path forms
         if: always()
         shell: bash
         env:
           GRIST_LOG_LEVEL: debug
-          GRIST_LOG_HTTP: 'true'
-          GRIST_LOG_FILE: server-fresh-agent.log
-          PROBE_AGENT: nokeepalive
+          GRIST_LOG_FILE: server-pyodide.log
+          GRIST_SANDBOX_FLAVOR: pyodide
         run: |
           set +e
-          node ./scripts/test-electron.js --upstream AclProbe
-          echo "H_EXIT=$?"
+          node ./scripts/test-electron.js --upstream LeftPanel
+          echo "P_EXIT=$?"
 
-      - name: Tallies
+      - name: What pipe.js reported
         if: always()
         shell: bash
         run: |
           set +e
-          echo "== connection-level events the server noticed =="
-          grep -hE "aborted|ECONNRESET|EPIPE|socket|Client websocket closed" server-*.log | tail -30
-
-      - name: Did the server ever write a response?
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          for f in server-default-agent.log server-fresh-agent.log; do
-            echo "===== $f ====="
-            grep -E "POST /o/docs/api/docs/[^ ]+/apply" "$f" | tail -20
-          done
+          grep -oE "\[probe\][^\"]{0,150}" server-pyodide.log | sort -u
+          echo "-- package errors --"
+          grep -oE "\[package-error\][^\"]{0,150}" server-pyodide.log | sort -u | head -10
+          echo "-- module errors --"
+          grep -oE "ModuleNotFoundError[^\"]{0,80}" server-pyodide.log | sort -u | head -5
 
       - name: Keep the full logs
         if: always()
