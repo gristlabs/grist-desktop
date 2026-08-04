@@ -53,6 +53,10 @@ jobs:
           RUN_OS: ${{ matrix.os }}
           RUN_ARCH: ${{ matrix.arch }}
 
+      - name: Candidate fix for pyodide path handling
+        shell: bash
+        run: node ./scripts/probe-patch-pyodide.js
+
       - name: Build
         run: yarn run build
 
@@ -130,6 +134,16 @@ jobs:
           $zip = Get-ChildItem dl -Filter *.zip | Select-Object -First 1
           Expand-Archive -Path $zip.FullName -DestinationPath dl/app -Force
           Get-ChildItem dl/app -Filter *.exe -Recurse -Depth 2 | Select-Object -First 5 FullName
+
+      # Same fix, applied to the release we published, to see if it would cure it.
+      - name: Candidate fix, inside the unpacked release
+        shell: bash
+        run: |
+          set +e
+          p=$(find dl/app -path '*pyodide/pipe.js' | head -1)
+          echo "patching: $p"
+          node ./scripts/probe-patch-pyodide.js "$p"
+          echo "PATCH_EXIT=$?"
 
       - name: Can the published build open a document?
         shell: bash
