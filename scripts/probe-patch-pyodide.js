@@ -10,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 
 const target = path.join(__dirname, '..', 'core', 'sandbox', 'pyodide', 'pipe.js');
-const src = fs.readFileSync(target, 'utf8');
+// Windows checks out CRLF, so normalize before matching a multi-line block.
+const src = fs.readFileSync(target, 'utf8').replace(/\r\n/g, '\n');
 
 const needle = `    const lsty = (await listLibs(src)).available.map(item => item.fullName);
     await this.pyodide.loadPackage(lsty, {
