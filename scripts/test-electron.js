@@ -208,6 +208,10 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', '60000', ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
       ...process.env,
+      // mocha-webdriver builds its own chrome service with no driver path, so
+      // selenium goes looking. Put ours where it will be found first, rather
+      // than let Selenium Manager download one mid-test.
+      PATH: [path.dirname(require('chromedriver').path), process.env.PATH].join(path.delimiter),
       NODE_PATH: [path.join(ROOT, 'core/_build'), path.join(ROOT, 'core/_build/ext'),
         path.join(ROOT, 'core/_build/stubs')].join(path.delimiter),
       HOME_URL: `http://localhost:${port}`,
