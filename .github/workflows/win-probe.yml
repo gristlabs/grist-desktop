@@ -31,6 +31,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
+      # Must happen before the build: core is compiled from source.
+      - name: Patch core logging to a readable file
+        shell: bash
+        run: node ./scripts/probe-patch-log.js
+
       - name: Hooks and crooks
         run: yarn run setup
         env:
@@ -43,73 +48,53 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: Versions
-        shell: bash
-        run: |
-          node -p "'node ' + process.version"
-          node -p "'electron ' + require('electron/package.json').version"
-          node -p "'chromedriver ' + require('chromedriver/package.json').version"
-
-      # A: is the browser involved at all? Minimal API-only repro.
-      - name: A - minimal API repro
+      # D: delay sweep plus a non-ACL action, default sandbox (unsandboxed).
+      - name: D - delay sweep, unsandboxed
         shell: bash
         env:
-          KEEP_TMPDIR: '1'
           GRIST_LOG_LEVEL: debug
-          GRIST_LOG_HTTP: 'true'
+          GRIST_LOG_FILE: server-unsandboxed.log
         run: |
           set +e
           node ./scripts/test-electron.js --upstream AclProbe
-          echo "A_EXIT=$?"
+          echo "D_EXIT=$?"
 
-      # B: baseline, ActionLog alone with the server talking.
-      - name: B - ActionLog alone, verbose
+      # E: same sweep under pyodide. If a hanging shutdown item is the
+      # unsandboxed python child, this should behave differently.
+      - name: E - delay sweep, pyodide
         if: always()
         shell: bash
         env:
-          KEEP_TMPDIR: '1'
           GRIST_LOG_LEVEL: debug
-          GRIST_LOG_HTTP: 'true'
+          GRIST_LOG_FILE: server-pyodide.log
+          GRIST_SANDBOX_FLAVOR: pyodide
         run: |
           set +e
-          node ./scripts/test-electron.js --upstream ActionLog
-          echo "B_EXIT=$?"
+          node ./scripts/test-electron.js --upstream AclProbe
+          echo "E_EXIT=$?"
 
-      # C: is it about being the first suite? Run something else ahead of it.
-      - name: C - LeftPanel then ActionLog
-        if: always()
-        shell: bash
-        env:
-          KEEP_TMPDIR: '1'
-        run: |
-          set +e
-          node ./scripts/test-electron.js --upstream LeftPanel ActionLog
-          echo "C_EXIT=$?"
-
-      # Whatever the app itself said. Ordered oldest first, so A, B, C.
-      - name: Dump app logs
+      - name: Server log - unsandboxed
         if: always()
         shell: bash
         run: |
-          cat > dump-logs.js <<'EOF'
-          const fs = require('fs'), os = require('os'), path = require('path');
-          const tmp = os.tmpdir();
-          const dirs = fs.readdirSync(tmp)
-            .filter(d => d.startsWith('grist-desktop-test-'))
-            .map(d => path.join(tmp, d))
-            .sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs);
-          console.log(`found ${dirs.length} temp dirs`);
-          for (const d of dirs) {
-            console.log('=========== ' + d + ' ===========');
-            for (const name of fs.readdirSync(d)) { console.log('  entry: ' + name); }
-            const f = path.join(d, 'chromedriver.log');
-            try {
-              const s = fs.readFileSync(f, 'utf8');
-              console.log(`--- chromedriver.log (${s.length} bytes) ---`);
-              console.log(s.length > 300000 ? s.slice(-300000) : s);
-            } catch (e) {
-              console.log('no chromedriver.log: ' + e.message);
-            }
-          }
-          EOF
-          node dump-logs.js
+          set +e
+          wc -c server-unsandboxed.log
+          grep -nE "apply|shutdown|Shutdown|ActiveDoc|NSandbox|closing|Closing|timeout|error" \
+            server-unsandboxed.log | tail -120
+
+      - name: Server log - pyodide
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          wc -c server-pyodide.log
+          grep -nE "apply|shutdown|Shutdown|ActiveDoc|NSandbox|closing|Closing|timeout|error" \
+            server-pyodide.log | tail -120
+
+      - name: Keep the full logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-server-logs
+          path: server-*.log
+          if-no-files-found: warn
