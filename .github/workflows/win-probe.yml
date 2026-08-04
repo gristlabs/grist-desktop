@@ -48,70 +48,49 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      # D: rates for sync vs nosync vs plain, default sandbox (unsandboxed).
-      - name: D - repeated cases, unsandboxed
+      # G: instrument the socket, default agent. 10 reps to hit the ~20% race.
+      - name: G - socket lifecycle, default agent
         shell: bash
         env:
           GRIST_LOG_LEVEL: debug
-          GRIST_LOG_FILE: server-unsandboxed.log
+          GRIST_LOG_HTTP: 'true'
+          GRIST_LOG_FILE: server-default-agent.log
         run: |
           set +e
           node ./scripts/test-electron.js --upstream AclProbe
-          echo "D_EXIT=$?"
+          echo "G_EXIT=$?"
 
-      # E: same again under pyodide. If a hanging shutdown item is the
-      # unsandboxed python child, the rates should move.
-      - name: E - repeated cases, pyodide
+      # H: same, but with an agent that has no keepAlive and no timeout.
+      - name: H - socket lifecycle, fresh agent
         if: always()
         shell: bash
         env:
           GRIST_LOG_LEVEL: debug
-          GRIST_LOG_FILE: server-pyodide.log
-          GRIST_SANDBOX_FLAVOR: pyodide
+          GRIST_LOG_HTTP: 'true'
+          GRIST_LOG_FILE: server-fresh-agent.log
+          PROBE_AGENT: nokeepalive
         run: |
           set +e
           node ./scripts/test-electron.js --upstream AclProbe
-          echo "E_EXIT=$?"
-
-      # F: is "ActionLog alone passes" real, or was one green run luck?
-      - name: F - ActionLog alone, three times
-        if: always()
-        shell: bash
-        env:
-          GRIST_LOG_LEVEL: debug
-          GRIST_LOG_FILE: server-actionlog.log
-        run: |
-          set +e
-          for i in 1 2 3; do
-            node ./scripts/test-electron.js --upstream ActionLog 2>&1 | tail -30
-            echo "F${i}_EXIT=${PIPESTATUS[0]}"
-          done
+          echo "H_EXIT=$?"
 
       - name: Tallies
         if: always()
         shell: bash
         run: |
           set +e
-          echo "== shutdown items that timed out =="
-          grep -hE "timed out|shutdown starting|Doc being closed" server-*.log | sort | uniq -c | sort -rn | head -30
+          echo "== connection-level events the server noticed =="
+          grep -hE "aborted|ECONNRESET|EPIPE|socket|Client websocket closed" server-*.log | tail -30
 
-      - name: Server log around failures - unsandboxed
+      - name: Did the server ever write a response?
         if: always()
         shell: bash
         run: |
           set +e
-          wc -c server-unsandboxed.log
-          grep -nE "shutdown|Shutdown|timed out|applyUserActions|interrupt|muted|NSandbox" \
-            server-unsandboxed.log | tail -100
-
-      - name: Server log around failures - pyodide
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          wc -c server-pyodide.log
-          grep -nE "shutdown|Shutdown|timed out|applyUserActions|interrupt|muted|NSandbox" \
-            server-pyodide.log | tail -100
+          for f in server-default-agent.log server-fresh-agent.log; do
+            echo "===== $f ====="
+            grep -E "POST /o/docs/api/docs/[^ ]+/apply" "$f" | tail -20
+          done
 
       - name: Keep the full logs
         if: always()
