@@ -203,7 +203,9 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   console.log('[server alive]');
 
   const child = spawn(process.execPath,
-    [mochaBin, '--reporter', 'spec', '--slow', '6000', ...testFiles],
+    // A cold browser start takes longer than mocha-webdriver's own 20s setup
+    // hook allows on a windows runner, so give the hooks more room.
+    [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', '60000', ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
       ...process.env,
       NODE_PATH: [path.join(ROOT, 'core/_build'), path.join(ROOT, 'core/_build/ext'),
