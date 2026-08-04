@@ -7,9 +7,10 @@ on:
       - windows-actionlog-probe
 
 jobs:
-  probe:
+  # A: does using file:// URLs make pyodide actually load its wheels?
+  fix:
     runs-on: windows-2022
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - name: Set up bash association
         run: |
@@ -31,7 +32,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
 
-      # Must happen before the build: core is compiled from source.
       - name: Patch core for probing
         shell: bash
         run: |
@@ -50,16 +50,7 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: What is actually on disk
-        shell: bash
-        run: |
-          set +e
-          ls -la core/sandbox/pyodide/_build/packages/ | head -8
-          echo "wheel count: $(ls core/sandbox/pyodide/_build/packages/*.whl | wc -l)"
-          ls core/sandbox/pyodide/_build/packages/ | grep -i sorted
-
-      # Does pyodide load its wheels from windows paths?
-      - name: P - pyodide, both path forms
+      - name: Run something that needs the data engine
         if: always()
         shell: bash
         env:
@@ -68,8 +59,8 @@ jobs:
           GRIST_SANDBOX_FLAVOR: pyodide
         run: |
           set +e
-          node ./scripts/test-electron.js --upstream LeftPanel
-          echo "P_EXIT=$?"
+          node ./scripts/test-electron.js --upstream ActionLog
+          echo "FIX_EXIT=$?"
 
       - name: What pipe.js reported
         if: always()
@@ -78,14 +69,69 @@ jobs:
           set +e
           grep -oE "\[probe\][^\"]{0,150}" server-pyodide.log | sort -u
           echo "-- package errors --"
-          grep -oE "\[package-error\][^\"]{0,150}" server-pyodide.log | sort -u | head -10
+          grep -oE "\[package-error\][^\"]{0,120}" server-pyodide.log | sort -u | head -5
           echo "-- module errors --"
-          grep -oE "ModuleNotFoundError[^\"]{0,80}" server-pyodide.log | sort -u | head -5
+          grep -oE "ModuleNotFoundError[^\"]{0,60}" server-pyodide.log | sort -u | head -3
 
-      - name: Keep the full logs
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: probe-server-logs
-          path: server-*.log
+          name: probe-fix-log
+          path: server-pyodide.log
           if-no-files-found: warn
+
+  # B: what does the published windows build actually contain, and can it
+  # run its own default sandbox?
+  shipped:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Fetch the published build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          gh release download v0.3.14 --repo ${{ github.repository }} -p '*win-x64.zip' -D dl
+          echo "DOWNLOAD_EXIT=$?"
+          ls -la dl/
+
+      - name: Unpack
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dl -Filter *.zip | Select-Object -First 1
+          Write-Host "zip: $($zip.FullName)"
+          Expand-Archive -Path $zip.FullName -DestinationPath dl/app -Force
+
+      - name: Inventory
+        shell: bash
+        run: |
+          set +e
+          echo "== deno binaries shipped? =="
+          find dl/app -iname 'deno*' | head -5
+          echo "== pyodide wheels shipped? =="
+          find dl/app -name '*.whl' | head -3
+          echo "wheel count: $(find dl/app -name '*.whl' | wc -l)"
+          echo "== pyodide pipe.js / package dir? =="
+          find dl/app -name 'pipe.js' -path '*pyodide*' | head -3
+          find dl/app -type d -name pyodide | head -5
+          echo "== unpacked sandbox tree =="
+          find dl/app -type d -name sandbox | head -3
+
+      - name: Does it start and serve?
+        shell: bash
+        env:
+          GRIST_PORT: '8585'
+          GRIST_DESKTOP_AUTH: none
+        run: |
+          set +e
+          exe=$(find dl/app -maxdepth 3 -iname 'grist*.exe' | head -1)
+          echo "exe: $exe"
+          "$exe" &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8585/status || echo none)
+            echo "  attempt $i: $code"
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          curl -s http://localhost:8585/status | head -3
