@@ -69,6 +69,10 @@ process.env.TEST_ACCOUNT_PASSWORD = process.env.TEST_ACCOUNT_PASSWORD || 'not-ne
 // Seeds the support user's API key — see addSupportUserIfPossible.
 process.env.TEST_SUPPORT_API_KEY = process.env.TEST_SUPPORT_API_KEY || 'api_key_for_support';
 
+// Node's default agent has timeout: 5000, and on windows that kills a request
+// in flight. Opening a doc on a slow machine outlasts it.
+http.globalAgent = new http.Agent({keepAlive: true});
+
 const mw = require('mocha-webdriver');
 
 let _tmpDir = null;
