@@ -62,6 +62,8 @@ jobs:
       # One suite is enough to show whether the sandbox works.
       - name: Deployment tests
         shell: bash
+        env:
+          MOCHA_WEBDRIVER_HEADLESS: '1'
         run: |
           set +e
           yarn run test:electron:deployment ChoiceList
@@ -131,6 +133,8 @@ jobs:
 
       - name: Can the published build open a document?
         shell: bash
+        env:
+          MOCHA_WEBDRIVER_HEADLESS: '1'
         run: |
           set +e
           exe=$(find dl/app -maxdepth 2 -iname '*.exe' | head -1)
