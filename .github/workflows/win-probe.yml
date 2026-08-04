@@ -9,7 +9,7 @@ on:
 jobs:
   probe:
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Set up bash association
         run: |
@@ -48,8 +48,8 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      # D: delay sweep plus a non-ACL action, default sandbox (unsandboxed).
-      - name: D - delay sweep, unsandboxed
+      # D: rates for sync vs nosync vs plain, default sandbox (unsandboxed).
+      - name: D - repeated cases, unsandboxed
         shell: bash
         env:
           GRIST_LOG_LEVEL: debug
@@ -59,9 +59,9 @@ jobs:
           node ./scripts/test-electron.js --upstream AclProbe
           echo "D_EXIT=$?"
 
-      # E: same sweep under pyodide. If a hanging shutdown item is the
-      # unsandboxed python child, this should behave differently.
-      - name: E - delay sweep, pyodide
+      # E: same again under pyodide. If a hanging shutdown item is the
+      # unsandboxed python child, the rates should move.
+      - name: E - repeated cases, pyodide
         if: always()
         shell: bash
         env:
@@ -73,23 +73,45 @@ jobs:
           node ./scripts/test-electron.js --upstream AclProbe
           echo "E_EXIT=$?"
 
-      - name: Server log - unsandboxed
+      # F: is "ActionLog alone passes" real, or was one green run luck?
+      - name: F - ActionLog alone, three times
+        if: always()
+        shell: bash
+        env:
+          GRIST_LOG_LEVEL: debug
+          GRIST_LOG_FILE: server-actionlog.log
+        run: |
+          set +e
+          for i in 1 2 3; do
+            node ./scripts/test-electron.js --upstream ActionLog 2>&1 | tail -30
+            echo "F${i}_EXIT=${PIPESTATUS[0]}"
+          done
+
+      - name: Tallies
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          echo "== shutdown items that timed out =="
+          grep -hE "timed out|shutdown starting|Doc being closed" server-*.log | sort | uniq -c | sort -rn | head -30
+
+      - name: Server log around failures - unsandboxed
         if: always()
         shell: bash
         run: |
           set +e
           wc -c server-unsandboxed.log
-          grep -nE "apply|shutdown|Shutdown|ActiveDoc|NSandbox|closing|Closing|timeout|error" \
-            server-unsandboxed.log | tail -120
+          grep -nE "shutdown|Shutdown|timed out|applyUserActions|interrupt|muted|NSandbox" \
+            server-unsandboxed.log | tail -100
 
-      - name: Server log - pyodide
+      - name: Server log around failures - pyodide
         if: always()
         shell: bash
         run: |
           set +e
           wc -c server-pyodide.log
-          grep -nE "apply|shutdown|Shutdown|ActiveDoc|NSandbox|closing|Closing|timeout|error" \
-            server-pyodide.log | tail -120
+          grep -nE "shutdown|Shutdown|timed out|applyUserActions|interrupt|muted|NSandbox" \
+            server-pyodide.log | tail -100
 
       - name: Keep the full logs
         if: always()
