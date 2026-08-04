@@ -6,8 +6,8 @@ on:
     branches:
       - main
       - dev
-    tags:
-      - '*'
+env:
+  FORCE_COLOR: 1
 
 jobs:
   build:
@@ -16,23 +16,40 @@ jobs:
       fail-fast: false
       matrix:
         os:
+          - macos-15-intel
           - ubuntu-22.04
+          - windows-2022
         host:
           - x64
         target:
           - x64
         node:
           - 22
+        include:
+          - os: macos-14
+            host: arm64
+            target: arm64
+            node: 22
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
-      - uses: actions/checkout@v3
+      # yarn run test starts with a .sh script, which cmd cannot run unaided.
+      - name: Set up bash association
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          cmd /c assoc .sh=bashscript
+          cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
+
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          architecture: ${{ matrix.host }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install dependencies
         # Match the Packaging workflow, which skips optional dependencies
@@ -41,6 +58,7 @@ jobs:
         run: yarn install --network-timeout 300000 --ignore-optional
 
       - name: Check version consistency
+        if: startsWith(matrix.os, 'ubuntu')
         run: node ./scripts/check-metainfo-version-matches.js
 
       - name: Hooks and crooks
@@ -53,10 +71,12 @@ jobs:
         run: yarn run build
 
       - name: Test
+        timeout-minutes: 20
         run: yarn run test
 
       - name: Build core browser tests
         run: yarn run build:tests
 
       - name: Run core browser tests against the desktop app
+        timeout-minutes: 30
         run: yarn run test:electron:upstream
