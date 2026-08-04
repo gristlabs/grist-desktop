@@ -53,10 +53,8 @@ function resolveTestFiles(mode, names) {
 }
 
 function checkPrereqs() {
-  const mochaBin = path.join(ROOT, 'core/node_modules/.bin', process.platform === 'win32' ? 'mocha.cmd' : 'mocha');
-  if (!fs.existsSync(mochaBin)) {
-    throw new Error(`mocha not found at ${mochaBin}; run yarn install first`);
-  }
+  // Not the .bin shim: it is a .cmd on Windows, and spawning that throws EINVAL.
+  const mochaBin = require.resolve('mocha/bin/mocha.js', {paths: [path.join(ROOT, 'core'), ROOT]});
   const appEntry = path.join(ROOT, 'core/_build/ext/app/electron/main.js');
   if (!fs.existsSync(appEntry)) {
     throw new Error('build output missing; run yarn build first');
@@ -118,7 +116,8 @@ function main() {
     '--require', path.join(ROOT, 'test/electron/setup.js'),
     ...testFiles,
   ];
-  const child = spawn(mochaBin, args, {stdio: 'inherit', cwd: ROOT, env: buildEnv(mode)});
+  const child = spawn(process.execPath, [mochaBin, ...args],
+    {stdio: 'inherit', cwd: ROOT, env: buildEnv(mode)});
   child.on('exit', code => process.exit(code ?? 1));
 }
 

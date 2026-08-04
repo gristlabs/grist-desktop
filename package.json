@@ -41,8 +41,8 @@
     "electron:ci": "./scripts/ci.sh",
     "electron": "electron-builder build --publish never",
     "test": "./scripts/smoke-test.sh && yarn run test:electron",
-    "test:electron": "./scripts/test-electron.js",
-    "test:electron:upstream": "./scripts/test-electron.js --upstream"
+    "test:electron": "node ./scripts/test-electron.js",
+    "test:electron:upstream": "node ./scripts/test-electron.js --upstream"
   },
   "resolutions": {
     "jquery": "3.5.0",

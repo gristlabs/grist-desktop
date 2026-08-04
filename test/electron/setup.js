@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
+const net = require('net');
 const {Builder, Capabilities, Capability} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
@@ -51,7 +52,12 @@ const PORT = parseInt(process.env.GRIST_PORT || '8585', 10);
 // startup; we connect to it from the test process below. Deliberately *not*
 // setting HOME_URL — that flips upstream into "external server" mode, which
 // drives login via HTTP form instead of testingHooks.
-const TESTING_SOCKET = path.join(os.tmpdir(), `grist-desktop-testing-${process.pid}.sock`);
+// Windows binds a named pipe, not a socket file. The app awaits
+// addTestingHooks() before creating its window, so a failed bind here is silent:
+// the server runs, with no window for chromedriver to attach to.
+const TESTING_SOCKET = process.platform === 'win32'
+  ? `\\\\.\\pipe\\grist-desktop-testing-${process.pid}`
+  : path.join(os.tmpdir(), `grist-desktop-testing-${process.pid}.sock`);
 process.env.GRIST_TESTING_SOCKET = TESTING_SOCKET;
 process.env.GRIST_DESKTOP_TEST_MODE = '1';
 process.env.GRIST_PORT = String(PORT);
@@ -172,14 +178,19 @@ async function wireUpstreamTestServer() {
   server.start = async () => {};
   server.stop = async () => {};
   server.resume = () => {};
-  server.closeDatabase = async () => { server._dbManager = undefined; };
   return server;
 }
 
 async function waitForSocket(socketPath, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (fs.existsSync(socketPath)) { return; }
+    // Connect rather than stat: a named pipe has no filesystem entry.
+    const connected = await new Promise((resolve) => {
+      const sock = net.connect(socketPath)
+        .on('connect', () => { sock.destroy(); resolve(true); })
+        .on('error', () => resolve(false));
+    });
+    if (connected) { return; }
     await new Promise(r => setTimeout(r, 250));
   }
   throw new Error(`testing-hooks socket never appeared at ${socketPath}; ` +
