@@ -1,8 +1,13 @@
 // PROBE ONLY - not for merge.
-// pipe.js hands pyodide.loadPackage() absolute paths built with path.join. On
-// windows those are D:\..., which pyodide parses as a URL and reduces to the
-// package name "d:\a\grist" - so all 19 wheels collide and none install, with
-// no error thrown. Use file:// URLs instead, and check the result.
+//
+// Round 5. file:// URLs removed the "Loading same package d:\a\grist" collision
+// but the wheels still did not install, and loadPackage still claimed success.
+// So the path form was a real defect but not the whole story.
+//
+// Ask a sharper question: can pyodide load ANY package on windows? sortedcontainers
+// ships inside the pyodide distribution, so loading it by name uses pyodide's own
+// machinery and none of our paths. If that fails too, the problem is not our wheel
+// paths - suspect packageCacheDir (pipe.js:38), another windows path.
 
 const fs = require('fs');
 const path = require('path');
@@ -21,24 +26,33 @@ if (!src.includes(needle)) {
   process.exit(1);
 }
 
-const replacement = `    const lsty = (await listLibs(src)).available
-      .map(item => require("url").pathToFileURL(item.fullName).href);
-    this.log("[probe] first:", String(lsty[0]));
-    try {
-      await this.pyodide.loadPackage(lsty, {
-        messageCallback: (msg) => this.log("[package]", msg),
-        errorCallback: (msg) => this.log("[package-error]", msg),
-      });
-      this.log("[probe] loadPackage resolved");
-    } catch (e) {
-      this.log("[probe] loadPackage THREW:", String(e));
-    }
-    try {
-      await this.pyodide.runPython("import sortedcontainers");
-      this.log("[probe] import sortedcontainers OK");
-    } catch (e) {
-      this.log("[probe] import sortedcontainers FAILED");
-    }`;
+const replacement = `    const lsty = (await listLibs(src)).available.map(item => item.fullName);
+    this.log("[probe] pyodide version:", String(this.pyodide.version));
+    this.log("[probe] cacheDir:", fs.realpathSync(path.join(__dirname, "_build", "cache")));
+    const attempt = async (label, arg) => {
+      try {
+        const r = await this.pyodide.loadPackage(arg, {
+          messageCallback: (msg) => this.log("[package]", label, msg),
+          errorCallback: (msg) => this.log("[package-error]", label, msg),
+        });
+        this.log("[probe]", label, "resolved, returned:",
+          JSON.stringify(Array.isArray(r) ? r.map(p => p && p.name) : r));
+      } catch (e) {
+        this.log("[probe]", label, "THREW:", String(e));
+      }
+      this.log("[probe]", label, "loadedPackages:",
+        JSON.stringify(Object.keys(this.pyodide.loadedPackages || {})).slice(0, 300));
+      try {
+        await this.pyodide.runPython("import sortedcontainers");
+        this.log("[probe]", label, "import OK");
+      } catch (e) {
+        this.log("[probe]", label, "import FAILED");
+      }
+    };
+    // Uses pyodide's own distribution, none of our paths.
+    await attempt("by-name", ["sortedcontainers"]);
+    // Our wheels, as URLs.
+    await attempt("file-url", lsty.map(p => require("url").pathToFileURL(p).href));`;
 
 fs.writeFileSync(target, src.replace(needle, replacement));
-console.log('patched pipe.js to load wheels via file:// URLs');
+console.log('patched pipe.js: try by-name then file-url, report loadedPackages');
