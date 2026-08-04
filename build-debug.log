@@ -1,0 +1,217 @@
+yarn run v1.22.22
+$ electron-builder build --publish never
+  • electron-builder  version=25.0.3 os=6.14.0-37-generic
+  • loaded configuration  file=package.json ("build" field)
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=linux arch=x64 electron=30.0.6 appOutDir=dist/linux-unpacked
+  • map async       taskCount=2
+  • map async       taskCount=1
+  • map async       taskCount=74
+  • skipping "afterSign" hook as no signing occurred, perhaps you intended "afterPack"?
+  • building        target=AppImage arch=x64 file=dist/grist-desktop-0.3.8-linux-x86_64.AppImage
+  • building        target=flatpak arch=x64 file=dist/grist-desktop-0.3.8-linux-x86_64.flatpak
+  • path resolved   path=/home/paulfitz/cvs/grist-desktop/core/static/icons/grist.png outputFormat=set
+2026-01-21T21:39:33.770Z @malept/flatpak-bundler Using manifest...
+{
+  "id": "com.getgrist.grist",
+  "command": "electron-wrapper",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "25.08",
+  "sdk": "org.freedesktop.Sdk",
+  "base": "org.electronjs.Electron2.BaseApp",
+  "base-version": "25.08",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=x11",
+    "--socket=wayland",
+    "--socket=pulseaudio",
+    "--device=dri",
+    "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.freedesktop.secrets",
+    "--filesystem=home",
+    "--allow=multiarch",
+    "--filesystem=xdg-cache/tmp:create",
+    "--env=TMPDIR=/tmp",
+    "--env=GRIST_SANDBOX_FLAVOR=pyodide"
+  ],
+  "branch": "stable"
+}
+2026-01-21T21:39:33.770Z @malept/flatpak-bundler Using options...
+{
+  "base-flatpakref": "app/org.electronjs.Electron2.BaseApp/x86_64/25.08",
+  "runtime-flatpakref": "runtime/org.freedesktop.Platform/x86_64/25.08",
+  "sdk-flatpakref": "runtime/org.freedesktop.Sdk/x86_64/25.08",
+  "arch": "x86_64",
+  "bundle-path": "/home/paulfitz/cvs/grist-desktop/dist/grist-desktop-0.3.8-linux-x86_64.flatpak",
+  "files": [
+    [
+      "/home/paulfitz/cvs/grist-desktop/dist/__flatpak-x86_64",
+      "/"
+    ],
+    [
+      "/home/paulfitz/cvs/grist-desktop/dist/linux-unpacked",
+      "/lib/com.getgrist.grist"
+    ],
+    [
+      "dist/icons/16x16.png",
+      "/app/share/icons/hicolor/16x16/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/32x32.png",
+      "/app/share/icons/hicolor/32x32/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/48x48.png",
+      "/app/share/icons/hicolor/48x48/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/64x64.png",
+      "/app/share/icons/hicolor/64x64/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/128x128.png",
+      "/app/share/icons/hicolor/128x128/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/256x256.png",
+      "/app/share/icons/hicolor/256x256/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/512x512.png",
+      "/app/share/icons/hicolor/512x512/apps/com.getgrist.grist.png"
+    ],
+    [
+      "dist/icons/scalable.svg",
+      "/app/share/icons/hicolor/scalable/apps/com.getgrist.grist.svg"
+    ]
+  ],
+  "symlinks": [
+    [
+      "/lib/com.getgrist.grist/grist-desktop",
+      "/bin/grist-desktop"
+    ]
+  ],
+  "working-dir": "/tmp/flatpak-bundler-91370-0WIGMbQtWevv",
+  "build-dir": "/tmp/flatpak-bundler-91370-0WIGMbQtWevv/build",
+  "repo-dir": "/tmp/flatpak-bundler-91370-0WIGMbQtWevv/repo",
+  "manifest-path": "/tmp/flatpak-bundler-91370-0WIGMbQtWevv/manifest.json",
+  "extra-flatpak-builder-args": [],
+  "extra-flatpak-build-bundle-args": [],
+  "extra-flatpak-build-export-args": [],
+  "clean-tmpdirs": true,
+  "auto-install-runtime": true,
+  "auto-install-sdk": true,
+  "auto-install-base": true
+}
+2026-01-21T21:39:33.770Z @malept/flatpak-bundler Ensuring runtime is up to date
+2026-01-21T21:39:33.770Z @malept/flatpak-bundler Checking for install of org.freedesktop.Platform
+2026-01-21T21:39:33.771Z @malept/flatpak-bundler $ flatpak info --show-commit --user org.freedesktop.Platform/x86_64/25.08
+2026-01-21T21:39:33.784Z @malept/flatpak-bundler $ flatpak info --show-commit --system org.freedesktop.Platform/x86_64/25.08
+2026-01-21T21:39:33.811Z @malept/flatpak-bundler 2> error: org.freedesktop.Platform/x86_64/25.08 not installed
+
+2026-01-21T21:39:33.838Z @malept/flatpak-bundler 1> 6482ce412b0584ab2e2191db1c1de27b7072b8945c20e83a661d284b9c10e6d4
+
+2026-01-21T21:39:33.854Z @malept/flatpak-bundler Found install of org.freedesktop.Platform, trying to update
+  • copy files      from=/home/paulfitz/cvs/grist-desktop/LICENSE.txt to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/LICENSE.txt isUseHardLinks=true
+  • map async       taskCount=1
+2026-01-21T21:39:33.876Z @malept/flatpak-bundler flatpak-builder is new enough, adding --assumeyes
+2026-01-21T21:39:33.876Z @malept/flatpak-bundler $ flatpak update --no-deps --arch x86_64 --assumeyes org.freedesktop.Platform 25.08
+  • found existing  path=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1
+  • copy files      from=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/lib/x64 to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/usr/lib isUseHardLinks=true
+  • copy files      from=/home/paulfitz/cvs/grist-desktop/dist/linux-unpacked to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64 isUseHardLinks=true
+2026-01-21T21:39:33.901Z @malept/flatpak-bundler 1> Looking for updates…
+
+  • cannot copy using hard link  error=link /home/paulfitz/cvs/grist-desktop/dist/linux-unpacked/resources/app-update.yml /home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/resources/app-update.yml: file exists
+                                 from=/home/paulfitz/cvs/grist-desktop/dist/linux-unpacked/resources/app-update.yml
+                                 to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/resources/app-update.yml
+  • found existing  path=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1
+  • execute command  command=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/linux-x64/mksquashfs /home/paulfitz/cvs/grist-desktop/dist/__appImage-x64 /home/paulfitz/cvs/grist-desktop/dist/grist-desktop-0.3.8-linux-x86_64.AppImage -offset 188392 -all-root -noappend -no-progress -quiet -no-xattrs -no-fragments
+                     workingDirectory=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64
+2026-01-21T21:39:34.165Z @malept/flatpak-bundler 1> 
+Nothing to do.
+
+2026-01-21T21:39:34.187Z @malept/flatpak-bundler Ensuring sdk is up to date
+2026-01-21T21:39:34.187Z @malept/flatpak-bundler Checking for install of org.freedesktop.Sdk
+2026-01-21T21:39:34.187Z @malept/flatpak-bundler $ flatpak info --show-commit --user org.freedesktop.Sdk/x86_64/25.08
+2026-01-21T21:39:34.213Z @malept/flatpak-bundler $ flatpak info --show-commit --system org.freedesktop.Sdk/x86_64/25.08
+2026-01-21T21:39:34.255Z @malept/flatpak-bundler 2> error: org.freedesktop.Sdk/x86_64/25.08 not installed
+
+2026-01-21T21:39:34.262Z @malept/flatpak-bundler 1> 4d24423cfeeb1845d96fb4536a3404666ed3473e267e4c56dbb7190b627290b0
+
+2026-01-21T21:39:34.266Z @malept/flatpak-bundler Found install of org.freedesktop.Sdk, trying to update
+2026-01-21T21:39:34.266Z @malept/flatpak-bundler flatpak-builder is new enough, adding --assumeyes
+2026-01-21T21:39:34.266Z @malept/flatpak-bundler $ flatpak update --no-deps --arch x86_64 --assumeyes org.freedesktop.Sdk 25.08
+2026-01-21T21:39:34.324Z @malept/flatpak-bundler 1> Looking for updates…
+
+2026-01-21T21:39:34.620Z @malept/flatpak-bundler 1> 
+
+2026-01-21T21:39:34.625Z @malept/flatpak-bundler 1> Nothing to do.
+
+2026-01-21T21:39:34.644Z @malept/flatpak-bundler Ensuring base is up to date
+2026-01-21T21:39:34.644Z @malept/flatpak-bundler Checking for install of org.electronjs.Electron2.BaseApp
+2026-01-21T21:39:34.644Z @malept/flatpak-bundler $ flatpak info --show-commit --user org.electronjs.Electron2.BaseApp/x86_64/25.08
+2026-01-21T21:39:34.660Z @malept/flatpak-bundler $ flatpak info --show-commit --system org.electronjs.Electron2.BaseApp/x86_64/25.08
+2026-01-21T21:39:34.707Z @malept/flatpak-bundler 2> error: org.electronjs.Electron2.BaseApp/x86_64/25.08 not installed
+
+2026-01-21T21:39:34.732Z @malept/flatpak-bundler 1> 44c23ef69aadcc9a246f746ab084d91539336d5c013cd5accd9e616c499c0e09
+
+2026-01-21T21:39:34.737Z @malept/flatpak-bundler Found install of org.electronjs.Electron2.BaseApp, trying to update
+2026-01-21T21:39:34.737Z @malept/flatpak-bundler flatpak-builder is new enough, adding --assumeyes
+2026-01-21T21:39:34.737Z @malept/flatpak-bundler $ flatpak update --no-deps --arch x86_64 --assumeyes org.electronjs.Electron2.BaseApp 25.08
+2026-01-21T21:39:34.809Z @malept/flatpak-bundler 1> Looking for updates…
+
+2026-01-21T21:39:35.095Z @malept/flatpak-bundler 1> 
+
+2026-01-21T21:39:35.095Z @malept/flatpak-bundler 1> Nothing to do.
+
+2026-01-21T21:39:35.112Z @malept/flatpak-bundler flatpak-builder is new enough, adding --assumeyes
+2026-01-21T21:39:35.112Z @malept/flatpak-bundler $ flatpak-builder --arch x86_64 --force-clean --allow-missing-runtimes --build-only --assumeyes /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build /tmp/flatpak-bundler-91370-0WIGMbQtWevv/manifest.json
+2026-01-21T21:39:35.471Z @malept/flatpak-bundler 1> Downloading sources
+
+2026-01-21T21:39:35.486Z @malept/flatpak-bundler 1> Initializing build dir
+
+2026-01-21T21:39:35.631Z @malept/flatpak-bundler 1> Committing stage init to cache
+
+2026-01-21T21:39:35.809Z @malept/flatpak-bundler 1> Starting build of com.getgrist.grist
+Pruning cache
+
+2026-01-21T21:39:35.820Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/__flatpak-x86_64 to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/
+2026-01-21T21:39:35.820Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/linux-unpacked to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/lib/com.getgrist.grist
+2026-01-21T21:39:35.820Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/16x16.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/16x16/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.820Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/32x32.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/32x32/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.821Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/48x48.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/48x48/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.821Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/64x64.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/64x64/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.821Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/128x128.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/128x128/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.822Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/256x256.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/256x256/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.822Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/512x512.png to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/512x512/apps/com.getgrist.grist.png
+2026-01-21T21:39:35.822Z @malept/flatpak-bundler Copying /home/paulfitz/cvs/grist-desktop/dist/icons/scalable.svg to /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/app/share/icons/hicolor/scalable/apps/com.getgrist.grist.svg
+2026-01-21T21:39:39.963Z @malept/flatpak-bundler Symlinking /app/lib/com.getgrist.grist/grist-desktop at /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build/files/bin/grist-desktop
+2026-01-21T21:39:39.963Z @malept/flatpak-bundler flatpak-builder is new enough, adding --assumeyes
+2026-01-21T21:39:39.963Z @malept/flatpak-bundler $ flatpak-builder --arch x86_64 --force-clean --allow-missing-runtimes --finish-only --assumeyes /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build /tmp/flatpak-bundler-91370-0WIGMbQtWevv/manifest.json
+2026-01-21T21:39:40.311Z @malept/flatpak-bundler 1> Cleaning up
+
+2026-01-21T21:39:40.393Z @malept/flatpak-bundler 1> Committing stage cleanup to cache
+
+  • command executed  executable=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/linux-x64/mksquashfs
+2026-01-21T21:39:58.020Z @malept/flatpak-bundler 1> Finishing app
+
+2026-01-21T21:39:58.049Z @malept/flatpak-bundler 1> Exporting share/applications/com.getgrist.grist.desktop
+
+2026-01-21T21:39:58.062Z @malept/flatpak-bundler 1> Please review the exported files and the metadata
+
+2026-01-21T21:39:58.068Z @malept/flatpak-bundler 1> Committing stage finish to cache
+
+2026-01-21T21:40:02.940Z @malept/flatpak-bundler 1> Pruning cache
+
+2026-01-21T21:40:02.982Z @malept/flatpak-bundler $ flatpak build-export --arch x86_64 /tmp/flatpak-bundler-91370-0WIGMbQtWevv/repo /tmp/flatpak-bundler-91370-0WIGMbQtWevv/build stable
+2026-01-21T21:40:03.003Z @malept/flatpak-bundler 1> WARNING: Icon referenced in desktop file but not exported: com.getgrist.grist
+
+2026-01-21T21:40:03.005Z @malept/flatpak-bundler 2> error: Writing content object: min-free-space-percent '3%' would be exceeded, at least 4.1 kB requested
+
+  ⨯ flatpak failed with status code 1  failedTask=build stackTrace=Error: flatpak failed with status code 1
+    at ChildProcess.<anonymous> (/home/paulfitz/cvs/grist-desktop/node_modules/@malept/flatpak-bundler/index.js:71:16)
+    at ChildProcess.emit (node:events:507:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at Process.ChildProcess._handle.onexit (node:internal/child_process:305:5)
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

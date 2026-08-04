@@ -44,6 +44,8 @@ function resolveTestFiles(mode, names) {
   }
   const targets = names.length > 0 ? names : DEFAULT_UPSTREAM_SUITES;
   return targets.map(name => {
+    // PROBE ONLY: local test file that wants the upstream helpers.
+    if (name === 'AclProbe') { return path.join(ROOT, 'test/electron/AclProbe.test.js'); }
     for (const dir of ['deployment', 'nbrowser']) {
       const p = path.join(ROOT, 'core/_build/test', dir, `${name}.js`);
       if (fs.existsSync(p)) { return p; }

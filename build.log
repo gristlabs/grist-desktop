@@ -1,0 +1,300 @@
+yarn run v1.22.22
+$ electron-builder build --publish never
+  • electron-builder  version=25.0.3 os=6.14.0-37-generic
+  • loaded configuration  file=package.json ("build" field)
+  • effective config  config=directories:
+  output: dist
+  buildResources: .
+appId: com.getgrist.grist
+npmRebuild: false
+compression: normal
+includeSubNodeModules: true
+icon: core/static/icons/grist.png
+win:
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  target:
+    - target: nsis
+    - target: zip
+  icon: core/static/icons/grist.ico
+nsis:
+  perMachine: true
+mac:
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  icon: core/static/icons/grist.icns
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: scripts/entitlements.mac.plist
+  entitlementsInherit: scripts/entitlements.mac.plist
+  target: dmg
+dmg:
+  writeUpdateInfo: false
+linux:
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  icon: core/static/icons/grist.png
+  category: Office
+  target:
+    - AppImage
+    - flatpak
+flatpak:
+  branch: stable
+  runtime: org.freedesktop.Platform
+  runtimeVersion: '25.08'
+  sdk: org.freedesktop.Sdk
+  base: org.electronjs.Electron2.BaseApp
+  baseVersion: '25.08'
+  finishArgs:
+    - '--share=ipc'
+    - '--socket=x11'
+    - '--socket=wayland'
+    - '--socket=pulseaudio'
+    - '--device=dri'
+    - '--talk-name=org.freedesktop.Notifications'
+    - '--talk-name=org.freedesktop.secrets'
+    - '--filesystem=home'
+    - '--allow=multiarch'
+    - '--filesystem=xdg-cache/tmp:create'
+    - '--env=TMPDIR=/tmp'
+    - '--env=GRIST_SANDBOX_FLAVOR=pyodide'
+  desktop:
+    Name: Grist
+    Comment: Spreadsheet software to end data chaos
+    Icon: com.getgrist.grist
+    Categories:
+      - Office
+    MimeType: text/csv;text/tab-separated-values;text/plain;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel.sheet.macroEnabled.12;
+  mimeTypes:
+    - text/csv
+    - text/tab-separated-values
+    - text/plain
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - application/vnd.ms-excel.sheet.macroEnabled.12
+  files:
+    - - dist/icons/16x16.png
+      - /app/share/icons/hicolor/16x16/apps/com.getgrist.grist.png
+    - - dist/icons/32x32.png
+      - /app/share/icons/hicolor/32x32/apps/com.getgrist.grist.png
+    - - dist/icons/48x48.png
+      - /app/share/icons/hicolor/48x48/apps/com.getgrist.grist.png
+    - - dist/icons/64x64.png
+      - /app/share/icons/hicolor/64x64/apps/com.getgrist.grist.png
+    - - dist/icons/128x128.png
+      - /app/share/icons/hicolor/128x128/apps/com.getgrist.grist.png
+    - - dist/icons/256x256.png
+      - /app/share/icons/hicolor/256x256/apps/com.getgrist.grist.png
+    - - dist/icons/512x512.png
+      - /app/share/icons/hicolor/512x512/apps/com.getgrist.grist.png
+    - - dist/icons/scalable.svg
+      - /app/share/icons/hicolor/scalable/apps/com.getgrist.grist.svg
+afterSign: ./scripts/notarize.js
+asarUnpack:
+  - core/plugins
+  - core/python
+  - core/sandbox_venv3
+  - core/sandbox
+  - '**/*.node'
+  - node_modules/node-fetch
+files:
+  - filter:
+      - core/ormconfig.js
+      - core/_build/**/*
+      - core/static/**/*
+      - core/static_ext/**/*
+      - core/sandbox/**/*
+      - core/sandbox_venv3/**/*
+      - core/sandbox_venv3
+      - core/plugins/**/*
+      - core/python/**/*
+      - core/node_modules/**/*
+      - node_modules/**/*
+      - '!**/*.map'
+      - '!**/chromedriver/*'
+      - '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+      - '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+      - '!**/node_modules/*.d.ts'
+      - '!**/node_modules/.bin'
+      - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+      - '!.editorconfig'
+      - '!**/._*'
+      - '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}'
+      - '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}'
+      - '!**/{appveyor.yml,.travis.yml,circle.yml}'
+      - '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
+      - '!node_modules/ext'
+      - '!node_modules/electron'
+      - '!node_modules/app-builder-bin'
+      - '!node_modules/7zip-bin'
+      - '!node_modules/geckodriver'
+      - '!node_modules/esbuild-linux-64'
+      - '!node_modules/typescript'
+      - '!node_modules/ts-interface-builder'
+      - '!node_modules/typescript-eslint'
+      - '!node_modules/eslint'
+      - '!node_modules/@eslint/**/*'
+      - '!node_modules/@electron/**/*'
+      - '!node_modules/electron-builder'
+      - '!node_modules/globals'
+      - '!node_modules/resolve-tspaths'
+      - '!node_modules/@types/**/*'
+      - '!core/test/**/*'
+      - '!core/cpython.tar.gz'
+      - '!core/python/**/*'
+      - '!core/documentation/**/*'
+      - '!core/sandbox/pyodide/_build/worker/node_modules/deno/deno'
+      - '!core/sandbox/pyodide/_build/worker/node_modules/deno/deno.exe'
+      - '!**/test_*.py'
+fileAssociations:
+  - ext: grist
+    name: Grist Document
+    role: Editor
+    icon: core/static/icons/gristdoc
+    rank: Owner
+  - ext: csv
+    name: Comma-Separated Values
+    role: Viewer
+    rank: Alternate
+  - ext: tsv
+    name: Tab-Separated Values
+    role: Viewer
+    rank: Alternate
+  - ext: dsv
+    name: Delimiter-Separated Values
+    role: Viewer
+    rank: Alternate
+  - ext: txt
+    name: Text File
+    role: Viewer
+    rank: Alternate
+  - ext: xlsx
+    name: Microsoft Excel Spreadsheet
+    role: Viewer
+    rank: Alternate
+  - ext: xlsm
+    name: Microsoft Excel Open XML Spreadsheet
+    role: Viewer
+    rank: Alternate
+
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=linux arch=x64 electron=30.0.6 appOutDir=dist/linux-unpacked
+  • spawning        command=/home/paulfitz/cvs/grist-desktop/node_modules/app-builder-bin/linux/x64/app-builder unpack-electron --configuration [{"platform":"linux","arch":"x64","version":"30.0.6"}] --output /home/paulfitz/cvs/grist-desktop/dist/linux-unpacked --distMacOsAppName Electron.app
+  • map async       taskCount=2
+  • map async       taskCount=1
+  • map async       taskCount=74
+  • exited          command=app-builder code=0 pid=90666
+  • spawning        command=/home/paulfitz/cvs/grist-desktop/node_modules/app-builder-bin/linux/x64/app-builder node-dep-tree --flatten --dir /home/paulfitz/cvs/grist-desktop
+  • exited          command=app-builder code=0 pid=90686 out=[]
+  • not packed into asar archive  file=core/sandbox/pyodide/_build/worker/node_modules/@deno/linux-x64-glibc/deno reason=contains executable code
+  • not packed into asar archive  file=node_modules/@esbuild/linux-x64/bin/esbuild reason=contains executable code
+  • not packed into asar archive  file=node_modules/jszip/.jekyll-metadata reason=contains executable code
+  • not packed into asar archive  file=node_modules/nodemon/bin/windows-kill.exe reason=contains executable code
+  • not packed into asar archive  file=node_modules/selenium-webdriver/bin/linux/selenium-manager reason=contains executable code
+  • getPublishConfigsForUpdateInfo: no publishConfigs, detect using repository info
+2026-01-21T21:37:39.470Z electron-builder:publish getPublishConfigsForUpdateInfo: {
+  "domain": "github.com",
+  "type": "github",
+  "user": "gristlabs",
+  "project": "grist-desktop"
+}
+  • calling getInfo  reason=owner or project is not specified explicitly provider=github owner=undefined project=undefined
+2026-01-21T21:37:39.470Z electron-builder:publish getPublishConfigsForUpdateInfo: resolve to publish config {
+  "owner": "gristlabs",
+  "repo": "grist-desktop",
+  "provider": "github"
+}
+  • skipping "afterSign" hook as no signing occurred, perhaps you intended "afterPack"?
+  • building        target=AppImage arch=x64 file=dist/grist-desktop-0.3.8-linux-x86_64.AppImage
+  • building        target=flatpak arch=x64 file=dist/grist-desktop-0.3.8-linux-x86_64.flatpak
+  • getPublishConfigsForUpdateInfo: no publishConfigs, detect using repository info
+2026-01-21T21:37:39.573Z electron-builder:publish getPublishConfigsForUpdateInfo: {
+  "domain": "github.com",
+  "type": "github",
+  "user": "gristlabs",
+  "project": "grist-desktop"
+}
+  • calling getInfo  reason=owner or project is not specified explicitly provider=github owner=undefined project=undefined
+2026-01-21T21:37:39.573Z electron-builder:publish getPublishConfigsForUpdateInfo: resolve to publish config {
+  "owner": "gristlabs",
+  "repo": "grist-desktop",
+  "provider": "github"
+}
+  • spawning        command=/home/paulfitz/cvs/grist-desktop/node_modules/app-builder-bin/linux/x64/app-builder icon --format set --root /home/paulfitz/cvs/grist-desktop --root /home/paulfitz/cvs/grist-desktop --out /home/paulfitz/cvs/grist-desktop/dist/.icon-set --input core/static/icons/grist.png --input core/static/icons/grist.icns --fallback-input /home/paulfitz/cvs/grist-desktop/node_modules/app-builder-lib/templates/icons/electron-linux
+  • path resolved   path=/home/paulfitz/cvs/grist-desktop/core/static/icons/grist.png outputFormat=set
+  • exited          command=app-builder code=0 pid=90730 out={"icons":[{"file":"/home/paulfitz/cvs/grist-desktop/core/static/icons/grist.png","size":1024}],"isFallback":false}
+  • spawning        command=/home/paulfitz/cvs/grist-desktop/node_modules/app-builder-bin/linux/x64/app-builder appimage --stage /home/paulfitz/cvs/grist-desktop/dist/__appImage-x64 --arch x64 --output /home/paulfitz/cvs/grist-desktop/dist/grist-desktop-0.3.8-linux-x86_64.AppImage --app /home/paulfitz/cvs/grist-desktop/dist/linux-unpacked --configuration {"productName":"Grist Desktop","productFilename":"Grist Desktop","desktopEntry":"[Desktop Entry]\nName=Grist Desktop\nExec=AppRun --no-sandbox %U\nTerminal=false\nType=Application\nIcon=grist-desktop\nStartupWMClass=Grist Desktop\nX-AppImage-Version=0.3.8\nComment=Grist Desktop\nCategories=Office;\n","executableName":"grist-desktop","icons":[{"file":"/home/paulfitz/cvs/grist-desktop/core/static/icons/grist.png","size":1024}],"fileAssociations":[{"ext":"grist","name":"Grist Document","role":"Editor","icon":"core/static/icons/gristdoc","rank":"Owner"},{"ext":"csv","name":"Comma-Separated Values","role":"Viewer","rank":"Alternate"},{"ext":"tsv","name":"Tab-Separated Values","role":"Viewer","rank":"Alternate"},{"ext":"dsv","name":"Delimiter-Separated Values","role":"Viewer","rank":"Alternate"},{"ext":"txt","name":"Text File","role":"Viewer","rank":"Alternate"},{"ext":"xlsx","name":"Microsoft Excel Spreadsheet","role":"Viewer","rank":"Alternate"},{"ext":"xlsm","name":"Microsoft Excel Open XML Spreadsheet","role":"Viewer","rank":"Alternate"}],"artifactName":"${name}-${version}-${os}-${arch}.${ext}","icon":"core/static/icons/grist.png","category":"Office","target":["AppImage","flatpak"]} --license /home/paulfitz/cvs/grist-desktop/LICENSE.txt
+  • copy files      from=/home/paulfitz/cvs/grist-desktop/LICENSE.txt to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/LICENSE.txt isUseHardLinks=true
+  • map async       taskCount=1
+  • found existing  path=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1
+  • copy files      from=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/lib/x64 to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/usr/lib isUseHardLinks=true
+  • copy files      from=/home/paulfitz/cvs/grist-desktop/dist/linux-unpacked to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64 isUseHardLinks=true
+  • cannot copy using hard link  error=link /home/paulfitz/cvs/grist-desktop/dist/linux-unpacked/resources/app-update.yml /home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/resources/app-update.yml: file exists
+                                 from=/home/paulfitz/cvs/grist-desktop/dist/linux-unpacked/resources/app-update.yml
+                                 to=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64/resources/app-update.yml
+  • found existing  path=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1
+  • execute command  command=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/linux-x64/mksquashfs /home/paulfitz/cvs/grist-desktop/dist/__appImage-x64 /home/paulfitz/cvs/grist-desktop/dist/grist-desktop-0.3.8-linux-x86_64.AppImage -offset 188392 -all-root -noappend -no-progress -quiet -no-xattrs -no-fragments
+                     workingDirectory=/home/paulfitz/cvs/grist-desktop/dist/__appImage-x64
+  • command executed  executable=/home/paulfitz/.cache/electron-builder/appimage/appimage-12.0.1/linux-x64/mksquashfs
+  • exited          command=app-builder code=0 pid=90740 out={"size":302190841,"sha512":"U0QAAXLcp0XrJDIb3IcJQ24hljf8DA9TvrZq42sOglx3hcUl2jDdGHK9TBO2+23VTvk5ctmExHBc6fQnYEQIgg==","blockMapSize":315661}
+2026-01-21T21:37:56.640Z electron-builder:publish artifactCreated (isPublish: false): {
+  "file": "/home/paulfitz/cvs/grist-desktop/dist/grist-desktop-0.3.8-linux-x86_64.AppImage",
+  "safeArtifactName": null,
+  "target": {
+    "name": "appImage",
+    "isAsyncSupported": true,
+    "packager": "<stripped sensitive data>",
+    "helper": {
+      "packager": "<stripped sensitive data>",
+      "iconPromise": {
+        "_value": {},
+        "creator": null
+      },
+      "mimeTypeFilesPromise": {
+        "_value": null
+      },
+      "maxIconPath": "/home/paulfitz/cvs/grist-desktop/core/static/icons/grist.png"
+    },
+    "outDir": "/home/paulfitz/cvs/grist-desktop/dist",
+    "options": {
+      "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+      "icon": "core/static/icons/grist.png",
+      "category": "Office",
+      "target": [
+        "AppImage",
+        "flatpak"
+      ]
+    },
+    "desktopEntry": {
+      "_value": {},
+      "creator": null
+    }
+  },
+  "arch": 1,
+  "packager": "<stripped sensitive data>",
+  "isWriteUpdateInfo": true,
+  "updateInfo": {
+    "size": 302190841,
+    "sha512": "U0QAAXLcp0XrJDIb3IcJQ24hljf8DA9TvrZq42sOglx3hcUl2jDdGHK9TBO2+23VTvk5ctmExHBc6fQnYEQIgg==",
+    "blockMapSize": 315661
+  }
+},
+  publishConfigs: []
+  • getPublishConfigsForUpdateInfo: no publishConfigs, detect using repository info
+2026-01-21T21:37:56.641Z electron-builder:publish getPublishConfigsForUpdateInfo: {
+  "domain": "github.com",
+  "type": "github",
+  "user": "gristlabs",
+  "project": "grist-desktop"
+}
+  • calling getInfo  reason=owner or project is not specified explicitly provider=github owner=undefined project=undefined
+2026-01-21T21:37:56.641Z electron-builder:publish getPublishConfigsForUpdateInfo: resolve to publish config {
+  "owner": "gristlabs",
+  "repo": "grist-desktop",
+  "provider": "github"
+}
+  • async task error  error=flatpak failed with status code 1
+  ⨯ flatpak failed with status code 1  failedTask=build stackTrace=Error: flatpak failed with status code 1
+    at ChildProcess.<anonymous> (/home/paulfitz/cvs/grist-desktop/node_modules/@malept/flatpak-bundler/index.js:71:16)
+    at ChildProcess.emit (node:events:507:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at Process.ChildProcess._handle.onexit (node:internal/child_process:305:5)
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
