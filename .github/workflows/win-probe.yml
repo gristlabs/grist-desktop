@@ -64,5 +64,15 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./scripts/test-deployment.sh ChoiceList
+          yarn run test:electron:deployment ChoiceList
           echo "DEPLOY_EXIT=$?"
+
+      # For contrast: the existing mode, which forces unsandboxed. If this
+      # passes on windows while the above fails, the difference is the sandbox.
+      - name: Upstream tests, for contrast
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          yarn run test:electron:upstream ChoiceList
+          echo "UPSTREAM_EXIT=$?"
