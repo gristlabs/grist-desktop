@@ -142,7 +142,7 @@ if [ ! -e core/static_ext ] ; then
   mkdir core/static_ext
   ln -s ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepicker
   ln -s ../../node_modules/jquery core/static_ext/jquery
-  ln -s ../../node_modules/components-jqueryui core/static_ext/jqueryui
+  ln -s ../../node_modules/jquery-ui core/static_ext/jquery-ui
   ln -s ../../node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
 fi
 
