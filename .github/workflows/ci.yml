@@ -80,3 +80,7 @@ jobs:
       - name: Run core browser tests against the desktop app
         timeout-minutes: 30
         run: yarn run test:electron:upstream
+
+      - name: Run core browser tests against the desktop app as a server
+        timeout-minutes: 30
+        run: yarn run test:electron:deployment
