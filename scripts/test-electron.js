@@ -155,8 +155,13 @@ function waitForAlive(port, timeoutMs = 90_000) {
 async function runDeployment(mochaBin, appEntry, testFiles) {
   const port = parseInt(process.env.GRIST_PORT || '8686', 10);
   const state = fs.mkdtempSync(path.join(os.tmpdir(), 'grist-desktop-deploy-'));
-  const logPath = path.join(state, 'app.log');
-  const logFd = fs.openSync(logPath, 'a');
+  // Outside the state dir, which is torn down on the way out: when a test fails
+  // the server's own account of what happened is usually the only place the
+  // reason is recorded, and by then it is too late to go looking for it.
+  const logDir = process.env.GRIST_TEST_LOG_DIR || path.join(ROOT, 'test-logs');
+  fs.mkdirSync(logDir, {recursive: true});
+  const logPath = path.join(logDir, 'deployment-app.log');
+  const logFd = fs.openSync(logPath, 'w');
 
   const appEnv = {
     ...process.env,
@@ -195,6 +200,7 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     if (code !== 0) {
       console.log("--- last of the app's output ---");
       console.log(log.split('\n').slice(-30).join('\n'));
+      console.log(`--- all of it: ${logPath} ---`);
     }
     fs.closeSync(logFd);
     if (!process.env.KEEP_TMPDIR) { fs.rmSync(state, {recursive: true, force: true}); }
