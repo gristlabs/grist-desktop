@@ -220,12 +220,23 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   }
   console.log('[server alive]');
 
+  // Upstream's helpers budget for a sandbox that starts in milliseconds; the one
+  // this mode exists to exercise takes seconds. deployment-timeouts.js raises
+  // their floor to this, and mocha's own limit then has to leave room for a
+  // handful of them -- a suite that creates a document can spend two before it
+  // has run any of its own code.
+  const serverTimeout = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 10);
+  // A cold browser start takes longer than mocha-webdriver's own 20s setup hook
+  // allows on a windows runner, so the hooks need more room regardless.
+  const testTimeout = Math.max(60000, serverTimeout * 3);
+
   const child = spawn(process.execPath,
-    // A cold browser start takes longer than mocha-webdriver's own 20s setup
-    // hook allows on a windows runner, so give the hooks more room.
-    [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', '60000', ...testFiles],
+    [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', String(testTimeout),
+      '--require', path.join(ROOT, 'test/electron/deployment-timeouts.js'),
+      ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
       ...process.env,
+      GRIST_TEST_SERVER_TIMEOUT: String(serverTimeout),
       // mocha-webdriver builds its own chrome service with no driver path, so
       // selenium goes looking. Put ours where it will be found first, rather
       // than let Selenium Manager download one mid-test.
