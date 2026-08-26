@@ -39,19 +39,18 @@ const DEFAULT_UPSTREAM_SUITES = [
   'MultiColumn1', 'MultiColumn3', 'Pages', 'RowMenu', 'ToggleColumns',
 ];
 
-// The same suites also pass in deployment mode, along with ReferenceColumns,
-// which the window modes cannot run.
+// The same suites also pass in deployment mode, along with two the window modes
+// cannot run.
 //
-// ReferenceList is deliberately not here. It opens with
+// ReferenceList is a good illustration of what this mode is for. It opens with
 // testUtils.withoutSandboxing(), which sets GRIST_SANDBOX_FLAVOR in the mocha
 // process; here the app is a separate process that started before mocha did, so
 // that has no effect and the suite runs against the very sandbox it asked not to
-// use. Its three gu.sendActions() calls then sit right on the 5s of script time
-// the helper allows, and have been seen both to pass and to time out on the same
-// machine. Naming suites explicitly bypasses this list, so it can still be run
-// on purpose.
+// use. Its three gu.sendActions() calls then sat right on the 5s of script time
+// the helper allows, and were seen both to pass and to time out on the same
+// machine -- which is what deployment-timeouts.js exists to fix.
 const DEFAULT_DEPLOYMENT_SUITES = [
-  ...DEFAULT_UPSTREAM_SUITES, 'ReferenceColumns',
+  ...DEFAULT_UPSTREAM_SUITES, 'ReferenceColumns', 'ReferenceList',
 ];
 
 function parseArgs(argv) {
