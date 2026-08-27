@@ -69,7 +69,11 @@ export class GristApp {
     return gristUrl.doc !== undefined;
   }
 
-  public async run(initialFileToOpen: string|null) {
+  /**
+   * @param getInitialFileToOpen Read lazily, once startup is complete: on macOS the `open-file`
+   * event may only arrive while the async startup below is still in progress.
+   */
+  public async run(getInitialFileToOpen: () => string|null) {
 
     electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
       const instanceHandoverInfo = _additionalData as InstanceHandoverInfo;
@@ -180,11 +184,12 @@ export class GristApp {
       callback({requestHeaders: details.requestHeaders});
     });
 
-    if (initialFileToOpen === null) {
+    const fileToOpen = getInitialFileToOpen();
+    if (fileToOpen === null) {
       this.windowManager.add(null);
     } else {
       try {
-        await this.openFile(initialFileToOpen);
+        await this.openFile(fileToOpen);
       } catch(e) {
         this.windowManager.add(null);
         electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
