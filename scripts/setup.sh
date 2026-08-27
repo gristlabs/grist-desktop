@@ -158,8 +158,9 @@ echo "Configure Grist to include external Electron code during build"
 # Windows happy.
 rm -rf core/ext
 mkdir core/ext
-for f in $(cd ext; ls); do
-  ln -s $(readlink -f $PWD/ext/$f) core/ext/$f
+for source in ext/*; do
+  f=$(basename "$source")
+  ln -s "$(realpath "$source")" "core/ext/$f"
 done
 
 echo ""
