@@ -227,6 +227,11 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   const serverTimeout = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 10);
   // A cold browser start takes longer than mocha-webdriver's own 20s setup hook
   // allows on a windows runner, so the hooks need more room regardless.
+  //
+  // This is only a default. Several upstream suites declare this.timeout(20000)
+  // of their own, and a suite's own number wins over the command line, so the
+  // plugin has to raise those from the inside; it is given the same number here
+  // rather than recomputing it.
   const testTimeout = Math.max(60000, serverTimeout * 3);
 
   const child = spawn(process.execPath,
@@ -236,6 +241,7 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     {stdio: 'inherit', cwd: ROOT, env: {
       ...process.env,
       GRIST_TEST_SERVER_TIMEOUT: String(serverTimeout),
+      GRIST_TEST_TIMEOUT: String(testTimeout),
       // mocha-webdriver builds its own chrome service with no driver path, so
       // selenium goes looking. Put ours where it will be found first, rather
       // than let Selenium Manager download one mid-test.

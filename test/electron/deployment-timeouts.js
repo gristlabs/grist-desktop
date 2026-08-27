@@ -30,7 +30,27 @@ const path = require('path');
 // case and expects whoever loaded it early to pass on getMochaHooks() instead.
 // Without this, every suite fails its "before all" hook with
 // "WebDriver accessed before initialization".
-exports.mochaHooks = require('mocha-webdriver').getMochaHooks();
+const hooks = require('mocha-webdriver').getMochaHooks();
+
+// Raising the floor under the helpers is not enough on its own. A helper may now
+// wait 30s for the server, but several upstream suites open with
+// this.timeout(20000) -- ActionLog, ChoiceList, DuplicateDocument and
+// ReferenceColumns all do -- and a suite's own number beats mocha's --timeout. A
+// helper allowed to wait longer than the test containing it is not waiting at
+// all: the test dies first, and on a machine slow enough to need the floor that
+// is exactly what happens. So the same floor is applied to the test.
+//
+// It goes on currentTest rather than on `this`, which inside a beforeEach would
+// only set the hook's own timeout. Tests that already ask for longer keep it.
+const TEST_FLOOR = parseInt(process.env.GRIST_TEST_TIMEOUT || '90000', 10);
+hooks.beforeEach = function () {
+  const test = this.currentTest;
+  if (test && test.timeout() > 0 && test.timeout() < TEST_FLOOR) {
+    test.timeout(TEST_FLOOR);
+  }
+};
+
+exports.mochaHooks = hooks;
 
 const FLOOR = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 10);
 
