@@ -87,7 +87,10 @@ electronProgram
     // Only when argv actually carried a path: on macOS it arrives via `open-file` instead,
     // and must not be clobbered here.
     if (docPath !== undefined) {
-      initialFileToOpen = docPath;
+      // Resolve now, while the working directory is still the one the command was invoked from:
+      // starting the Grist server chdirs to the app root, so a relative path would resolve
+      // against that instead and we would silently create a new document there.
+      initialFileToOpen = path.resolve(docPath);
     }
   });
 
