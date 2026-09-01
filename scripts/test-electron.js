@@ -172,6 +172,10 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     GRIST_TEST_LOGIN: '1',
     GRIST_SESSION_COOKIE: 'grist_test_cookie',
     TEST_SUPPORT_API_KEY: 'api_key_for_support',
+    // The rest of what core gives a server it tests against; see the docker run
+    // in core/test/test_under_docker.sh and core/test/test_env.sh.
+    GRIST_IN_SERVICE: 'true',
+    LANGUAGE: 'en_US',
     GRIST_INST_DIR: path.join(state, 'inst'),
     GRIST_DATA_DIR: path.join(state, 'docs'),
     TYPEORM_DATABASE: path.join(state, 'landing.db'),
@@ -234,13 +238,41 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   // rather than recomputing it.
   const testTimeout = Math.max(60000, serverTimeout * 3);
 
+  // Run mocha from core's directory, as core runs it. Mocha finds its config by
+  // searching up from the cwd, so this is what loads the "mocha" block in
+  // core/package.json -- the six requires every core mocha run has and the
+  // borrowed suites are written to expect. Running from this repo's root found
+  // no config at all and loaded none of them, silently. Two of them matter here:
+  // setupPaths computes its module paths from process.cwd(), so nothing but the
+  // right cwd will do, and init-mocha-webdriver settles window size, chai's
+  // truncation threshold, stacktraces, browser choice, and suppression of the
+  // "controlled by automated software" banner, which upstream turns off because
+  // it can swallow early clicks. We had been re-deriving pieces of those two by
+  // hand -- NODE_PATH, SELENIUM_BROWSER -- one visible failure at a time, and
+  // getting only the pieces whose absence was visible.
   const child = spawn(process.execPath,
-    [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', String(testTimeout),
+    [mochaBin, '--reporter', 'spec', '--slow', '8000', '--timeout', String(testTimeout),
       '--require', path.join(ROOT, 'test/electron/deployment-timeouts.js'),
       '--require', path.join(ROOT, 'test/electron/failure-dump.js'),
       ...testFiles],
-    {stdio: 'inherit', cwd: ROOT, env: {
+    {stdio: 'inherit', cwd: path.join(ROOT, 'core'), env: {
       ...process.env,
+
+      // What core sets for its own nbrowser runs: test/test_env.sh, the
+      // test:nbrowser script in its package.json, and the nbrowser jobs in its
+      // CI workflow. Headless is not a detail -- core's testUtils registers a
+      // mocha-webdriver options hook that fixes the window at 1920x1080 when it
+      // is set, so this is the geometry upstream actually validates these suites
+      // at. Without it the window is whatever the runner's desktop gives, which
+      // differs per platform.
+      MOCHA_WEBDRIVER_HEADLESS: '1',
+      LANGUAGE: 'en_US',
+      GRIST_SESSION_COOKIE: 'grist_test_cookie',
+      TEST_SUPPORT_API_KEY: 'api_key_for_support',
+      TEST_ACCOUNT_PASSWORD: 'not-needed',
+
+      // What this mode needs on top, and nothing else.
+      HOME_URL: `http://localhost:${port}`,
       GRIST_TEST_SERVER_TIMEOUT: String(serverTimeout),
       GRIST_TEST_TIMEOUT: String(testTimeout),
       // Where failure-dump.js writes; the same directory CI already collects.
@@ -255,13 +287,6 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
       // selenium goes looking. Put ours where it will be found first, rather
       // than let Selenium Manager download one mid-test.
       PATH: [path.dirname(require('chromedriver').path), process.env.PATH].join(path.delimiter),
-      NODE_PATH: [path.join(ROOT, 'core/_build'), path.join(ROOT, 'core/_build/ext'),
-        path.join(ROOT, 'core/_build/stubs')].join(path.delimiter),
-      HOME_URL: `http://localhost:${port}`,
-      GRIST_SESSION_COOKIE: 'grist_test_cookie',
-      TEST_ACCOUNT_PASSWORD: 'not-needed',
-      SELENIUM_BROWSER: 'chrome',
-      MOCHA_WEBDRIVER_IGNORE_CHROME_VERSION: '1',
     }});
   mochaRunning = true;
   child.on('exit', code => finish(code ?? 1));

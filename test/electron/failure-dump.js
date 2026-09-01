@@ -61,6 +61,7 @@ function probe() {
 
   const active = document.activeElement;
   return {
+    viewport: {w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio},
     cursor,
     menus,
     headers,
