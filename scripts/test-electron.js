@@ -237,11 +237,14 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   const child = spawn(process.execPath,
     [mochaBin, '--reporter', 'spec', '--slow', '6000', '--timeout', String(testTimeout),
       '--require', path.join(ROOT, 'test/electron/deployment-timeouts.js'),
+      '--require', path.join(ROOT, 'test/electron/failure-dump.js'),
       ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
       ...process.env,
       GRIST_TEST_SERVER_TIMEOUT: String(serverTimeout),
       GRIST_TEST_TIMEOUT: String(testTimeout),
+      // Where failure-dump.js writes; the same directory CI already collects.
+      GRIST_TEST_DUMP_DIR: logDir,
       // mocha-webdriver builds its own chrome service with no driver path, so
       // selenium goes looking. Put ours where it will be found first, rather
       // than let Selenium Manager download one mid-test.
