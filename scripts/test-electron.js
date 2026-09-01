@@ -245,6 +245,12 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
       GRIST_TEST_TIMEOUT: String(testTimeout),
       // Where failure-dump.js writes; the same directory CI already collects.
       GRIST_TEST_DUMP_DIR: logDir,
+      // Upstream's own per-failure capture (mocha-webdriver's enableDebugCapture,
+      // which every suite installs through setupTestSuite) is keyed on this and
+      // does nothing without it. It costs a screenshot and the browser console
+      // for each failed test, which is the one log we have never had.
+      MOCHA_WEBDRIVER_LOGDIR: logDir,
+      MOCHA_WEBDRIVER_LOGTYPES: 'browser',
       // mocha-webdriver builds its own chrome service with no driver path, so
       // selenium goes looking. Put ours where it will be found first, rather
       // than let Selenium Manager download one mid-test.
