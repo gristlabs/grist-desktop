@@ -97,22 +97,28 @@ jobs:
   # (follow-redirects' setTimeout adds it, its clearTimer never removes it), and
   # node's global agent arms a five second idle timer on pooled sockets. A later
   # request that takes longer than that to answer is destroyed under itself.
-  # test/probes/no-idle-timer.js disables the timer.
   #
   # A theory that only explains a failure is worth less than one that removes
-  # it, so run the failing suite both ways and compare. Alternating the two arms
-  # within one job, rather than running a job each, is deliberate: the first
-  # attempt ran them as a matrix and the two arms disagreed in a way that could
-  # equally have been the fix working or the two runners having built different
-  # things. One machine, one build, alternating rounds answers that.
+  # it, so run the failing suite against two cures and a control. The cures
+  # disagree about what to blame: no-idle-timer.js keeps the leaked listener and
+  # disarms the timer, unhook-timeout.js keeps the timer and removes the
+  # listener. If the narrow one is enough, node's timer is exonerated and axios
+  # is the whole story.
+  #
+  # The arms alternate within one job rather than running a job each. The first
+  # attempt ran them as a matrix and they disagreed in a way that could equally
+  # have been the fix working or the two runners having built different things.
+  # One machine, one build, round-robin rounds answers that.
   #
   # The rounds do not fail the step: the tally is the result, and a step that
-  # stopped at the first failure would only ever report the control arm's first
-  # round. The app's own log is kept per round, because a round that fails
-  # server-side leaves its only account there.
+  # stopped at the first failure would only ever report the control's first
+  # round. Every round leaves its own app log, and the digest pulls the few
+  # lines worth reading out of each -- what the sandbox was asked to do, and
+  # what it raised -- so the job log answers the question without anyone
+  # downloading an artifact.
   fix:
     runs-on: macos-15-intel
-    name: ActionLog with the idle timer alternating (macos-15-intel)
+    name: ActionLog against two cures and a control (macos-15-intel)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -141,31 +147,74 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      # The trace runs in both arms. It costs nothing and it says which
+      # The trace runs in every arm. It costs nothing and it says which
       # mechanism was at work, so a round that fails for some other reason
       # cannot be mistaken for this one.
-      - name: Run ActionLog six times, alternating
-        timeout-minutes: 90
+      - name: Run ActionLog against each arm three times
+        id: arms
+        timeout-minutes: 60
         env:
           GRIST_TEST_SOCKET_TRACE: '1'
         run: |
-          pass_off=0; fail_off=0; pass_on=0; fail_on=0
-          for round in 1 2 3 4 5 6; do
-            if [ $((round % 2)) -eq 1 ]; then
-              arm=off; unset GRIST_TEST_NO_IDLE_TIMER
-            else
-              arm=on; export GRIST_TEST_NO_IDLE_TIMER=1
-            fi
-            export GRIST_TEST_LOG_DIR="$PWD/test-logs/round-$round-$arm"
-            echo "=== round $round (idle timer $arm) ==="
+          digest() {
+            log="$1/deployment-app.log"
+            if [ ! -f "$log" ]; then echo "  digest: no app log"; return; fi
+            echo "  what the sandbox was asked to do:"
+            grep -o "funcName=[a-z_]*" "$log" | sort | uniq -c | sed "s/^/    /"
+            echo "  what it raised:"
+            grep -o "SandboxError: \[Sandbox\] [A-Za-z]*Error [^,]*" "$log" |
+              sort -u | sed "s/^/    /" || true
+            echo "  how the applies ended:"
+            echo "    done: $(grep -c "applyUserActions done" "$log" || true)"
+          }
+          pass_off=0; pass_notimer=0; pass_unhook=0
+          fail_off=0; fail_notimer=0; fail_unhook=0
+          for round in 1 2 3 4 5 6 7 8 9; do
+            unset GRIST_TEST_NO_IDLE_TIMER GRIST_TEST_UNHOOK_TIMEOUT
+            case $((round % 3)) in
+              1) arm=off ;;
+              2) arm=notimer; export GRIST_TEST_NO_IDLE_TIMER=1 ;;
+              0) arm=unhook; export GRIST_TEST_UNHOOK_TIMEOUT=1 ;;
+            esac
+            dir="$PWD/test-logs/round-$round-$arm"
+            export GRIST_TEST_LOG_DIR="$dir"
+            echo "=== round $round ($arm) ==="
             if node ./scripts/test-electron.js --deployment ActionLog; then
-              if [ "$arm" = off ]; then pass_off=$((pass_off + 1)); else pass_on=$((pass_on + 1)); fi
+              ok=1
             else
-              if [ "$arm" = off ]; then fail_off=$((fail_off + 1)); else fail_on=$((fail_on + 1)); fi
+              ok=0
             fi
+            case $arm in
+              off) [ $ok = 1 ] && pass_off=$((pass_off + 1)) || fail_off=$((fail_off + 1)) ;;
+              notimer) [ $ok = 1 ] && pass_notimer=$((pass_notimer + 1)) || fail_notimer=$((fail_notimer + 1)) ;;
+              unhook) [ $ok = 1 ] && pass_unhook=$((pass_unhook + 1)) || fail_unhook=$((fail_unhook + 1)) ;;
+            esac
+            echo "--- round $round ($arm) digest ---"
+            digest "$dir"
           done
-          echo "idle timer off: $pass_off passed, $fail_off failed" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "idle timer on:  $pass_on passed, $fail_on failed" | tee -a "$GITHUB_STEP_SUMMARY"
+          {
+            echo "control:            $pass_off passed, $fail_off failed"
+            echo "idle timer off:     $pass_notimer passed, $fail_notimer failed"
+            echo "listener unhooked:  $pass_unhook passed, $fail_unhook failed"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          # Whichever cure held up carries into the full-suite step. The narrow
+          # one is preferred when both do: it leaves node's socket reaping alone.
+          if [ $fail_unhook = 0 ]; then echo "winner=unhook" >> "$GITHUB_OUTPUT"
+          elif [ $fail_notimer = 0 ]; then echo "winner=notimer" >> "$GITHUB_OUTPUT"
+          else echo "winner=none" >> "$GITHUB_OUTPUT"; fi
+
+      # One suite passing is not the question anyone is really asking. This is:
+      # does the mac job go green. Skipped when neither cure held, since there
+      # would be nothing to run it with.
+      - name: Run the whole deployment set with the cure that held
+        if: always() && (steps.arms.outputs.winner == 'unhook' || steps.arms.outputs.winner == 'notimer')
+        timeout-minutes: 45
+        env:
+          GRIST_TEST_SOCKET_TRACE: '1'
+          GRIST_TEST_NO_IDLE_TIMER: ${{ steps.arms.outputs.winner == 'notimer' && '1' || '' }}
+          GRIST_TEST_UNHOOK_TIMEOUT: ${{ steps.arms.outputs.winner == 'unhook' && '1' || '' }}
+          GRIST_TEST_LOG_DIR: ${{ github.workspace }}/test-logs/full-suite
+        run: node ./scripts/test-electron.js --deployment
 
       - name: Save the app logs from every round
         if: always()
