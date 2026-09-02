@@ -92,27 +92,27 @@ jobs:
           path: test-logs/
           if-no-files-found: ignore
 
-  # Phase three. Phase two named the mechanism: axios leaves a
-  # socket.destroy listener on the 'timeout' event of every keep-alive socket it
-  # touches (follow-redirects' setTimeout adds it, its clearTimer never removes
-  # it), and node's global agent arms a five second idle timer on pooled
-  # sockets. A later request that takes longer than that to answer is destroyed
-  # under itself. test/probes/no-idle-timer.js disables the timer.
+  # Phase three. Phase two named the mechanism: axios leaves a socket.destroy
+  # listener on the 'timeout' event of every keep-alive socket it touches
+  # (follow-redirects' setTimeout adds it, its clearTimer never removes it), and
+  # node's global agent arms a five second idle timer on pooled sockets. A later
+  # request that takes longer than that to answer is destroyed under itself.
+  # test/probes/no-idle-timer.js disables the timer.
   #
   # A theory that only explains a failure is worth less than one that removes
-  # it, so this runs the failing suite both ways on the same runner. Three
-  # rounds an arm, because one green run of a flaky suite proves nothing. The
-  # rounds do not fail the step: the tally is the result, and a step that stops
-  # at the first failure would only ever report the control arm's first round.
+  # it, so run the failing suite both ways and compare. Alternating the two arms
+  # within one job, rather than running a job each, is deliberate: the first
+  # attempt ran them as a matrix and the two arms disagreed in a way that could
+  # equally have been the fix working or the two runners having built different
+  # things. One machine, one build, alternating rounds answers that.
+  #
+  # The rounds do not fail the step: the tally is the result, and a step that
+  # stopped at the first failure would only ever report the control arm's first
+  # round. The app's own log is kept per round, because a round that fails
+  # server-side leaves its only account there.
   fix:
     runs-on: macos-15-intel
-    name: ActionLog with the idle timer ${{ matrix.fix }} (macos-15-intel)
-    strategy:
-      fail-fast: false
-      matrix:
-        fix:
-          - 'off'
-          - 'on'
+    name: ActionLog with the idle timer alternating (macos-15-intel)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -144,20 +144,33 @@ jobs:
       # The trace runs in both arms. It costs nothing and it says which
       # mechanism was at work, so a round that fails for some other reason
       # cannot be mistaken for this one.
-      - name: Run ActionLog three times
+      - name: Run ActionLog six times, alternating
         timeout-minutes: 90
         env:
           GRIST_TEST_SOCKET_TRACE: '1'
-          GRIST_TEST_NO_IDLE_TIMER: ${{ matrix.fix == 'on' && '1' || '' }}
         run: |
-          pass=0
-          fail=0
-          for round in 1 2 3; do
-            echo "=== round $round (idle timer ${{ matrix.fix }}) ==="
-            if node ./scripts/test-electron.js --deployment ActionLog; then
-              pass=$((pass + 1))
+          pass_off=0; fail_off=0; pass_on=0; fail_on=0
+          for round in 1 2 3 4 5 6; do
+            if [ $((round % 2)) -eq 1 ]; then
+              arm=off; unset GRIST_TEST_NO_IDLE_TIMER
             else
-              fail=$((fail + 1))
+              arm=on; export GRIST_TEST_NO_IDLE_TIMER=1
+            fi
+            export GRIST_TEST_LOG_DIR="$PWD/test-logs/round-$round-$arm"
+            echo "=== round $round (idle timer $arm) ==="
+            if node ./scripts/test-electron.js --deployment ActionLog; then
+              if [ "$arm" = off ]; then pass_off=$((pass_off + 1)); else pass_on=$((pass_on + 1)); fi
+            else
+              if [ "$arm" = off ]; then fail_off=$((fail_off + 1)); else fail_on=$((fail_on + 1)); fi
             fi
           done
-          echo "idle timer ${{ matrix.fix }}: $pass passed, $fail failed" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "idle timer off: $pass_off passed, $fail_off failed" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "idle timer on:  $pass_on passed, $fail_on failed" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Save the app logs from every round
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fix-logs
+          path: test-logs/
+          if-no-files-found: ignore
