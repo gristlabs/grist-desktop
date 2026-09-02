@@ -261,6 +261,8 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
         ['--require', path.join(ROOT, 'test/probes/no-idle-timer.js')] : []),
       ...(process.env.GRIST_TEST_UNHOOK_TIMEOUT ?
         ['--require', path.join(ROOT, 'test/probes/unhook-timeout.js')] : []),
+      ...(process.env.GRIST_TEST_AXIOS_POOL ?
+        ['--require', path.join(ROOT, 'test/probes/axios-own-pool.js')] : []),
       ...testFiles],
     {stdio: 'inherit', cwd: path.join(ROOT, 'core'), env: {
       ...process.env,

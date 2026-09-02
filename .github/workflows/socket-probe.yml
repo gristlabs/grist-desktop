@@ -117,6 +117,7 @@ jobs:
   # what it raised -- so the job log answers the question without anyone
   # downloading an artifact.
   fix:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15-intel
     name: ActionLog against two cures and a control (macos-15-intel)
     steps:
@@ -221,5 +222,91 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fix-logs
+          path: test-logs/
+          if-no-files-found: ignore
+
+  # Phase five. Phase four settled the mechanism: nine rounds on one machine,
+  # the control failing all three of its and both cures passing all of theirs,
+  # and the whole deployment set green under one of them. What is left is the
+  # cure we would actually propose, in the shape it would take.
+  #
+  # axios-own-pool.js changes nothing global -- no prototype patch, no change to
+  # what node does with anyone else's sockets -- so it is the one a reviewer can
+  # take on its face. It is also the only one of the three not yet run against
+  # the real suite. No control arm: the control has failed six for six across
+  # two runs, and another five minutes of it would not tell us anything.
+  pool:
+    runs-on: macos-15-intel
+    name: ActionLog and the full set with axios on its own pool (macos-15-intel)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: yarn install --network-timeout 300000 --ignore-optional
+
+      - name: Hooks and crooks
+        run: yarn run setup
+        env:
+          RUN_OS: macos-15-intel
+          RUN_ARCH: x64
+
+      - name: Build
+        run: yarn run build
+
+      - name: Build core browser tests
+        run: yarn run build:tests
+
+      - name: Run ActionLog three times
+        timeout-minutes: 30
+        env:
+          GRIST_TEST_SOCKET_TRACE: '1'
+          GRIST_TEST_AXIOS_POOL: '1'
+        run: |
+          pass=0; fail=0
+          for round in 1 2 3; do
+            dir="$PWD/test-logs/round-$round"
+            export GRIST_TEST_LOG_DIR="$dir"
+            echo "=== round $round ==="
+            if node ./scripts/test-electron.js --deployment ActionLog; then
+              pass=$((pass + 1))
+            else
+              fail=$((fail + 1))
+            fi
+            echo "--- round $round digest ---"
+            if [ -f "$dir/deployment-app.log" ]; then
+              grep -o "funcName=[a-z_]*" "$dir/deployment-app.log" | sort | uniq -c | sed "s/^/    /"
+              grep -o "SandboxError: \[Sandbox\] [A-Za-z]*Error [^,]*" "$dir/deployment-app.log" |
+                sort -u | sed "s/^/    /" || true
+            else
+              echo "    no app log"
+            fi
+          done
+          echo "axios on its own pool: $pass passed, $fail failed" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The gate. Unlike the rounds above this one is allowed to fail the job,
+      # because a green here is the whole claim.
+      - name: Run the whole deployment set
+        timeout-minutes: 45
+        env:
+          GRIST_TEST_SOCKET_TRACE: '1'
+          GRIST_TEST_AXIOS_POOL: '1'
+          GRIST_TEST_LOG_DIR: ${{ github.workspace }}/test-logs/full-suite
+        run: node ./scripts/test-electron.js --deployment
+
+      - name: Save the app logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pool-logs
           path: test-logs/
           if-no-files-found: ignore
