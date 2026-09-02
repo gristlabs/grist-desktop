@@ -1,0 +1,41 @@
+# Throwaway diagnostic, not part of CI. Delete with test/probes/socket-idle.js.
+#
+# Deployment mode's ActionLog failure is a socket closed almost exactly five
+# seconds into a request the server then answers successfully, on macos-15-intel
+# and nowhere else. Nothing reproduces it locally. This asks the narrowest version
+# of the question the runners can answer: does an idle HTTP request survive five
+# seconds on each of them, with neither Grist nor Electron in the picture.
+#
+# Runs on push to its own branch and never merges, so it costs the main workflow
+# nothing. Deliberately does not install dependencies or build: node's own http
+# client is what node-fetch drives underneath, and keeping the job to a checkout
+# and a script means a result in about two minutes.
+name: Socket probe
+on:
+  push:
+    branches:
+      - socket-probe
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-15-intel
+          - macos-14
+          - ubuntu-22.04
+          - windows-2022
+    name: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The version the failing job runs, since the client is node's.
+          node-version: 22
+
+      - name: Probe
+        run: node ./test/probes/socket-idle.js
