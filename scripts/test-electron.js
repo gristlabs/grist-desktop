@@ -254,6 +254,9 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     [mochaBin, '--reporter', 'spec', '--slow', '8000', '--timeout', String(testTimeout),
       '--require', path.join(ROOT, 'test/electron/deployment-timeouts.js'),
       '--require', path.join(ROOT, 'test/electron/failure-dump.js'),
+      // Throwaway; goes with test/probes/. Gated so it is one line to drop.
+      ...(process.env.GRIST_TEST_SOCKET_TRACE ?
+        ['--require', path.join(ROOT, 'test/probes/socket-trace.js')] : []),
       ...testFiles],
     {stdio: 'inherit', cwd: path.join(ROOT, 'core'), env: {
       ...process.env,
