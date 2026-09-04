@@ -156,9 +156,9 @@ async function startDriver() {
 
   mw.setDriver(driver);
   await waitForServer(`http://localhost:${PORT}`);
-  // Only the borrowed Grist test suites need this extra setup. The desktop's
-  // own checks (Smoke, Probe) just open the app and look at it, so we skip it
-  // for them — which also lets them run without first building Grist's tests.
+  // Only the borrowed Grist suites need this extra setup, so the desktop's own
+  // checks skip it -- which also lets them run without building Grist's tests
+  // first.
   if (process.env.GRIST_DESKTOP_TEST_UPSTREAM === '1') {
     await wireUpstreamTestServer();
   }

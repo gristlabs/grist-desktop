@@ -138,13 +138,14 @@ set -x
 
 echo "======================================================================="
 echo "Fix paths for static resources that are node_module symlinks in core"
-if [ ! -e core/static_ext ] ; then
-  mkdir core/static_ext
-  ln -s ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepicker
-  ln -s ../../node_modules/jquery core/static_ext/jquery
-  ln -s ../../node_modules/components-jqueryui core/static_ext/jqueryui
-  ln -s ../../node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
-fi
+# Rebuilt from scratch every time: relinking alone leaves a link behind under its
+# old name when one of these is renamed, and core/static_ext is packaged as-is.
+rm -rf core/static_ext
+mkdir -p core/static_ext
+ln -sfn ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepicker
+ln -sfn ../../node_modules/jquery core/static_ext/jquery
+ln -sfn ../../node_modules/jquery-ui core/static_ext/jquery-ui
+ln -sfn ../../node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
 
 echo ""
 echo "======================================================================="

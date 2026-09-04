@@ -8,6 +8,7 @@ on:
       - '*'
 env:
   FORCE_COLOR: 1
+  GRIST_SKIP_EXT_AUTOSETUP: 1
   # This makes the macos-13 packaging work.
   # I don't know why. Your guess is as good as mine.
   DEBUG_DMG: true
