@@ -75,8 +75,28 @@ jobs:
         run: yarn run test
 
       - name: Build core browser tests
+        id: build_tests
         run: yarn run build:tests
 
       - name: Run core browser tests against the desktop app
         timeout-minutes: 30
         run: yarn run test:electron:upstream
+
+      # The two modes test different things and fail for different reasons, so
+      # one flaking should not cost us the other's result -- on windows it
+      # already has, for a whole cycle. Run this whenever there is something to
+      # run it against, and let the job fail on whichever step failed.
+      - name: Run core browser tests against the desktop app as a server
+        if: always() && steps.build_tests.outcome == 'success'
+        timeout-minutes: 30
+        run: yarn run test:electron:deployment
+
+      # The failures worth understanding here are server-side, and the browser
+      # log alone does not explain them.
+      - name: Save the server log from the deployment tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-log-${{ matrix.os }}-${{ matrix.target }}
+          path: test-logs/
+          if-no-files-found: ignore
