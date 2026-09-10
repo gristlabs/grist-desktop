@@ -69,7 +69,11 @@ export class GristApp {
     return gristUrl.doc !== undefined;
   }
 
-  public async run(initialFileToOpen: string|null) {
+  /**
+   * @param getInitialFileToOpen Read lazily, once startup is complete: on macOS the `open-file`
+   * event may only arrive while the async startup below is still in progress.
+   */
+  public async run(getInitialFileToOpen: () => string|null) {
 
     electron.app.on("second-instance", (_e, _argv, _cwd, _additionalData) => {
       const instanceHandoverInfo = _additionalData as InstanceHandoverInfo;
@@ -180,11 +184,12 @@ export class GristApp {
       callback({requestHeaders: details.requestHeaders});
     });
 
-    if (initialFileToOpen === null) {
+    const fileToOpen = getInitialFileToOpen();
+    if (fileToOpen === null) {
       this.windowManager.add(null);
     } else {
       try {
-        await this.openFile(initialFileToOpen);
+        await this.openFile(fileToOpen);
       } catch(e) {
         this.windowManager.add(null);
         electron.dialog.showErrorBox("Cannot open file", (e as Error).message);
@@ -246,14 +251,17 @@ export class GristApp {
 
   /**
    * Opens the file at filepath. File can be a Grist document, or an importable document.
-   * @param filePath Path to the file to open. Can be relative.
+   * @param filePath Absolute path to the file to open. Relative paths must be resolved by the
+   *                 caller, while the working directory is still meaningful: starting the Grist
+   *                 server chdirs to the app root, so resolving here would give the wrong file.
    * @param requestWindow The window associated with the open request. If this window is not showing
    *                      a document already, it will be reused for the newly opened document.
    */
   public async openFile(filePath: string, requestWindow?: electron.BrowserWindow) {
 
-    // Use absolute path only from now on.
-    filePath = path.resolve(filePath);
+    if (!path.isAbsolute(filePath)) {
+      throw new Error(`Cannot open ${filePath}: expected an absolute path`);
+    }
     const ext = path.extname(filePath);
 
     if (ext === ".grist") {

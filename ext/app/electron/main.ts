@@ -84,7 +84,14 @@ electronProgram
         console.error(e);
       }
     }
-    initialFileToOpen = docPath ?? null;
+    // Only when argv actually carried a path: on macOS it arrives via `open-file` instead,
+    // and must not be clobbered here.
+    if (docPath !== undefined) {
+      // Resolve now, while the working directory is still the one the command was invoked from:
+      // starting the Grist server chdirs to the app root, so a relative path would resolve
+      // against that instead and we would silently create a new document there.
+      initialFileToOpen = path.resolve(docPath);
+    }
   });
 
 if (IS_TEST_MODE) {
@@ -114,7 +121,8 @@ async function main() {
     await loadConfig();
     try {
       setupLogging();
-      GristApp.instance.run(initialFileToOpen);
+      // Passed as a getter, not a value: `open-file` may still land during startup.
+      GristApp.instance.run(() => initialFileToOpen);
     } catch(err) {
       log.error(`Failed to load config, aborting: ${err}`);
       process.exit(1);
