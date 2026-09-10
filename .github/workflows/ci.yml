@@ -83,13 +83,14 @@ jobs:
         run: yarn run test:electron:upstream
 
       - name: Run core browser tests against the desktop app as a server
-        timeout-minutes: 30
+        # macos-15-intel, the slowest runner, has run past 30 minutes here.
+        timeout-minutes: 45
         run: yarn run test:electron:deployment
 
-      - name: Save the logs from the deployment tests
+      - name: Save the logs from the browser tests
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-logs-${{ matrix.os }}-${{ matrix.target }}
+          name: test-logs-${{ matrix.os }}-${{ matrix.target }}
           path: test-logs/
           if-no-files-found: ignore
