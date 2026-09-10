@@ -7,8 +7,9 @@
  *   scripts/test-electron.js --upstream Foo Bar # named suites, same mode
  *   scripts/test-electron.js --deployment       # core's suites, app as server
  *
- * The first two make the app's own window impersonate a browser, through the
- * shims in test/electron/setup.js, and default the sandbox to unsandboxed.
+ * The first two use the app itself as the browser: chromedriver drives the app's
+ * own window, through the shims in test/electron/setup.js, and the sandbox
+ * defaults to unsandboxed.
  *
  * Deployment mode instead runs the app as an ordinary Grist server and points a
  * separate headless Chrome at it, the way core runs these suites against a server
@@ -34,7 +35,7 @@ const DEFAULT_UPSTREAM_SUITES = [
   'MultiColumn1', 'MultiColumn3', 'Pages', 'RowMenu', 'ToggleColumns',
 ];
 
-// The two extra suites do not run in the window modes.
+// The two extra suites do not pass with the app as the browser.
 const DEFAULT_DEPLOYMENT_SUITES = [
   ...DEFAULT_UPSTREAM_SUITES, 'ReferenceColumns', 'ReferenceList',
 ];
@@ -61,6 +62,17 @@ function resolveTestFiles(mode, names) {
     }
     throw new Error(`test not found: ${name} (not in deployment/ or nbrowser/)`);
   });
+}
+
+/**
+ * Directory for what a failed run leaves behind: screenshots in either mode, and
+ * the app's log in deployment mode. Not under the state dir, which is deleted
+ * when the run ends.
+ */
+function testLogDir() {
+  const dir = process.env.GRIST_TEST_LOG_DIR || path.join(ROOT, 'test-logs');
+  fs.mkdirSync(dir, {recursive: true});
+  return dir;
 }
 
 function checkPrereqs() {
@@ -277,10 +289,7 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
   const port = parseInt(process.env.GRIST_PORT || '8686', 10);
   await ensurePortFree(port);
   const state = fs.mkdtempSync(path.join(os.tmpdir(), 'grist-desktop-deploy-'));
-  // Kept outside the state dir, which is torn down on the way out: when a test
-  // fails, the server's log is usually the only record of why.
-  const logDir = process.env.GRIST_TEST_LOG_DIR || path.join(ROOT, 'test-logs');
-  fs.mkdirSync(logDir, {recursive: true});
+  const logDir = testLogDir();
   const logPath = path.join(logDir, 'deployment-app.log');
   const logFd = fs.openSync(logPath, 'w');
 
@@ -327,15 +336,22 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
 }
 
 /**
- * Runs the tests against the app's own window, which test/electron/setup.js starts
- * and dresses up as a browser.
+ * Runs the tests with the app itself as the browser: test/electron/setup.js starts
+ * the app and dresses its window up as one.
  */
-function runWindowMode(mochaBin, mode, testFiles) {
+function runAppAsBrowser(mochaBin, mode, testFiles) {
   const child = spawn(process.execPath,
     [mochaBin, '--reporter', 'spec', '--slow', '10000',
       '--require', path.join(ROOT, 'test/electron/setup.js'),
       ...testFiles],
-    {stdio: 'inherit', cwd: ROOT, env: buildEnv(mode)});
+    {stdio: 'inherit', cwd: ROOT, env: {
+      ...buildEnv(mode),
+      // core's suites save a screenshot when a test fails, but only if this is set.
+      MOCHA_WEBDRIVER_LOGDIR: testLogDir(),
+      // Screenshots only: the default log types also fetch logs in a beforeEach,
+      // and a session that rejects that call would fail every test.
+      MOCHA_WEBDRIVER_LOGTYPES: '',
+    }});
   child.on('exit', code => process.exit(code ?? 1));
 }
 
@@ -348,7 +364,7 @@ function main() {
   const testFiles = resolveTestFiles(mode, names);
   return mode === 'deployment'
     ? runDeployment(mochaBin, appEntry, testFiles)
-    : runWindowMode(mochaBin, mode, testFiles);
+    : runAppAsBrowser(mochaBin, mode, testFiles);
 }
 
 Promise.resolve().then(main).catch((e) => {
