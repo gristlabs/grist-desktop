@@ -2,7 +2,7 @@
 /*
  * Runs the app's browser tests, in one of three modes:
  *
- *   scripts/test-electron.js                    # our own smoke test
+ *   scripts/test-electron.js                    # our own tests
  *   scripts/test-electron.js --upstream         # core's suites, app as browser
  *   scripts/test-electron.js --upstream Foo Bar # named suites, same mode
  *   scripts/test-electron.js --deployment       # core's suites, app as server
@@ -49,8 +49,11 @@ function parseArgs(argv) {
 
 function resolveTestFiles(mode, names) {
   if (mode === 'local') {
-    if (names.length > 0) { throw new Error('local mode runs only the smoke test; no names'); }
-    return [path.join(ROOT, 'test/electron/Smoke.test.js')];
+    if (names.length > 0) { throw new Error('local mode runs only our own tests; no names'); }
+    return [
+      path.join(ROOT, 'test/electron/Smoke.test.js'),
+      path.join(ROOT, 'test/electron/OpenByPath.test.js'),
+    ];
   }
   const defaults = mode === 'deployment' ? DEFAULT_DEPLOYMENT_SUITES : DEFAULT_UPSTREAM_SUITES;
   const targets = names.length > 0 ? names : defaults;
