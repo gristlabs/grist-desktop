@@ -8,7 +8,7 @@ import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import AppMenu from "app/electron/AppMenu";
 import { Document } from "app/gen-server/entity/Document";
 import { FlexServer } from "app/server/lib/FlexServer";
-import { EXTENSIONS_IMPORTABLE_AS_DOC } from "app/client/lib/uploads";
+import { EXTENSIONS_IMPORTABLE_AS_DOC } from "app/common/uploads";
 import { MergedServer } from "app/server/MergedServer";
 import { NewDocument } from "app/client/electronAPI";
 import { makeExceptionalDocSession, OptDocSession } from "app/server/lib/DocSession";

@@ -50,8 +50,12 @@ class DesktopCreate extends BaseCreate {
   }
 }
 
-export const create = new DesktopCreate();
+let create: ICreate | undefined;
 
-export function getCreator(): ICreate {
-  return create;
+/**
+ * Constructed on first use rather than at module level, to match core: it resolves
+ * its ICreate only once `AppSettings` has been initialized from the database.
+ */
+export function getCreate(): ICreate {
+  return create ??= new DesktopCreate();
 }
