@@ -17,20 +17,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-15-intel
-          - ubuntu-22.04
-          - windows-2022
+          - windows-11-arm
         host:
-          - x64
+          - arm64
         target:
-          - x64
+          - arm64
         node:
           - 22
-        include:
-          - os: macos-14
-            host: arm64
-            target: arm64
-            node: 22
     name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
     steps:
       # yarn run test starts with a .sh script, which cmd cannot run unaided.
