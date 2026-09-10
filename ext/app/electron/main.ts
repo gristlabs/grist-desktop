@@ -22,7 +22,7 @@ import * as packageJson from "ext/desktop.package.json";
 import { GristApp } from "app/electron/GristApp";
 import { loadConfig } from "app/electron/config";
 import { setupLogging } from "./logging";
-import { IS_TEST_MODE, filterArgvForCommander, installDialogStubs } from "app/electron/testMode";
+import { IS_TEST_MODE, testEmitOpenFile, filterArgvForCommander, installDialogStubs } from "app/electron/testMode";
 
 applyPatch();
 installDialogStubs();
@@ -62,6 +62,9 @@ electron.app.on('open-file', (e, docPath) => {
   e?.preventDefault(); // Electron requires this. See link above.
   initialFileToOpen = docPath;
 });
+
+// Stands in for the desktop delivering a file before the command line is read.
+testEmitOpenFile("before-parse");
 
 const electronProgram = new Command();
 electronProgram
@@ -123,6 +126,9 @@ async function main() {
       setupLogging();
       // Passed as a getter, not a value: `open-file` may still land during startup.
       GristApp.instance.run(() => initialFileToOpen);
+      // Startup above is still running: this is the awkward moment for the
+      // desktop to hand us a file, so stand in for it here.
+      testEmitOpenFile("during-startup");
     } catch(err) {
       log.error(`Failed to load config, aborting: ${err}`);
       process.exit(1);

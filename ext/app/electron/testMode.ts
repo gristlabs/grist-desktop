@@ -1,5 +1,6 @@
 // Helpers active when GRIST_DESKTOP_TEST_MODE is set: tolerate Chromium
-// switches in argv, and stub native dialogs that would block the renderer.
+// switches in argv, stub native dialogs that would block the renderer, and
+// stand in for the desktop when it hands us a file to open.
 
 import * as electron from "electron";
 import * as fs from "fs";
@@ -33,4 +34,22 @@ export function installDialogStubs() {
 export function filterArgvForCommander(argv: string[]): string[] {
   if (!IS_TEST_MODE) { return argv; }
   return argv.filter(a => !a.startsWith("-") && a !== CHROMIUM_TRAILING_URL);
+}
+
+/** The moments at which the desktop can hand a file over. */
+export type TestOpenFileWhen = "before-parse" | "during-startup";
+
+/**
+ * Raises "open-file" for the file named in GRIST_DESKTOP_TEST_OPEN_FILE, if the
+ * caller is at the point named in GRIST_DESKTOP_TEST_OPEN_FILE_WHEN. macOS
+ * passes a file this way instead of in argv, and Finder and the dock cannot be
+ * driven from a test, so the event is raised here instead. That leaves only the
+ * delivery untested.
+ */
+export function testEmitOpenFile(when: TestOpenFileWhen) {
+  if (!IS_TEST_MODE) { return; }
+  const filePath = process.env.GRIST_DESKTOP_TEST_OPEN_FILE;
+  if (!filePath || process.env.GRIST_DESKTOP_TEST_OPEN_FILE_WHEN !== when) { return; }
+  log.warn(`(test) raising open-file for ${filePath}, ${when}`);
+  electron.app.emit("open-file", {preventDefault: () => undefined}, filePath);
 }

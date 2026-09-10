@@ -2,7 +2,7 @@
 /*
  * Runs the app's browser tests, in one of three modes:
  *
- *   scripts/test-electron.js                    # our own smoke test
+ *   scripts/test-electron.js                    # our own tests
  *   scripts/test-electron.js --upstream         # core's suites, app as browser
  *   scripts/test-electron.js --upstream Foo Bar # named suites, same mode
  *   scripts/test-electron.js --deployment       # core's suites, app as server
@@ -25,6 +25,7 @@ const os = require('os');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+const {stopApp} = require(path.join(ROOT, 'test/electron/appProcess'));
 const IS_LINUX = process.platform === 'linux';
 const HEADLESS = process.env.HEADLESS !== '0';
 
@@ -50,8 +51,11 @@ function parseArgs(argv) {
 
 function resolveTestFiles(mode, names) {
   if (mode === 'local') {
-    if (names.length > 0) { throw new Error('local mode runs only the smoke test; no names'); }
-    return [path.join(ROOT, 'test/electron/Smoke.test.js')];
+    if (names.length > 0) { throw new Error('local mode runs only our own tests; no names'); }
+    return [
+      path.join(ROOT, 'test/electron/Smoke.test.js'),
+      path.join(ROOT, 'test/electron/OpenByPath.test.js'),
+    ];
   }
   const defaults = mode === 'deployment' ? DEFAULT_DEPLOYMENT_SUITES : DEFAULT_UPSTREAM_SUITES;
   const targets = names.length > 0 ? names : defaults;
@@ -199,26 +203,6 @@ function prepareAppEnv(port, state) {
   fs.mkdirSync(env.GRIST_INST_DIR, {recursive: true});
   fs.mkdirSync(env.GRIST_DATA_DIR, {recursive: true});
   return env;
-}
-
-/**
- * Kills the app and waits for it to actually exit, not just for the signal to be
- * sent: it holds the state directory's sqlite files open, and Windows will not
- * delete those under a live process. Windows also has no process group to kill,
- * so taskkill is told to take the whole tree.
- */
-function stopApp(app) {
-  return new Promise((resolve) => {
-    if (!app.pid || app.exitCode !== null || app.signalCode !== null) { return resolve(); }
-    app.once('exit', resolve);
-    if (process.platform === 'win32') {
-      spawnSync('taskkill', ['/pid', String(app.pid), '/T', '/F']);
-    } else {
-      app.kill();
-      setTimeout(() => app.kill('SIGKILL'), 5000).unref();
-    }
-    setTimeout(resolve, 10000).unref();
-  });
 }
 
 function reportAppLog(logPath, code) {
