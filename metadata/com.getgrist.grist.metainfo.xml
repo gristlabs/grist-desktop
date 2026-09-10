@@ -66,6 +66,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.15" date="2026-09-10">
+      <description>
+        <p>Updates core Grist version to v1.7.19</p>
+        <p>Fixes opening documents from Finder on macOS</p>
+      </description>
+    </release>
     <release version="0.3.14" date="2026-08-03">
       <description>
         <p>Updates core Grist version to v1.7.17</p>
