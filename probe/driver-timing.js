@@ -4,7 +4,10 @@ const {Builder} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
 async function once(i) {
+  // --disable-build-check for the same reason the harness passes it: the packaged chromedriver
+  // and the runner's Chrome are not always the same version.
   const service = new chrome.ServiceBuilder(require('chromedriver').path)
+    .addArguments('--disable-build-check')
     .loggingTo(`probe-logs/chromedriver-${i}.log`).enableVerboseLogging();
   const opts = new chrome.Options().addArguments('--headless=new', '--no-sandbox');
   const t0 = Date.now();
