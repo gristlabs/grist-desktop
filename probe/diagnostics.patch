@@ -1,5 +1,5 @@
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
-index 943d1918a..ba94fab36 100644
+index 943d1918a..44f2fa5ab 100644
 --- a/test/nbrowser/Pages.ts
 +++ b/test/nbrowser/Pages.ts
 @@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
@@ -79,7 +79,7 @@ index 943d1918a..ba94fab36 100644
      assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
    });
  
-@@ -696,6 +697,34 @@ describe("Pages", function() {
+@@ -696,6 +697,43 @@ describe("Pages", function() {
      assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
    });
  
@@ -100,15 +100,24 @@ index 943d1918a..ba94fab36 100644
 +    }, 4000, `pages did not settle as ${expected.join(", ")}`);
 +  }
 +
-+  /** Logs what the tree says the moment it is read, and again a moment later. */
++  /**
++   * Logs what the tree shows against what the document says it should show. They disagreeing
++   * would mean the tree never applied the saved state, rather than being slow to.
++   */
 +  async function collapseProbe() {
-+    const read = async () => JSON.stringify({
++    const saved = async () => {
++      const pages: any = await api.getTable(doc.id, "_grist_Pages");
++      return (pages.options as string[]).filter(o => o && JSON.parse(o).collapsed).length;
++    };
++    const shown = async () => JSON.stringify({
 +      names: await gu.getPageNames(),
 +      collapsed: (await driver.findAll(".test-treeview-itemContainer.collapsed")).length,
 +    });
-+    const first = await read();
++    const first = await shown();
++    const savedCount = await saved();
 +    await driver.sleep(750);
-+    console.log(`COLLAPSEPROBE at read ${first}; 750ms later ${await read()}`);
++    console.log(`COLLAPSEPROBE document says ${savedCount} collapsed; tree at read ${first}; 750ms later ${
++      await shown()}`);
 +  }
 +
    async function hideTable(tableId: string) {
@@ -143,10 +152,44 @@ index 6a8770adb..97b090bfa 100644
  
    it("can rename headers from the selected line", async function() {
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..76f0b5689 100644
+index c6fdbe3b0..9ee962015 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -717,7 +717,22 @@ namespace gristUtils {
+@@ -712,12 +712,58 @@ namespace gristUtils {
+     if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
+       keys.push(Key.ENTER);
+     }
++    // Record what happens to the editor and the focus, for the failure where the editor opens and
++    // is gone again by the time anything looks for it.
++    await driver.executeScript(() => {
++      const w = window as any;
++      if (w.__probeStop) { w.__probeStop(); }
++      const events: string[] = [];
++      w.__probeEvents = events;
++      const start = Date.now();
++      const name = (el: any) => el ? `${el.tagName}.${String(el.className).slice(0, 40)}` : "none";
++      const note = (msg: string) => events.push(`+${Date.now() - start}ms ${msg}`);
++      const onIn = (e: any) => note(`focusin ${name(e.target)}`);
++      const onOut = (e: any) => note(`focusout ${name(e.target)}`);
++      document.addEventListener("focusin", onIn, true);
++      document.addEventListener("focusout", onOut, true);
++      const isEditor = (n: any) => n?.classList?.contains("cell_editor");
++      const obs = new MutationObserver((muts) => {
++        for (const m of muts) {
++          Array.from(m.addedNodes).filter(isEditor).forEach(() => note("editor added"));
++          Array.from(m.removedNodes).filter(isEditor).forEach(() => note(`editor removed, focus on ${
++            name(document.activeElement)}`));
++        }
++      });
++      obs.observe(document.body, { childList: true, subtree: true });
++      w.__probeStop = () => {
++        obs.disconnect();
++        document.removeEventListener("focusin", onIn, true);
++        document.removeEventListener("focusout", onOut, true);
++      };
++    });
+     await driver.executeScript((...args: any[]) => {
+       (window as any).gristApp.allCommands.input.run(...args);
      }, ...(clear ? [""] : []));
      // Wait for the editor to appear
      await waitForCellEditor();
@@ -154,6 +197,8 @@ index c6fdbe3b0..76f0b5689 100644
 +    try {
 +      await waitAppFocus(false);
 +    } catch (e) {
++      console.log("ENTERCELLTIMELINE " + await driver.executeScript(
++        () => JSON.stringify((window as any).__probeEvents ?? [])));
 +      console.log("ENTERCELLPROBE " + await driver.executeScript(() => {
 +        const active = document.activeElement as HTMLElement | null;
 +        const copypaste = document.querySelector(".copypaste");
@@ -171,25 +216,68 @@ index c6fdbe3b0..76f0b5689 100644
      await waitForServer();    // Wait for the value to be saved
    }
 diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
-index a3d5035de..7f32b87f7 100644
+index a3d5035de..7fd84111a 100644
 --- a/test/nbrowser/gristWebDriverUtils.ts
 +++ b/test/nbrowser/gristWebDriverUtils.ts
-@@ -427,8 +427,16 @@ export class GristWebDriverUtils {
+@@ -413,7 +413,7 @@ export class GristWebDriverUtils {
+       return ([] as T[]).concat(...rowNums.map((_r, i) => columns.map(c => c[i])));
+     }
+ 
+-    const { col, rowNums, section, mapper = el => el.getText() }: IColSelect<any> = (
++    const { col, rowNums, section, mapper }: IColSelect<any> = (
+       typeof colOrOptions === "object" ? colOrOptions :
+         { col: colOrOptions, rowNums: _rowNums!, section: _section }
+     );
+@@ -427,11 +427,24 @@ export class GristWebDriverUtils {
      const colIndex = (typeof col === "number" ? col :
        await sectionElem.findContentWait(".column_name", this.exactMatch(col), 1000).index());
  
--    const visibleRowNums: number[] = await sectionElem.findAll(".gridview_data_row_num",
--      async el => parseInt(await el.getText(), 10));
-+    let visibleRowNums: number[];
-+    try {
-+      visibleRowNums = await sectionElem.findAll(".gridview_data_row_num",
-+        async el => parseInt(await el.getText(), 10));
-+    } catch (e) {
-+      const again = await sectionElem.findAll(".gridview_data_row_num",
-+        async el => parseInt(await el.getText(), 10)).catch((e2: Error) => String(e2));
-+      console.log(`GRIDREADPROBE first read failed: ${e}; second read: ${JSON.stringify(again)}`);
-+      throw e;
++    const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
++
++    if (!mapper) {
++      // Read the row numbers and the cells together, in the browser. Reading them one element at a
++      // time leaves gaps in which the section can be rebuilt, and the elements found a moment ago
++      // are then gone: a cursor move in a widget that this one is linked to is enough to do it.
++      const [visibleRowNums, texts] = await this.driver.executeScript<[number[], string[]]>(
++        (elem: HTMLElement, cellSelector: string) => [
++          Array.from(elem.querySelectorAll(".gridview_data_row_num"),
++            (el) => parseInt((el as HTMLElement).innerText, 10)),
++          Array.from(elem.querySelectorAll(cellSelector), (el) => (el as HTMLElement).innerText),
++        ], sectionElem, selector);
++      return rowNums.map(n => texts[visibleRowNums.indexOf(n)]) as T[];
 +    }
++
+     const visibleRowNums: number[] = await sectionElem.findAll(".gridview_data_row_num",
+       async el => parseInt(await el.getText(), 10));
+-
+-    const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
+-    const fields = mapper ? await sectionElem.findAll(selector, mapper) : await sectionElem.findAll(selector);
++    const fields = await sectionElem.findAll(selector, mapper);
+     return rowNums.map(n => fields[visibleRowNums.indexOf(n)]);
+   }
  
-     const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
-     const fields = mapper ? await sectionElem.findAll(selector, mapper) : await sectionElem.findAll(selector);
+diff --git a/test/nbrowser/testUtils.ts b/test/nbrowser/testUtils.ts
+index 5cc19907b..f9da5cdbe 100644
+--- a/test/nbrowser/testUtils.ts
++++ b/test/nbrowser/testUtils.ts
+@@ -134,6 +134,20 @@ interface TestSuiteOptions {
+ // the same scope as the test suite.
+ export function setupTestSuite(options?: TestSuiteOptions) {
+   useServer(server);
++
++  // Slow the browser's main thread down, to widen the windows that races hide in. Set
++  // PROBE_CPU_THROTTLE to the slowdown factor Chrome should apply.
++  if (process.env.PROBE_CPU_THROTTLE) {
++    before(async () => {
++      const rate = Number(process.env.PROBE_CPU_THROTTLE);
++      try {
++        await (driver as any).sendDevToolsCommand("Emulation.setCPUThrottlingRate", { rate });
++        console.log(`THROTTLEPROBE applied rate ${rate}`);
++      } catch (e) {
++        console.log(`THROTTLEPROBE failed: ${e}`);
++      }
++    });
++  }
+   enableDebugCapture();
+   addToRepl("gu", gu, "gristUtils, grist-specific helpers");
+   addToRepl("Key", Key, "key values such as Key.ENTER");
