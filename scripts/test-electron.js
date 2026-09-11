@@ -235,6 +235,7 @@ function runMocha(mochaBin, testFiles, port, logDir) {
   const child = spawn(process.execPath,
     [mochaBin, '--reporter', 'spec', '--slow', '8000', '--timeout', String(testTimeout),
       '--require', path.join(ROOT, 'test/electron/deployment-timeouts.js'),
+      ...(process.env.PROBE_GREP ? ['--grep', process.env.PROBE_GREP] : []),
       ...testFiles],
     {stdio: 'inherit', cwd: path.join(ROOT, 'core'), env: {
       ...process.env,
@@ -327,6 +328,7 @@ function runAppAsBrowser(mochaBin, mode, testFiles) {
   const child = spawn(process.execPath,
     [mochaBin, '--reporter', 'spec', '--slow', '10000',
       '--require', path.join(ROOT, 'test/electron/setup.js'),
+      ...(process.env.PROBE_GREP ? ['--grep', process.env.PROBE_GREP] : []),
       ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
       ...buildEnv(mode),

@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: macos-14
-    name: Undo diagnosis (macos-14, arm64)
+    name: Mac flake diagnosis (macos-14, arm64)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,26 +34,31 @@ jobs:
       - name: Build
         run: yarn run build
 
-      - name: Add undo logging
-        run: git -C core apply --verbose ../probe/diagnose-undo.patch
+      - name: Apply the fix under test, and the logging
+        run: git -C core apply --verbose ../probe/mac-flakes.patch
 
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: Run the deployment suite, logging every undo
+      - name: Loop the three suites, idle then loaded
         timeout-minutes: 180
         run: |
           mkdir -p probe-logs
-          fail=0
-          for i in 1 2 3 4; do
-            yarn run test:electron:deployment > probe-logs/run-$i.txt 2>&1 || fail=$((fail+1))
-            echo "--- iteration $i: $(grep -cE '^  [0-9]+\) ' probe-logs/run-$i.txt) failure block(s)"
-          done
-          echo "TOTAL: $fail of 4 iterations failed"
+          run_once() {
+            yarn run test:electron:deployment Pages ToggleColumns RowMenu > "probe-logs/$1.txt" 2>&1 \
+              && echo "$1: pass" || echo "$1: FAIL"
+            grep -hE "^  [0-9]+\) |PROBE" "probe-logs/$1.txt" | head -20 || true
+          }
+          for i in 1 2 3 4; do run_once "idle-$i"; done
+          # Two spinners on a three-core runner, to compress the timing the way a
+          # busy runner does. Every failure so far has come from a loaded machine.
+          for i in 1 2; do (while :; do :; done) & echo $! >> probe-logs/spinners; done
+          for i in 1 2 3 4; do run_once "loaded-$i"; done
+          kill $(cat probe-logs/spinners) || true
 
       - name: Save the logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: undo-diagnosis
+          name: mac-flake-diagnosis
           path: probe-logs/
