@@ -1,0 +1,93 @@
+From 8a8e7f7642492dac6644395918eb57ff311b7888 Mon Sep 17 00:00:00 2001
+From: Paul Fitzpatrick <paulfitz@alum.mit.edu>
+Date: Fri, 11 Sep 2026 11:05:08 -0400
+Subject: [PATCH] Fix two more races in the browser tests
+
+Undo is a click on a button that ignores clicks while it is disabled, which
+it is until a freshly loaded document's action history arrives. A click that
+lands before then is lost, and the test carries on with the change it meant
+to undo still in place, which fails a later test instead. Wait for the button.
+
+A document's saved collapsed state is applied after its page tree is built,
+so the page names read as soon as it loads can still include the children of
+a page that is about to collapse. Wait for the state to land.
+
+Both turned up running these tests on Grist Desktop's CI, which covers
+Windows and both kinds of Mac.
+---
+ test/nbrowser/Pages.ts               | 15 +++++++++++++++
+ test/nbrowser/gristWebDriverUtils.ts |  9 ++++++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
+index 943d1918a..8d88586ed 100644
+--- a/test/nbrowser/Pages.ts
++++ b/test/nbrowser/Pages.ts
+@@ -394,14 +394,17 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+     await gu.waitForDocToLoad();
++    await waitForCollapsedPages(1);
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+ 
+     // Check state is saved for all users.
+     const otherSession = await gu.session().teamSite.user("user2").login();
+     await otherSession.loadDoc(`/doc/${doc.id}`);
++    await waitForCollapsedPages(1);
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+     const mainSession = await gu.session().teamSite.user("user1").login();
+     await mainSession.loadDoc(`/doc/${doc.id}`);
++    await waitForCollapsedPages(1);
+ 
+     // Expand Interactions and save. It should remain expanded on page reload.
+     await driver.findContent(".test-treeview-itemHeader", /Interactions/).find(".test-treeview-itemArrow").doClick();
+@@ -413,6 +416,7 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+     await gu.waitForDocToLoad();
++    await waitForCollapsedPages(0);
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+   });
+ 
+@@ -706,6 +710,17 @@ describe("Pages", function() {
+   }
+ });
+ 
++/**
++ * Waits until the given number of pages are collapsed. A document's saved collapsed state is
++ * applied after its page tree is built, so page names read the moment it loads can still list the
++ * children of a page that is about to collapse.
++ */
++async function waitForCollapsedPages(count: number) {
++  await driver.wait(
++    async () => (await driver.findAll(".test-treeview-itemContainer.collapsed")).length === count,
++    2000, `expected ${count} collapsed page(s)`);
++}
++
+ async function movePage(page: RegExp, target: { before: RegExp } | { after: RegExp } | { into: RegExp }) {
+   const targetReg = values(target)[0];
+   await driver.withActions(actions => actions
+diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
+index a3d5035de..591cf1df3 100644
+--- a/test/nbrowser/gristWebDriverUtils.ts
++++ b/test/nbrowser/gristWebDriverUtils.ts
+@@ -349,8 +349,15 @@ export class GristWebDriverUtils {
+    */
+   public async undo(optCount: number = 1, optTimeout?: number) {
+     await this.waitForServer(optTimeout);
++    const undoButton = this.driver.find(".test-undo");
+     for (let i = 0; i < optCount; ++i) {
+-      await this.driver.find(".test-undo").doClick();
++      // The button ignores clicks until the action history has arrived, and a click that lands
++      // before then is lost: the test goes on with the change it meant to undo still in place.
++      // The button also greys out for reasons that do not stop it working, so read aria-disabled,
++      // which carries the one condition the button's own click handler checks.
++      await this.driver.wait(async () => await undoButton.getAttribute("aria-disabled") === "false",
++        2000, "Undo button stayed disabled");
++      await undoButton.doClick();
+       await this.waitForServer(optTimeout);
+     }
+   }
+-- 
+2.43.0
+
