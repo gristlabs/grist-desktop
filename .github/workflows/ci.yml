@@ -49,12 +49,10 @@ jobs:
               && echo "$1: pass" || echo "$1: FAIL"
             grep -hE "^  [0-9]+\) |PROBE" "probe-logs/$1.txt" | head -20 || true
           }
-          for i in 1 2 3 4; do run_once "idle-$i"; done
-          # Two spinners on a three-core runner, to compress the timing the way a
-          # busy runner does. Every failure so far has come from a loaded machine.
-          for i in 1 2; do (while :; do :; done) & echo $! >> probe-logs/spinners; done
-          for i in 1 2 3 4; do run_once "loaded-$i"; done
-          kill $(cat probe-logs/spinners) || true
+          # Load made no difference last time, so spend the budget on iterations instead.
+          # The stale grid read showed up once in eight; twelve should say whether the fix
+          # carried in this patch stops it, and give the other two more chances to appear.
+          for i in $(seq 1 12); do run_once "run-$i"; done
 
       - name: Save the logs
         if: always()
