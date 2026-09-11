@@ -1,0 +1,348 @@
+diff --git a/app/client/components/BaseView.ts b/app/client/components/BaseView.ts
+index 7a6e1e2c5..82a108cb1 100644
+--- a/app/client/components/BaseView.ts
++++ b/app/client/components/BaseView.ts
+@@ -20,6 +20,7 @@ import { ViewFieldRec } from "app/client/models/entities/ViewFieldRec";
+ import { FilterInfo, ViewSectionRec } from "app/client/models/entities/ViewSectionRec";
+ import { MutedError } from "app/client/models/errors";
+ import { reportError } from "app/client/models/errors";
++import { testPendingViewLoads } from "app/client/lib/testPendingOps";
+ import { urlState } from "app/client/models/gristUrlState";
+ import { DynamicQuerySet } from "app/client/models/QuerySet";
+ import * as rowset from "app/client/models/rowset";
+@@ -262,6 +263,17 @@ export default class BaseView extends DisposableWithEvents {
+     // --------------------------------------------------
+     // Observables local to this view
+     this._isLoading = ko.observable(true);
++
++    // Count the views that are waiting for data, so a test can wait for a widget to catch up with
++    // a cursor move in a widget it is linked to. Counted on the change rather than per query: a
++    // query that is superseded never calls back, and the flag stays set until the latest one does.
++    testPendingViewLoads.start();
++    this.autoDispose(this._isLoading.subscribe((isLoading: boolean) => {
++      if (isLoading) { testPendingViewLoads.start(); } else { testPendingViewLoads.end(); }
++    }));
++    this.onDispose(() => {
++      if (this._isLoading.peek()) { testPendingViewLoads.end(); }
++    });
+     this._pendingCursorPos = {
+       cursorPos: this.viewSection.lastCursorPos,
+       showFirstRowIfRowMissing: true,
+diff --git a/app/client/lib/GristWindow.ts b/app/client/lib/GristWindow.ts
+index f3d73deb2..67cee4a2f 100644
+--- a/app/client/lib/GristWindow.ts
++++ b/app/client/lib/GristWindow.ts
+@@ -27,6 +27,8 @@ declare global {
+       testNumPendingApiRequests?: () => number;
+       testNumPendingChecks?: () => number;
+       testNumPendingPastes?: () => number;
++      testNumPendingMenuActions?: () => number;
++      testNumPendingViewLoads?: () => number;
+     };
+     cmd?: { [name: string]: () => void };
+     isRunningUnderElectron?: boolean;
+diff --git a/app/client/lib/testPendingOps.ts b/app/client/lib/testPendingOps.ts
+index 57d638cf6..fd069e24d 100644
+--- a/app/client/lib/testPendingOps.ts
++++ b/app/client/lib/testPendingOps.ts
+@@ -40,3 +40,18 @@ export const testPendingChecks = new TestPendingOps();
+  * in-flight request counts go quiet between the two and look like success.
+  */
+ export const testPendingPastes = new TestPendingOps();
++
++/**
++ * Menu items that defer their action to the next tick, so that the menu can close first. Between
++ * the click and the tick nothing is in flight, so a poll sees no work outstanding and a test that
++ * reloads at that moment loses whatever the action was going to do.
++ */
++export const testPendingMenuActions = new TestPendingOps();
++
++/**
++ * Views waiting for data. A cursor move in one widget makes the widgets linked to it re-query, and
++ * nothing in the page waits for that, so a test that reads the linked widget straight away can see
++ * the rows it had before.
++ */
++export const testPendingViewLoads = new TestPendingOps();
++
+diff --git a/app/client/ui/App.ts b/app/client/ui/App.ts
+index a38c607bd..60c782ca8 100644
+--- a/app/client/ui/App.ts
++++ b/app/client/ui/App.ts
+@@ -12,7 +12,8 @@ import { onClickOutside } from "app/client/lib/domUtils";
+ import { FocusLayer } from "app/client/lib/FocusLayer";
+ import * as koUtil from "app/client/lib/koUtil";
+ import { makeT } from "app/client/lib/localization";
+-import { testPendingChecks, testPendingPastes } from "app/client/lib/testPendingOps";
++import { testPendingChecks, testPendingMenuActions, testPendingPastes, testPendingViewLoads }
++  from "app/client/lib/testPendingOps";
+ import { reportError, TopAppModel, TopAppModelImpl } from "app/client/models/AppModel";
+ import { DocPageModel } from "app/client/models/DocPageModel";
+ import { setUpErrorHandling } from "app/client/models/errors";
+@@ -276,6 +277,14 @@ export class AppImpl extends DisposableWithEvents implements App {
+     return testPendingPastes.count;
+   }
+ 
++  public testNumPendingMenuActions(): number {
++    return testPendingMenuActions.count;
++  }
++
++  public testNumPendingViewLoads(): number {
++    return testPendingViewLoads.count;
++  }
++
+   private _reloadPane() {
+     console.log("reloadPane");
+     this.topAppModel.reload();
+diff --git a/app/client/ui2018/menus.ts b/app/client/ui2018/menus.ts
+index 0b070be98..c1caf889b 100644
+--- a/app/client/ui2018/menus.ts
++++ b/app/client/ui2018/menus.ts
+@@ -1,6 +1,7 @@
+ import { MenuCommand } from "app/client/components/commandList";
+ import { FocusLayer } from "app/client/lib/FocusLayer";
+ import { makeT } from "app/client/lib/localization";
++import { testPendingMenuActions } from "app/client/lib/testPendingOps";
+ import { NeedUpgradeError, reportError } from "app/client/models/errors";
+ import { textButton } from "app/client/ui2018/buttons";
+ import { cssCheckboxSquare, cssLabel, cssLabelText } from "app/client/ui2018/checkbox";
+@@ -591,7 +592,19 @@ export function menuItemTrimmed(
+  * can be removed.
+  */
+ export const menuItemAsync: typeof weasel.menuItem = function(action, ...args) {
+-  return menuItem(() => setTimeout(action, 0), ...args);
++  // The timer calls the action with no arguments, as a bare setTimeout(action, 0) did.
++  const run = action as unknown as () => unknown;
++  return menuItem(() => {
++    // Counted before yielding, so that the action is never observed as not pending.
++    testPendingMenuActions.start();
++    setTimeout(async () => {
++      try {
++        await run();
++      } finally {
++        testPendingMenuActions.end();
++      }
++    }, 0);
++  }, ...args);
+ };
+ 
+ export function menuItemCmd(
+diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
+index 943d1918a..288686568 100644
+--- a/test/nbrowser/Pages.ts
++++ b/test/nbrowser/Pages.ts
+@@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
+ import * as gu from "test/nbrowser/gristUtils";
+ import { server, setupTestSuite } from "test/nbrowser/testUtils";
+ 
++import isEqual from "lodash/isEqual";
+ import values from "lodash/values";
+ import { assert, driver, Key } from "mocha-webdriver";
+ 
+@@ -57,8 +58,7 @@ describe("Pages", function() {
+     const revertAcl = await gu.beginAclTran(api, doc.id);
+     // Update ACL, hide Overview table from all users.
+     await hideTable("Overview");
+-    // We will be reloaded, but it's not easy to wait for it, so do the refresh manually.
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents", "People", "User & Leads"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -74,7 +74,7 @@ describe("Pages", function() {
+ 
+     // Now hide User_Leads
+     await hideTable("User_Leads");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents", "People"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -88,7 +88,7 @@ describe("Pages", function() {
+ 
+     // Now hide People, and test that whole node is hidden.
+     await hideTable("People");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -99,7 +99,7 @@ describe("Pages", function() {
+ 
+     // Now hide Documents, this is a leaf, so it should be hidden from the start
+     await hideTable("Documents");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions",
+@@ -108,13 +108,12 @@ describe("Pages", function() {
+ 
+     // Now hide Interactions, we should have a blank treeview
+     await hideTable("Interactions");
+-    // We can wait for doc to load, because it waits for section.
+-    await driver.findWait(".test-treeview-container", 1000);
++    await waitForPages([]);
+     assert.deepEqual(await gu.getPageTree(), []);
+ 
+     // Rollback
+     await revertAcl();
+-    await gu.reloadDoc();
++    await driver.findContentWait(".test-docpage-label", /Overview/, 2000);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -390,6 +389,7 @@ describe("Pages", function() {
+       assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]));
+     await gu.openPageMenu("Interactions");
+     await gu.findOpenMenuItem(".test-docpage-collapse-by-default", "Set default: Collapse").click();
++    await gu.waitForMenuAction();
+     await gu.waitForServer();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+@@ -409,6 +409,7 @@ describe("Pages", function() {
+       assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]));
+     await gu.openPageMenu("Interactions");
+     await gu.findOpenMenuItem(".test-docpage-expand-by-default", "Set default: Expand").click();
++    await gu.waitForMenuAction();
+     await gu.waitForServer();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+@@ -696,6 +697,23 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
+   });
+ 
++  /**
++   * Waits for the tree to settle on the given page names, which is what hiding a table leads to.
++   *
++   * Changing the rules makes the app reload the document by itself. Refreshing the browser here
++   * instead would race that reload, and a browser that reconnects while the old connection is
++   * still up is given a fresh client id. Undo offers a client only the actions it made itself, so
++   * the page move above would then be beyond the reach of the undo at the end of this test, and
++   * would still be in place for every test below. The tree is emptied before it is rebuilt, so
++   * wait for the names it settles on rather than for a page to go.
++   */
++  async function waitForPages(expected: string[]) {
++    await driver.wait(async () => {
++      await driver.findWait(".test-treeview-container", 1000);
++      return isEqual(await gu.getPageNames(), expected);
++    }, 4000, `pages did not settle as ${expected.join(", ")}`);
++  }
++
+   async function hideTable(tableId: string) {
+     await api.applyUserActions(doc.id, [
+       ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
+diff --git a/test/nbrowser/RowMenu.ts b/test/nbrowser/RowMenu.ts
+index 6a8770adb..22ae34b7d 100644
+--- a/test/nbrowser/RowMenu.ts
++++ b/test/nbrowser/RowMenu.ts
+@@ -67,6 +67,7 @@ describe("RowMenu", function() {
+     assert.isTrue(await gu.findOpenMenu(1000).isDisplayed());
+ 
+     // send ESC to close the menu
++    await gu.waitForMenuFocus();
+     await driver.sendKeys(Key.ESCAPE);
+ 
+     // check that the context menu is gone
+diff --git a/test/nbrowser/ToggleColumns.ts b/test/nbrowser/ToggleColumns.ts
+index 37fa0899c..8d0e99ae3 100644
+--- a/test/nbrowser/ToggleColumns.ts
++++ b/test/nbrowser/ToggleColumns.ts
+@@ -53,6 +53,7 @@ describe("ToggleColumns", function() {
+   async function verifyToggleBehavior() {
+     // Selecting a cell in Src should show only linked values in Items.
+     await gu.getCell({ section: "Src", col: "A", rowNum: 1 }).click();
++    await gu.waitForViewLoads();
+     assert.deepEqual(await gu.getVisibleGridCells({ section: "Items", cols: ["A", "Chk2"], rowNums: [1, 2, 3] }), [
+       "Src[1]", "false",
+       "Src[1]", "false",
+@@ -73,6 +74,7 @@ describe("ToggleColumns", function() {
+ 
+     // Try another row of table Src. It should have its own Items (initially none).
+     await gu.getCell({ section: "Src", col: "A", rowNum: 2 }).click();
++    await gu.waitForViewLoads();
+     assert.deepEqual(await gu.getVisibleGridCells({ section: "Items", cols: ["A", "Chk2"], rowNums: [1] }),
+       ["", ""]);
+ 
+diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
+index c6fdbe3b0..ed084f1cc 100644
+--- a/test/nbrowser/gristUtils.ts
++++ b/test/nbrowser/gristUtils.ts
+@@ -4342,6 +4342,37 @@ namespace gristUtils {
+     await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
+   }
+ 
++  /**
++   * Waits for every view to have the data it asked for. A cursor move in one widget makes the
++   * widgets linked to it re-query, and nothing in the page waits for that, so reading a linked
++   * widget straight after moving the cursor can return the rows it held before.
++   */
++  export async function waitForViewLoads(optTimeout: number = 5000) {
++    await waitForPendingOps("testNumPendingViewLoads", "views to load their data", optTimeout);
++  }
++
++  /**
++   * Waits for an open menu to hold the focus, which is when it starts handling keys. A menu takes
++   * focus on the tick after it is shown, so a key sent as soon as one appears can go elsewhere,
++   * and Escape in particular is then lost and the menu stays open.
++   */
++  export async function waitForMenuFocus(optTimeout: number = 1000) {
++    await driver.wait(async () => await driver.executeScript<boolean>(() => {
++      const menu = document.querySelector(".grist-floating-menu");
++      const active = document.activeElement;
++      return !!menu && !!active && (menu === active || menu.contains(active));
++    }), optTimeout, "the open menu did not take the focus");
++  }
++
++  /**
++   * Waits for a menu item's action to run. Items that let the menu close first run their action on
++   * the next tick, and waitForServer is not a substitute: a poll between the click and the tick
++   * sees nothing in flight, so a reload right after can lose what the action was going to do.
++   */
++  export async function waitForMenuAction(optTimeout: number = 2000) {
++    await waitForPendingOps("testNumPendingMenuActions", "a menu action to run", optTimeout);
++  }
++
+   /** Gets the value from the select component */
+   export async function getSelectValue(selector: string) {
+     return await driver.find(`${selector} .test-select-row`).getText();
+diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
+index a3d5035de..7fd84111a 100644
+--- a/test/nbrowser/gristWebDriverUtils.ts
++++ b/test/nbrowser/gristWebDriverUtils.ts
+@@ -413,7 +413,7 @@ export class GristWebDriverUtils {
+       return ([] as T[]).concat(...rowNums.map((_r, i) => columns.map(c => c[i])));
+     }
+ 
+-    const { col, rowNums, section, mapper = el => el.getText() }: IColSelect<any> = (
++    const { col, rowNums, section, mapper }: IColSelect<any> = (
+       typeof colOrOptions === "object" ? colOrOptions :
+         { col: colOrOptions, rowNums: _rowNums!, section: _section }
+     );
+@@ -427,11 +427,24 @@ export class GristWebDriverUtils {
+     const colIndex = (typeof col === "number" ? col :
+       await sectionElem.findContentWait(".column_name", this.exactMatch(col), 1000).index());
+ 
++    const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
++
++    if (!mapper) {
++      // Read the row numbers and the cells together, in the browser. Reading them one element at a
++      // time leaves gaps in which the section can be rebuilt, and the elements found a moment ago
++      // are then gone: a cursor move in a widget that this one is linked to is enough to do it.
++      const [visibleRowNums, texts] = await this.driver.executeScript<[number[], string[]]>(
++        (elem: HTMLElement, cellSelector: string) => [
++          Array.from(elem.querySelectorAll(".gridview_data_row_num"),
++            (el) => parseInt((el as HTMLElement).innerText, 10)),
++          Array.from(elem.querySelectorAll(cellSelector), (el) => (el as HTMLElement).innerText),
++        ], sectionElem, selector);
++      return rowNums.map(n => texts[visibleRowNums.indexOf(n)]) as T[];
++    }
++
+     const visibleRowNums: number[] = await sectionElem.findAll(".gridview_data_row_num",
+       async el => parseInt(await el.getText(), 10));
+-
+-    const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
+-    const fields = mapper ? await sectionElem.findAll(selector, mapper) : await sectionElem.findAll(selector);
++    const fields = await sectionElem.findAll(selector, mapper);
+     return rowNums.map(n => fields[visibleRowNums.indexOf(n)]);
+   }
+ 
