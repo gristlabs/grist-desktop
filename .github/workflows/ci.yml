@@ -7,8 +7,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    name: Driver start timing (ubuntu)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    name: Driver start timing (${{ matrix.os }})
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,10 +25,16 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: yarn install --network-timeout 300000 --ignore-optional
+      - name: Time the pieces of a browser start
+        shell: bash
+        run: |
+          mkdir -p probe-logs
+          node probe/driver-timing.js
+
       - name: Hooks and crooks
         run: yarn run setup
         env:
-          RUN_OS: ubuntu-22.04
+          RUN_OS: ${{ matrix.os }}
           RUN_ARCH: x64
       - name: Build
         run: yarn run build
@@ -33,9 +43,10 @@ jobs:
 
       - name: Sample how long the browser takes to start
         timeout-minutes: 90
+        shell: bash
         run: |
           mkdir -p probe-logs
-          for i in $(seq 1 40); do
+          for i in $(seq 1 8); do
             yarn run test:electron:deployment RowMenu > probe-logs/run-$i.txt 2>&1 || true
             grep -h DRIVERSTART probe-logs/run-$i.txt || echo "run $i: no timing line"
           done
@@ -48,5 +59,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: driver-start
+          name: driver-start-${{ matrix.os }}
           path: probe-logs/
