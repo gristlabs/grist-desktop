@@ -1,5 +1,133 @@
+diff --git a/app/client/components/BaseView.ts b/app/client/components/BaseView.ts
+index 7a6e1e2c5..82a108cb1 100644
+--- a/app/client/components/BaseView.ts
++++ b/app/client/components/BaseView.ts
+@@ -20,6 +20,7 @@ import { ViewFieldRec } from "app/client/models/entities/ViewFieldRec";
+ import { FilterInfo, ViewSectionRec } from "app/client/models/entities/ViewSectionRec";
+ import { MutedError } from "app/client/models/errors";
+ import { reportError } from "app/client/models/errors";
++import { testPendingViewLoads } from "app/client/lib/testPendingOps";
+ import { urlState } from "app/client/models/gristUrlState";
+ import { DynamicQuerySet } from "app/client/models/QuerySet";
+ import * as rowset from "app/client/models/rowset";
+@@ -262,6 +263,17 @@ export default class BaseView extends DisposableWithEvents {
+     // --------------------------------------------------
+     // Observables local to this view
+     this._isLoading = ko.observable(true);
++
++    // Count the views that are waiting for data, so a test can wait for a widget to catch up with
++    // a cursor move in a widget it is linked to. Counted on the change rather than per query: a
++    // query that is superseded never calls back, and the flag stays set until the latest one does.
++    testPendingViewLoads.start();
++    this.autoDispose(this._isLoading.subscribe((isLoading: boolean) => {
++      if (isLoading) { testPendingViewLoads.start(); } else { testPendingViewLoads.end(); }
++    }));
++    this.onDispose(() => {
++      if (this._isLoading.peek()) { testPendingViewLoads.end(); }
++    });
+     this._pendingCursorPos = {
+       cursorPos: this.viewSection.lastCursorPos,
+       showFirstRowIfRowMissing: true,
+diff --git a/app/client/lib/GristWindow.ts b/app/client/lib/GristWindow.ts
+index f3d73deb2..67cee4a2f 100644
+--- a/app/client/lib/GristWindow.ts
++++ b/app/client/lib/GristWindow.ts
+@@ -27,6 +27,8 @@ declare global {
+       testNumPendingApiRequests?: () => number;
+       testNumPendingChecks?: () => number;
+       testNumPendingPastes?: () => number;
++      testNumPendingMenuActions?: () => number;
++      testNumPendingViewLoads?: () => number;
+     };
+     cmd?: { [name: string]: () => void };
+     isRunningUnderElectron?: boolean;
+diff --git a/app/client/lib/testPendingOps.ts b/app/client/lib/testPendingOps.ts
+index 57d638cf6..fd069e24d 100644
+--- a/app/client/lib/testPendingOps.ts
++++ b/app/client/lib/testPendingOps.ts
+@@ -40,3 +40,18 @@ export const testPendingChecks = new TestPendingOps();
+  * in-flight request counts go quiet between the two and look like success.
+  */
+ export const testPendingPastes = new TestPendingOps();
++
++/**
++ * Menu items that defer their action to the next tick, so that the menu can close first. Between
++ * the click and the tick nothing is in flight, so a poll sees no work outstanding and a test that
++ * reloads at that moment loses whatever the action was going to do.
++ */
++export const testPendingMenuActions = new TestPendingOps();
++
++/**
++ * Views waiting for data. A cursor move in one widget makes the widgets linked to it re-query, and
++ * nothing in the page waits for that, so a test that reads the linked widget straight away can see
++ * the rows it had before.
++ */
++export const testPendingViewLoads = new TestPendingOps();
++
+diff --git a/app/client/ui/App.ts b/app/client/ui/App.ts
+index a38c607bd..60c782ca8 100644
+--- a/app/client/ui/App.ts
++++ b/app/client/ui/App.ts
+@@ -12,7 +12,8 @@ import { onClickOutside } from "app/client/lib/domUtils";
+ import { FocusLayer } from "app/client/lib/FocusLayer";
+ import * as koUtil from "app/client/lib/koUtil";
+ import { makeT } from "app/client/lib/localization";
+-import { testPendingChecks, testPendingPastes } from "app/client/lib/testPendingOps";
++import { testPendingChecks, testPendingMenuActions, testPendingPastes, testPendingViewLoads }
++  from "app/client/lib/testPendingOps";
+ import { reportError, TopAppModel, TopAppModelImpl } from "app/client/models/AppModel";
+ import { DocPageModel } from "app/client/models/DocPageModel";
+ import { setUpErrorHandling } from "app/client/models/errors";
+@@ -276,6 +277,14 @@ export class AppImpl extends DisposableWithEvents implements App {
+     return testPendingPastes.count;
+   }
+ 
++  public testNumPendingMenuActions(): number {
++    return testPendingMenuActions.count;
++  }
++
++  public testNumPendingViewLoads(): number {
++    return testPendingViewLoads.count;
++  }
++
+   private _reloadPane() {
+     console.log("reloadPane");
+     this.topAppModel.reload();
+diff --git a/app/client/ui2018/menus.ts b/app/client/ui2018/menus.ts
+index 0b070be98..c1caf889b 100644
+--- a/app/client/ui2018/menus.ts
++++ b/app/client/ui2018/menus.ts
+@@ -1,6 +1,7 @@
+ import { MenuCommand } from "app/client/components/commandList";
+ import { FocusLayer } from "app/client/lib/FocusLayer";
+ import { makeT } from "app/client/lib/localization";
++import { testPendingMenuActions } from "app/client/lib/testPendingOps";
+ import { NeedUpgradeError, reportError } from "app/client/models/errors";
+ import { textButton } from "app/client/ui2018/buttons";
+ import { cssCheckboxSquare, cssLabel, cssLabelText } from "app/client/ui2018/checkbox";
+@@ -591,7 +592,19 @@ export function menuItemTrimmed(
+  * can be removed.
+  */
+ export const menuItemAsync: typeof weasel.menuItem = function(action, ...args) {
+-  return menuItem(() => setTimeout(action, 0), ...args);
++  // The timer calls the action with no arguments, as a bare setTimeout(action, 0) did.
++  const run = action as unknown as () => unknown;
++  return menuItem(() => {
++    // Counted before yielding, so that the action is never observed as not pending.
++    testPendingMenuActions.start();
++    setTimeout(async () => {
++      try {
++        await run();
++      } finally {
++        testPendingMenuActions.end();
++      }
++    }, 0);
++  }, ...args);
+ };
+ 
+ export function menuItemCmd(
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
-index 943d1918a..44f2fa5ab 100644
+index 943d1918a..26dbf8146 100644
 --- a/test/nbrowser/Pages.ts
 +++ b/test/nbrowser/Pages.ts
 @@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
@@ -63,23 +191,7 @@ index 943d1918a..44f2fa5ab 100644
      assert.deepEqual(await gu.getPageTree(), [
        {
          label: "Interactions", children: [
-@@ -394,6 +393,7 @@ describe("Pages", function() {
-     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
-     await driver.navigate().refresh();
-     await gu.waitForDocToLoad();
-+    await collapseProbe();
-     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
- 
-     // Check state is saved for all users.
-@@ -413,6 +413,7 @@ describe("Pages", function() {
-     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
-     await driver.navigate().refresh();
-     await gu.waitForDocToLoad();
-+    await collapseProbe();
-     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
-   });
- 
-@@ -696,6 +697,43 @@ describe("Pages", function() {
+@@ -696,6 +695,23 @@ describe("Pages", function() {
      assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
    });
  
@@ -100,93 +212,65 @@ index 943d1918a..44f2fa5ab 100644
 +    }, 4000, `pages did not settle as ${expected.join(", ")}`);
 +  }
 +
-+  /**
-+   * Logs what the tree shows against what the document says it should show. They disagreeing
-+   * would mean the tree never applied the saved state, rather than being slow to.
-+   */
-+  async function collapseProbe() {
-+    const saved = async () => {
-+      const pages: any = await api.getTable(doc.id, "_grist_Pages");
-+      return (pages.options as string[]).filter(o => o && JSON.parse(o).collapsed).length;
-+    };
-+    const shown = async () => JSON.stringify({
-+      names: await gu.getPageNames(),
-+      collapsed: (await driver.findAll(".test-treeview-itemContainer.collapsed")).length,
-+    });
-+    const first = await shown();
-+    const savedCount = await saved();
-+    await driver.sleep(750);
-+    console.log(`COLLAPSEPROBE document says ${savedCount} collapsed; tree at read ${first}; 750ms later ${
-+      await shown()}`);
-+  }
-+
    async function hideTable(tableId: string) {
      await api.applyUserActions(doc.id, [
        ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
 diff --git a/test/nbrowser/RowMenu.ts b/test/nbrowser/RowMenu.ts
-index 6a8770adb..97b090bfa 100644
+index 6a8770adb..22ae34b7d 100644
 --- a/test/nbrowser/RowMenu.ts
 +++ b/test/nbrowser/RowMenu.ts
-@@ -70,8 +70,21 @@ describe("RowMenu", function() {
+@@ -67,6 +67,7 @@ describe("RowMenu", function() {
+     assert.isTrue(await gu.findOpenMenu(1000).isDisplayed());
+ 
+     // send ESC to close the menu
++    await gu.waitForMenuFocus();
      await driver.sendKeys(Key.ESCAPE);
  
      // check that the context menu is gone
--    await gu.waitToPass(async () =>
--      assert.isFalse(await driver.find(".grist-floating-menu").isPresent()));
-+    try {
-+      await gu.waitToPass(async () =>
-+        assert.isFalse(await driver.find(".grist-floating-menu").isPresent()));
-+    } catch (e) {
-+      console.log("ROWMENUPROBE " + await driver.executeScript(() => {
-+        const menu = document.querySelector(".grist-floating-menu");
-+        const active = document.activeElement as HTMLElement | null;
-+        return JSON.stringify({
-+          menus: document.querySelectorAll(".grist-floating-menu").length,
-+          menuClass: menu ? menu.className : null,
-+          active: active ? active.tagName + "." + active.className : null,
-+        });
-+      }));
-+      throw e;
-+    }
-   });
+diff --git a/test/nbrowser/ToggleColumns.ts b/test/nbrowser/ToggleColumns.ts
+index 37fa0899c..8d0e99ae3 100644
+--- a/test/nbrowser/ToggleColumns.ts
++++ b/test/nbrowser/ToggleColumns.ts
+@@ -53,6 +53,7 @@ describe("ToggleColumns", function() {
+   async function verifyToggleBehavior() {
+     // Selecting a cell in Src should show only linked values in Items.
+     await gu.getCell({ section: "Src", col: "A", rowNum: 1 }).click();
++    await gu.waitForViewLoads();
+     assert.deepEqual(await gu.getVisibleGridCells({ section: "Items", cols: ["A", "Chk2"], rowNums: [1, 2, 3] }), [
+       "Src[1]", "false",
+       "Src[1]", "false",
+@@ -73,6 +74,7 @@ describe("ToggleColumns", function() {
  
-   it("can rename headers from the selected line", async function() {
+     // Try another row of table Src. It should have its own Items (initially none).
+     await gu.getCell({ section: "Src", col: "A", rowNum: 2 }).click();
++    await gu.waitForViewLoads();
+     assert.deepEqual(await gu.getVisibleGridCells({ section: "Items", cols: ["A", "Chk2"], rowNums: [1] }),
+       ["", ""]);
+ 
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..9ee962015 100644
+index c6fdbe3b0..3f47fd15d 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -712,12 +712,58 @@ namespace gristUtils {
+@@ -712,12 +712,35 @@ namespace gristUtils {
      if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
        keys.push(Key.ENTER);
      }
-+    // Record what happens to the editor and the focus, for the failure where the editor opens and
-+    // is gone again by the time anything looks for it.
 +    await driver.executeScript(() => {
 +      const w = window as any;
-+      if (w.__probeStop) { w.__probeStop(); }
-+      const events: string[] = [];
-+      w.__probeEvents = events;
-+      const start = Date.now();
-+      const name = (el: any) => el ? `${el.tagName}.${String(el.className).slice(0, 40)}` : "none";
-+      const note = (msg: string) => events.push(`+${Date.now() - start}ms ${msg}`);
-+      const onIn = (e: any) => note(`focusin ${name(e.target)}`);
-+      const onOut = (e: any) => note(`focusout ${name(e.target)}`);
-+      document.addEventListener("focusin", onIn, true);
-+      document.addEventListener("focusout", onOut, true);
-+      const isEditor = (n: any) => n?.classList?.contains("cell_editor");
-+      const obs = new MutationObserver((muts) => {
-+        for (const m of muts) {
-+          Array.from(m.addedNodes).filter(isEditor).forEach(() => note("editor added"));
-+          Array.from(m.removedNodes).filter(isEditor).forEach(() => note(`editor removed, focus on ${
-+            name(document.activeElement)}`));
++      w.__editorProbe = [];
++      const t0 = Date.now();
++      const name = (el: any) => el ? el.tagName + "." + String(el.className).slice(0, 30) : "none";
++      const note = (m: string) => w.__editorProbe.push(`+${Date.now() - t0} ${m}`);
++      const isEditor = (n: any) => n && n.classList && n.classList.contains("cell_editor");
++      new MutationObserver((muts) => {
++        for (const mu of muts) {
++          Array.from(mu.addedNodes).filter(isEditor).forEach(() => note("editor in, focus " +
++            name(document.activeElement)));
++          Array.from(mu.removedNodes).filter(isEditor).forEach(() => note("editor out, focus " +
++            name(document.activeElement)));
 +        }
-+      });
-+      obs.observe(document.body, { childList: true, subtree: true });
-+      w.__probeStop = () => {
-+        obs.disconnect();
-+        document.removeEventListener("focusin", onIn, true);
-+        document.removeEventListener("focusout", onOut, true);
-+      };
++      }).observe(document.body, { childList: true, subtree: true });
++      document.addEventListener("focusin", (e: any) => note("focusin " + name(e.target)), true);
 +    });
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
@@ -197,24 +281,51 @@ index c6fdbe3b0..9ee962015 100644
 +    try {
 +      await waitAppFocus(false);
 +    } catch (e) {
-+      console.log("ENTERCELLTIMELINE " + await driver.executeScript(
-+        () => JSON.stringify((window as any).__probeEvents ?? [])));
-+      console.log("ENTERCELLPROBE " + await driver.executeScript(() => {
-+        const active = document.activeElement as HTMLElement | null;
-+        const copypaste = document.querySelector(".copypaste");
-+        return JSON.stringify({
-+          active: active ? active.tagName + "." + active.className : null,
-+          copypasteCount: document.querySelectorAll(".copypaste").length,
-+          copypasteHasFocus: active === copypaste,
-+          editors: document.querySelectorAll(".cell_editor").length,
-+          editorShown: document.querySelector(".cell_editor")?.clientWidth ?? -1,
-+        });
-+      }));
++      console.log("EDITORTIMELINE " + await driver.executeScript(
++        () => JSON.stringify((window as any).__editorProbe ?? "none")));
 +      throw e;
 +    }
      await sendKeys(...keys);
      await waitForServer();    // Wait for the value to be saved
    }
+@@ -4342,6 +4365,37 @@ namespace gristUtils {
+     await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
+   }
+ 
++  /**
++   * Waits for every view to have the data it asked for. A cursor move in one widget makes the
++   * widgets linked to it re-query, and nothing in the page waits for that, so reading a linked
++   * widget straight after moving the cursor can return the rows it held before.
++   */
++  export async function waitForViewLoads(optTimeout: number = 5000) {
++    await waitForPendingOps("testNumPendingViewLoads", "views to load their data", optTimeout);
++  }
++
++  /**
++   * Waits for an open menu to hold the focus, which is when it starts handling keys. A menu takes
++   * focus on the tick after it is shown, so a key sent as soon as one appears can go elsewhere,
++   * and Escape in particular is then lost and the menu stays open.
++   */
++  export async function waitForMenuFocus(optTimeout: number = 1000) {
++    await driver.wait(async () => await driver.executeScript<boolean>(() => {
++      const menu = document.querySelector(".grist-floating-menu");
++      const active = document.activeElement;
++      return !!menu && !!active && (menu === active || menu.contains(active));
++    }), optTimeout, "the open menu did not take the focus");
++  }
++
++  /**
++   * Waits for a menu item's action to run. Items that let the menu close first run their action on
++   * the next tick, and waitForServer is not a substitute: a poll between the click and the tick
++   * sees nothing in flight, so a reload right after can lose what the action was going to do.
++   */
++  export async function waitForMenuAction(optTimeout: number = 2000) {
++    await waitForPendingOps("testNumPendingMenuActions", "a menu action to run", optTimeout);
++  }
++
+   /** Gets the value from the select component */
+   export async function getSelectValue(selector: string) {
+     return await driver.find(`${selector} .test-select-row`).getText();
 diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
 index a3d5035de..7fd84111a 100644
 --- a/test/nbrowser/gristWebDriverUtils.ts
@@ -256,28 +367,3 @@ index a3d5035de..7fd84111a 100644
      return rowNums.map(n => fields[visibleRowNums.indexOf(n)]);
    }
  
-diff --git a/test/nbrowser/testUtils.ts b/test/nbrowser/testUtils.ts
-index 5cc19907b..f9da5cdbe 100644
---- a/test/nbrowser/testUtils.ts
-+++ b/test/nbrowser/testUtils.ts
-@@ -134,6 +134,20 @@ interface TestSuiteOptions {
- // the same scope as the test suite.
- export function setupTestSuite(options?: TestSuiteOptions) {
-   useServer(server);
-+
-+  // Slow the browser's main thread down, to widen the windows that races hide in. Set
-+  // PROBE_CPU_THROTTLE to the slowdown factor Chrome should apply.
-+  if (process.env.PROBE_CPU_THROTTLE) {
-+    before(async () => {
-+      const rate = Number(process.env.PROBE_CPU_THROTTLE);
-+      try {
-+        await (driver as any).sendDevToolsCommand("Emulation.setCPUThrottlingRate", { rate });
-+        console.log(`THROTTLEPROBE applied rate ${rate}`);
-+      } catch (e) {
-+        console.log(`THROTTLEPROBE failed: ${e}`);
-+      }
-+    });
-+  }
-   enableDebugCapture();
-   addToRepl("gu", gu, "gristUtils, grist-specific helpers");
-   addToRepl("Key", Key, "key values such as Key.ENTER");

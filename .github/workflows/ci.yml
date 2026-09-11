@@ -45,12 +45,12 @@ jobs:
         run: |
           mkdir -p probe-logs
           fail=0
-          for i in $(seq 1 16); do
+          for i in $(seq 1 30); do
             yarn run test:electron:upstream ChoiceList > probe-logs/run-$i.txt 2>&1 || fail=$((fail+1))
             echo "run $i: $(grep -cE '^  [0-9]+\) ' probe-logs/run-$i.txt) failure block(s)"
-            grep -E "ENTERCELLPROBE" probe-logs/run-$i.txt || true
+            grep -E "EDITORTIMELINE" probe-logs/run-$i.txt || true
           done
-          echo "TOTAL: $fail of 16 runs failed"
+          echo "TOTAL: $fail of 30 runs failed"
 
       - name: Save the logs
         if: always()
