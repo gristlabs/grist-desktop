@@ -264,10 +264,10 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..1a769dfa7 100644
+index c6fdbe3b0..36ba2c6eb 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -712,12 +712,47 @@ namespace gristUtils {
+@@ -712,12 +712,71 @@ namespace gristUtils {
      if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
        keys.push(Key.ENTER);
      }
@@ -278,7 +278,29 @@ index c6fdbe3b0..1a769dfa7 100644
 +      w.__probe = events;
 +      const t0 = Date.now();
 +      const name = (el: any) => el ? el.tagName + "." + String(el.className).slice(0, 30) : "none";
-+      const note = (m: string) => { if (events.length < 40) { events.push(`+${Date.now() - t0} ${m}`); } };
++      const note = (m: string) => { if (events.length < 200) { events.push(`+${Date.now() - t0} ${m}`); } };
++
++      // Sample often, so a transition cannot slip past the listeners.
++      let last = "";
++      const sample = () => {
++        const state = name(document.activeElement) + " editors=" +
++          document.querySelectorAll(".cell_editor").length;
++        if (state !== last) { note("state " + state); last = state; }
++      };
++      const timer = setInterval(sample, 15);
++      sample();
++
++      // The event that makes an open editor save and close. Record who raises it.
++      const app = w.gristApp;
++      const realTrigger = app.trigger.bind(app);
++      app.trigger = (event: string, ...rest: any[]) => {
++        if (event === "clipboard_focus" || event === "clipboard_blur") {
++          const stack = String(new Error().stack).split("\n").slice(1, 6).join(" | ");
++          note(event + " raised, focus " + name(document.activeElement) + " :: " + stack);
++        }
++        return realTrigger(event, ...rest);
++      };
++
 +      const onIn = (e: any) => note("focusin " + name(e.target));
 +      const onOut = (e: any) => note("focusout " + name(e.target));
 +      document.addEventListener("focusin", onIn, true);
@@ -294,7 +316,9 @@ index c6fdbe3b0..1a769dfa7 100644
 +      });
 +      obs.observe(document.body, { childList: true, subtree: true });
 +      w.__probeStop = () => {
++        clearInterval(timer);
 +        obs.disconnect();
++        app.trigger = realTrigger;
 +        document.removeEventListener("focusin", onIn, true);
 +        document.removeEventListener("focusout", onOut, true);
 +      };
@@ -316,7 +340,7 @@ index c6fdbe3b0..1a769dfa7 100644
      await sendKeys(...keys);
      await waitForServer();    // Wait for the value to be saved
    }
-@@ -4342,6 +4377,37 @@ namespace gristUtils {
+@@ -4342,6 +4401,37 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
