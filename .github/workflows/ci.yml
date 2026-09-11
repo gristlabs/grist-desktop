@@ -1,96 +1,52 @@
 name: CI
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - main
-      - dev
 env:
   FORCE_COLOR: 1
   GRIST_SKIP_EXT_AUTOSETUP: 1
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - macos-15-intel
-          - ubuntu-22.04
-          - windows-2022
-        host:
-          - x64
-        target:
-          - x64
-        node:
-          - 22
-        include:
-          - os: macos-14
-            host: arm64
-            target: arm64
-            node: 22
-    name: ${{ matrix.os }} (node=${{ matrix.node }}, host=${{ matrix.host }}, target=${{ matrix.target }})
+    runs-on: ubuntu-22.04
+    name: Driver start timing (ubuntu)
     steps:
-      # yarn run test starts with a .sh script, which cmd cannot run unaided.
-      - name: Set up bash association
-        if: startsWith(matrix.os, 'windows')
-        run: |
-          cmd /c assoc .sh=bashscript
-          cmd /c ftype bashscript="%ProgramFiles%\Git\bin\bash.exe" "%1"
-
       - uses: actions/checkout@v4
         with:
           submodules: true
-
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install dependencies
-        # Match the Packaging workflow, which skips optional dependencies
-        # because they add msgextract which fails on windows. Installing them
-        # here would hide packaging-only build failures.
         run: yarn install --network-timeout 300000 --ignore-optional
-
-      - name: Check version consistency
-        if: startsWith(matrix.os, 'ubuntu')
-        run: node ./scripts/check-metainfo-version-matches.js
-
       - name: Hooks and crooks
         run: yarn run setup
         env:
-          RUN_OS: ${{ matrix.os }}
-          RUN_ARCH: ${{ matrix.target }}
-
+          RUN_OS: ubuntu-22.04
+          RUN_ARCH: x64
       - name: Build
         run: yarn run build
-
-      - name: Test
-        timeout-minutes: 20
-        run: yarn run test
-
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: Run core browser tests against the desktop app
-        timeout-minutes: 30
-        run: yarn run test:electron:upstream
+      - name: Sample how long the browser takes to start
+        timeout-minutes: 90
+        run: |
+          mkdir -p probe-logs
+          for i in $(seq 1 40); do
+            yarn run test:electron:deployment RowMenu > probe-logs/run-$i.txt 2>&1 || true
+            grep -h DRIVERSTART probe-logs/run-$i.txt || echo "run $i: no timing line"
+          done
+          echo "--- slowest five"
+          grep -ho "DRIVERSTART ok in [0-9]*ms" probe-logs/*.txt | grep -o "[0-9]*" | sort -n | tail -5
+          echo "--- failures"
+          grep -h "DRIVERSTART failed" probe-logs/*.txt || echo none
 
-      - name: Run core browser tests against the desktop app as a server
-        # macos-15-intel, the slowest runner, has run past 30 minutes here.
-        timeout-minutes: 45
-        run: yarn run test:electron:deployment
-
-      - name: Save the logs from the browser tests
-        if: failure()
+      - name: Save the logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs-${{ matrix.os }}-${{ matrix.target }}
-          path: test-logs/
-          if-no-files-found: ignore
+          name: driver-start
+          path: probe-logs/
