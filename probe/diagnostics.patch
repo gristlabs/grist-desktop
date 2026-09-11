@@ -127,7 +127,7 @@ index 0b070be98..c1caf889b 100644
  
  export function menuItemCmd(
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
-index 943d1918a..26dbf8146 100644
+index 943d1918a..288686568 100644
 --- a/test/nbrowser/Pages.ts
 +++ b/test/nbrowser/Pages.ts
 @@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
@@ -191,7 +191,23 @@ index 943d1918a..26dbf8146 100644
      assert.deepEqual(await gu.getPageTree(), [
        {
          label: "Interactions", children: [
-@@ -696,6 +695,23 @@ describe("Pages", function() {
+@@ -390,6 +389,7 @@ describe("Pages", function() {
+       assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]));
+     await gu.openPageMenu("Interactions");
+     await gu.findOpenMenuItem(".test-docpage-collapse-by-default", "Set default: Collapse").click();
++    await gu.waitForMenuAction();
+     await gu.waitForServer();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+@@ -409,6 +409,7 @@ describe("Pages", function() {
+       assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]));
+     await gu.openPageMenu("Interactions");
+     await gu.findOpenMenuItem(".test-docpage-expand-by-default", "Set default: Expand").click();
++    await gu.waitForMenuAction();
+     await gu.waitForServer();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+@@ -696,6 +697,23 @@ describe("Pages", function() {
      assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
    });
  
@@ -248,29 +264,41 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..3f47fd15d 100644
+index c6fdbe3b0..1a769dfa7 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -712,12 +712,35 @@ namespace gristUtils {
+@@ -712,12 +712,47 @@ namespace gristUtils {
      if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
        keys.push(Key.ENTER);
      }
 +    await driver.executeScript(() => {
 +      const w = window as any;
-+      w.__editorProbe = [];
++      if (w.__probeStop) { w.__probeStop(); }
++      const events: string[] = [];
++      w.__probe = events;
 +      const t0 = Date.now();
 +      const name = (el: any) => el ? el.tagName + "." + String(el.className).slice(0, 30) : "none";
-+      const note = (m: string) => w.__editorProbe.push(`+${Date.now() - t0} ${m}`);
-+      const isEditor = (n: any) => n && n.classList && n.classList.contains("cell_editor");
-+      new MutationObserver((muts) => {
++      const note = (m: string) => { if (events.length < 40) { events.push(`+${Date.now() - t0} ${m}`); } };
++      const onIn = (e: any) => note("focusin " + name(e.target));
++      const onOut = (e: any) => note("focusout " + name(e.target));
++      document.addEventListener("focusin", onIn, true);
++      document.addEventListener("focusout", onOut, true);
++      const isEd = (n: any) => n && n.classList && n.classList.contains("cell_editor");
++      const obs = new MutationObserver((muts) => {
 +        for (const mu of muts) {
-+          Array.from(mu.addedNodes).filter(isEditor).forEach(() => note("editor in, focus " +
-+            name(document.activeElement)));
-+          Array.from(mu.removedNodes).filter(isEditor).forEach(() => note("editor out, focus " +
++          Array.from(mu.addedNodes).filter(isEd).forEach((n: any) => note("editor in, visibility " +
++            getComputedStyle(n).visibility + ", focus " + name(document.activeElement)));
++          Array.from(mu.removedNodes).filter(isEd).forEach(() => note("editor out, focus " +
 +            name(document.activeElement)));
 +        }
-+      }).observe(document.body, { childList: true, subtree: true });
-+      document.addEventListener("focusin", (e: any) => note("focusin " + name(e.target)), true);
++      });
++      obs.observe(document.body, { childList: true, subtree: true });
++      w.__probeStop = () => {
++        obs.disconnect();
++        document.removeEventListener("focusin", onIn, true);
++        document.removeEventListener("focusout", onOut, true);
++      };
++      note("probe on, focus " + name(document.activeElement));
 +    });
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
@@ -282,13 +310,13 @@ index c6fdbe3b0..3f47fd15d 100644
 +      await waitAppFocus(false);
 +    } catch (e) {
 +      console.log("EDITORTIMELINE " + await driver.executeScript(
-+        () => JSON.stringify((window as any).__editorProbe ?? "none")));
++        () => JSON.stringify((window as any).__probe ?? "none")));
 +      throw e;
 +    }
      await sendKeys(...keys);
      await waitForServer();    // Wait for the value to be saved
    }
-@@ -4342,6 +4365,37 @@ namespace gristUtils {
+@@ -4342,6 +4377,37 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  

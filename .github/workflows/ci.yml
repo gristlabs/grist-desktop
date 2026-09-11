@@ -31,11 +31,12 @@ jobs:
           RUN_OS: ubuntu-22.04
           RUN_ARCH: x64
 
-      - name: Build
-        run: yarn run build
-
+      # Before the build: the patch changes client code, which the browser bundle has to carry.
       - name: Add the logging
         run: git -C core apply --verbose ../probe/diagnostics.patch
+
+      - name: Build
+        run: yarn run build
 
       - name: Build core browser tests
         run: yarn run build:tests
