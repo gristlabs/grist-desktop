@@ -1,0 +1,195 @@
+diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
+index 943d1918a..ba94fab36 100644
+--- a/test/nbrowser/Pages.ts
++++ b/test/nbrowser/Pages.ts
+@@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
+ import * as gu from "test/nbrowser/gristUtils";
+ import { server, setupTestSuite } from "test/nbrowser/testUtils";
+ 
++import isEqual from "lodash/isEqual";
+ import values from "lodash/values";
+ import { assert, driver, Key } from "mocha-webdriver";
+ 
+@@ -57,8 +58,7 @@ describe("Pages", function() {
+     const revertAcl = await gu.beginAclTran(api, doc.id);
+     // Update ACL, hide Overview table from all users.
+     await hideTable("Overview");
+-    // We will be reloaded, but it's not easy to wait for it, so do the refresh manually.
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents", "People", "User & Leads"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -74,7 +74,7 @@ describe("Pages", function() {
+ 
+     // Now hide User_Leads
+     await hideTable("User_Leads");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents", "People"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -88,7 +88,7 @@ describe("Pages", function() {
+ 
+     // Now hide People, and test that whole node is hidden.
+     await hideTable("People");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions", "Documents"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -99,7 +99,7 @@ describe("Pages", function() {
+ 
+     // Now hide Documents, this is a leaf, so it should be hidden from the start
+     await hideTable("Documents");
+-    await gu.reloadDoc();
++    await waitForPages(["Interactions"]);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions",
+@@ -108,13 +108,12 @@ describe("Pages", function() {
+ 
+     // Now hide Interactions, we should have a blank treeview
+     await hideTable("Interactions");
+-    // We can wait for doc to load, because it waits for section.
+-    await driver.findWait(".test-treeview-container", 1000);
++    await waitForPages([]);
+     assert.deepEqual(await gu.getPageTree(), []);
+ 
+     // Rollback
+     await revertAcl();
+-    await gu.reloadDoc();
++    await driver.findContentWait(".test-docpage-label", /Overview/, 2000);
+     assert.deepEqual(await gu.getPageTree(), [
+       {
+         label: "Interactions", children: [
+@@ -394,6 +393,7 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+     await gu.waitForDocToLoad();
++    await collapseProbe();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "", "People", "User & Leads", "Overview"]);
+ 
+     // Check state is saved for all users.
+@@ -413,6 +413,7 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+     await driver.navigate().refresh();
+     await gu.waitForDocToLoad();
++    await collapseProbe();
+     assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
+   });
+ 
+@@ -696,6 +697,34 @@ describe("Pages", function() {
+     assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
+   });
+ 
++  /**
++   * Waits for the tree to settle on the given page names, which is what hiding a table leads to.
++   *
++   * Changing the rules makes the app reload the document by itself. Refreshing the browser here
++   * instead would race that reload, and a browser that reconnects while the old connection is
++   * still up is given a fresh client id. Undo offers a client only the actions it made itself, so
++   * the page move above would then be beyond the reach of the undo at the end of this test, and
++   * would still be in place for every test below. The tree is emptied before it is rebuilt, so
++   * wait for the names it settles on rather than for a page to go.
++   */
++  async function waitForPages(expected: string[]) {
++    await driver.wait(async () => {
++      await driver.findWait(".test-treeview-container", 1000);
++      return isEqual(await gu.getPageNames(), expected);
++    }, 4000, `pages did not settle as ${expected.join(", ")}`);
++  }
++
++  /** Logs what the tree says the moment it is read, and again a moment later. */
++  async function collapseProbe() {
++    const read = async () => JSON.stringify({
++      names: await gu.getPageNames(),
++      collapsed: (await driver.findAll(".test-treeview-itemContainer.collapsed")).length,
++    });
++    const first = await read();
++    await driver.sleep(750);
++    console.log(`COLLAPSEPROBE at read ${first}; 750ms later ${await read()}`);
++  }
++
+   async function hideTable(tableId: string) {
+     await api.applyUserActions(doc.id, [
+       ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
+diff --git a/test/nbrowser/RowMenu.ts b/test/nbrowser/RowMenu.ts
+index 6a8770adb..97b090bfa 100644
+--- a/test/nbrowser/RowMenu.ts
++++ b/test/nbrowser/RowMenu.ts
+@@ -70,8 +70,21 @@ describe("RowMenu", function() {
+     await driver.sendKeys(Key.ESCAPE);
+ 
+     // check that the context menu is gone
+-    await gu.waitToPass(async () =>
+-      assert.isFalse(await driver.find(".grist-floating-menu").isPresent()));
++    try {
++      await gu.waitToPass(async () =>
++        assert.isFalse(await driver.find(".grist-floating-menu").isPresent()));
++    } catch (e) {
++      console.log("ROWMENUPROBE " + await driver.executeScript(() => {
++        const menu = document.querySelector(".grist-floating-menu");
++        const active = document.activeElement as HTMLElement | null;
++        return JSON.stringify({
++          menus: document.querySelectorAll(".grist-floating-menu").length,
++          menuClass: menu ? menu.className : null,
++          active: active ? active.tagName + "." + active.className : null,
++        });
++      }));
++      throw e;
++    }
+   });
+ 
+   it("can rename headers from the selected line", async function() {
+diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
+index c6fdbe3b0..76f0b5689 100644
+--- a/test/nbrowser/gristUtils.ts
++++ b/test/nbrowser/gristUtils.ts
+@@ -717,7 +717,22 @@ namespace gristUtils {
+     }, ...(clear ? [""] : []));
+     // Wait for the editor to appear
+     await waitForCellEditor();
+-    await waitAppFocus(false);
++    try {
++      await waitAppFocus(false);
++    } catch (e) {
++      console.log("ENTERCELLPROBE " + await driver.executeScript(() => {
++        const active = document.activeElement as HTMLElement | null;
++        const copypaste = document.querySelector(".copypaste");
++        return JSON.stringify({
++          active: active ? active.tagName + "." + active.className : null,
++          copypasteCount: document.querySelectorAll(".copypaste").length,
++          copypasteHasFocus: active === copypaste,
++          editors: document.querySelectorAll(".cell_editor").length,
++          editorShown: document.querySelector(".cell_editor")?.clientWidth ?? -1,
++        });
++      }));
++      throw e;
++    }
+     await sendKeys(...keys);
+     await waitForServer();    // Wait for the value to be saved
+   }
+diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
+index a3d5035de..7f32b87f7 100644
+--- a/test/nbrowser/gristWebDriverUtils.ts
++++ b/test/nbrowser/gristWebDriverUtils.ts
+@@ -427,8 +427,16 @@ export class GristWebDriverUtils {
+     const colIndex = (typeof col === "number" ? col :
+       await sectionElem.findContentWait(".column_name", this.exactMatch(col), 1000).index());
+ 
+-    const visibleRowNums: number[] = await sectionElem.findAll(".gridview_data_row_num",
+-      async el => parseInt(await el.getText(), 10));
++    let visibleRowNums: number[];
++    try {
++      visibleRowNums = await sectionElem.findAll(".gridview_data_row_num",
++        async el => parseInt(await el.getText(), 10));
++    } catch (e) {
++      const again = await sectionElem.findAll(".gridview_data_row_num",
++        async el => parseInt(await el.getText(), 10)).catch((e2: Error) => String(e2));
++      console.log(`GRIDREADPROBE first read failed: ${e}; second read: ${JSON.stringify(again)}`);
++      throw e;
++    }
+ 
+     const selector = `.gridview_data_scroll .record:not(.column_names) .field:nth-child(${colIndex + 1})`;
+     const fields = mapper ? await sectionElem.findAll(selector, mapper) : await sectionElem.findAll(selector);
