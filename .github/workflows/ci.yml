@@ -41,6 +41,17 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
+      # Cheap guard, because the two ways this probe has been wasted were both a client bundle
+      # built without a hook the compiled tests call. Seconds here beats a loop that dies on
+      # every round for a reason that has nothing to do with what is being measured.
+      - name: Check the bundle carries the hooks the tests wait on
+        run: |
+          for hook in $(grep -ho "testNumPending[A-Za-z]*" core/_build/test/nbrowser/*.js | sort -u); do
+            grep -qr "$hook" core/static/*.js core/_build/app/client 2>/dev/null \
+              || { echo "MISSING from the client build: $hook"; exit 1; }
+            echo "ok: $hook"
+          done
+
       - name: Loop the three suites, idle then loaded
         timeout-minutes: 180
         run: |
