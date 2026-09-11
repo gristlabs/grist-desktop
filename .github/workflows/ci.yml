@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: macos-14
-    name: Pages race probe (macos-14, arm64)
+    name: Undo diagnosis (macos-14, arm64)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,28 +34,26 @@ jobs:
       - name: Build
         run: yarn run build
 
+      - name: Add undo logging
+        run: git -C core apply --verbose ../probe/diagnose-undo.patch
+
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: Loop the Pages suite in deployment mode, before the fix
-        timeout-minutes: 60
+      - name: Run the deployment suite, logging every undo
+        timeout-minutes: 180
         run: |
+          mkdir -p probe-logs
           fail=0
-          for i in $(seq 1 10); do
-            yarn run test:electron:deployment Pages || fail=$((fail+1))
+          for i in 1 2 3 4; do
+            yarn run test:electron:deployment > probe-logs/run-$i.txt 2>&1 || fail=$((fail+1))
+            echo "--- iteration $i: $(grep -cE '^  [0-9]+\) ' probe-logs/run-$i.txt) failure block(s)"
           done
-          echo "CONTROL: $fail of 10 failed"
+          echo "TOTAL: $fail of 4 iterations failed"
 
-      - name: Apply the fix
-        run: |
-          git -C core apply --verbose ../probe/fix-races.patch
-          yarn run build:tests
-
-      - name: Loop the Pages suite in deployment mode, after the fix
-        timeout-minutes: 60
-        run: |
-          fail=0
-          for i in $(seq 1 10); do
-            yarn run test:electron:deployment Pages || fail=$((fail+1))
-          done
-          echo "FIXED: $fail of 10 failed"
+      - name: Save the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: undo-diagnosis
+          path: probe-logs/

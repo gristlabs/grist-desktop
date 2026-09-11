@@ -1,0 +1,16 @@
+diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
+index a3d5035de..63b1244b8 100644
+--- a/test/nbrowser/gristWebDriverUtils.ts
++++ b/test/nbrowser/gristWebDriverUtils.ts
+@@ -350,6 +350,11 @@ export class GristWebDriverUtils {
+   public async undo(optCount: number = 1, optTimeout?: number) {
+     await this.waitForServer(optTimeout);
+     for (let i = 0; i < optCount; ++i) {
++      const state = await this.driver.executeScript(() => {
++        const el = document.querySelector(".test-undo");
++        return el ? el.getAttribute("aria-disabled") : "absent";
++      });
++      console.log(`UNDOPROBE step=${i} disabled=${state}`);
+       await this.driver.find(".test-undo").doClick();
+       await this.waitForServer(optTimeout);
+     }
