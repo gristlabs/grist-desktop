@@ -1,11 +1,6 @@
 name: CI
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - main
-      - dev
 env:
   FORCE_COLOR: 1
   GRIST_SKIP_EXT_AUTOSETUP: 1
@@ -58,6 +53,10 @@ jobs:
         # here would hide packaging-only build failures.
         run: yarn install --network-timeout 300000 --ignore-optional
 
+      # Before the build: the patch changes client code, which the browser bundle has to carry.
+      - name: Apply the fixes under test
+        run: git -C core apply --verbose ../probe/fixes.patch
+
       - name: Check version consistency
         if: startsWith(matrix.os, 'ubuntu')
         run: node ./scripts/check-metainfo-version-matches.js
@@ -77,6 +76,15 @@ jobs:
 
       - name: Build core browser tests
         run: yarn run build:tests
+
+      - name: Check the bundle carries the hooks the tests wait on
+        shell: bash
+        run: |
+          for hook in $(grep -ho "testNumPending[A-Za-z]*" core/_build/test/nbrowser/*.js | sort -u); do
+            grep -qr "$hook" core/static/*.js core/_build/app/client 2>/dev/null \
+              || { echo "MISSING from the client build: $hook"; exit 1; }
+            echo "ok: $hook"
+          done
 
       - name: Run core browser tests against the desktop app
         timeout-minutes: 30
