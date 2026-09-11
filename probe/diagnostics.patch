@@ -264,21 +264,26 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..4adf9be05 100644
+index c6fdbe3b0..62626287a 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -712,6 +712,10 @@ namespace gristUtils {
+@@ -712,6 +712,15 @@ namespace gristUtils {
      if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
        keys.push(Key.ENTER);
      }
 +    // Asking for an editor does nothing while one is already open, and the wait below then never
 +    // sees the focus move. A cell clicked while the previous editor is still closing lands here.
-+    await driver.wait(async () => !await driver.find(".cell_editor").isPresent(), 2000,
-+      "an editor was still open when another was asked for");
++    // An editor on its way out still counts as open, so asking for one does nothing, and the wait
++    // below then never sees the focus move. An editor that holds the focus is a different case:
++    // callers do type into one of those, so only wait out an editor that has lost the focus.
++    await driver.wait(async () => await driver.executeScript<boolean>(() => {
++      const editor = document.querySelector(".cell_editor");
++      return !editor || editor.contains(document.activeElement);
++    }), 2000, "an editor was closing and did not go");
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
      }, ...(clear ? [""] : []));
-@@ -4342,6 +4346,37 @@ namespace gristUtils {
+@@ -4342,6 +4351,37 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
