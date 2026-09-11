@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     runs-on: macos-14
-    name: Mac flake diagnosis (macos-14, arm64)
+    name: Mac fix validation (macos-14, arm64)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,7 +34,7 @@ jobs:
       - name: Build
         run: yarn run build
 
-      - name: Apply the fix under test, and the logging
+      - name: Apply the fixes under test
         run: git -C core apply --verbose ../probe/mac-flakes.patch
 
       - name: Build core browser tests
@@ -49,9 +49,8 @@ jobs:
               && echo "$1: pass" || echo "$1: FAIL"
             grep -hE "^  [0-9]+\) |PROBE" "probe-logs/$1.txt" | head -20 || true
           }
-          # Load made no difference last time, so spend the budget on iterations instead.
-          # The stale grid read showed up once in eight; twelve should say whether the fix
-          # carried in this patch stops it, and give the other two more chances to appear.
+          # Baselines to beat, from the last two runs of this same loop: ToggleColumns failed
+          # 4 of 12 and RowMenu 1 of 12, both with no fix in place.
           for i in $(seq 1 12); do run_once "run-$i"; done
 
       - name: Save the logs
