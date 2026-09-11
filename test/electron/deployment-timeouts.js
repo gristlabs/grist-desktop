@@ -49,7 +49,25 @@ function raiseSuite(suite) {
   suite.suites.forEach(raiseSuite);
 }
 
-hooks.beforeAll = [function () { raiseSuite(this.runnable().parent); }, hooks.beforeAll];
+const startDriver = hooks.beforeAll;
+
+/**
+ * mocha-webdriver's own hook sets this.timeout(20000) as its first statement, which beats
+ * anything raised before it runs. Starting the browser occasionally takes longer than that on a
+ * busy runner, and the whole run then fails having run no tests. It sets the timeout
+ * synchronously, so raising it again straight after the call applies to the wait itself.
+ */
+hooks.beforeAll = [
+  function () { raiseSuite(this.runnable().parent); },
+  function () {
+    const t0 = Date.now();
+    const started = startDriver.call(this);
+    this.timeout(TEST_FLOOR);
+    return started.then(
+      () => { console.log(`DRIVERSTART ok in ${Date.now() - t0}ms`); },
+      (e) => { console.log(`DRIVERSTART failed after ${Date.now() - t0}ms`); throw e; });
+  },
+];
 
 // Resolved absolutely rather than through NODE_PATH, so we patch the module the
 // tests will get and not a second copy of it.
