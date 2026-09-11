@@ -231,6 +231,25 @@ index 943d1918a..288686568 100644
    async function hideTable(tableId: string) {
      await api.applyUserActions(doc.id, [
        ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
+diff --git a/test/nbrowser/ReferenceList.ts b/test/nbrowser/ReferenceList.ts
+index 1de092717..d9008ff22 100644
+--- a/test/nbrowser/ReferenceList.ts
++++ b/test/nbrowser/ReferenceList.ts
+@@ -548,7 +548,14 @@ describe("ReferenceList", function() {
+ 
+   describe("autocomplete", function() {
+     const getACOptions = stackWrapFunc(async (limit?: number) => {
++      // Two waits, and both are needed. Waiting for an item says a dropdown is up, but the items
++      // are rebuilt asynchronously, so a list left over from the previous keystroke looks exactly
++      // like the current one. Waiting for the search text the items were built for tells those
++      // apart, except between two searches for the same text, which is why the first wait stays.
+       await driver.findWait(".test-ref-editor-item", 2000);
++      const text = await driver.executeScript<string>(
++        () => (document.activeElement as HTMLInputElement).value ?? "");
++      await gu.autocomplete.wait(text);
+       return (await driver.findAll(".test-ref-editor-item", el => el.getText())).slice(0, limit);
+     });
+ 
 diff --git a/test/nbrowser/RowMenu.ts b/test/nbrowser/RowMenu.ts
 index 6a8770adb..22ae34b7d 100644
 --- a/test/nbrowser/RowMenu.ts
@@ -264,10 +283,24 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..ed084f1cc 100644
+index c6fdbe3b0..3106ff062 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -4342,6 +4342,37 @@ namespace gristUtils {
+@@ -712,6 +712,13 @@ namespace gristUtils {
+     if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
+       keys.push(Key.ENTER);
+     }
++    // An editor on its way out still counts as open, so asking for one does nothing, and the wait
++    // below then never sees the focus move. An editor that holds the focus is a different case:
++    // callers do type into one of those, so only wait out an editor that has lost the focus.
++    await driver.wait(async () => await driver.executeScript<boolean>(() => {
++      const editor = document.querySelector(".cell_editor");
++      return !editor || editor.contains(document.activeElement);
++    }), 2000, "an editor was closing and did not go");
+     await driver.executeScript((...args: any[]) => {
+       (window as any).gristApp.allCommands.input.run(...args);
+     }, ...(clear ? [""] : []));
+@@ -4342,6 +4349,37 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
