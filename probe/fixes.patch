@@ -1,5 +1,5 @@
 diff --git a/app/client/components/BaseView.ts b/app/client/components/BaseView.ts
-index 7a6e1e2c5..9a43a709c 100644
+index 7a6e1e2c5..bd36a27f6 100644
 --- a/app/client/components/BaseView.ts
 +++ b/app/client/components/BaseView.ts
 @@ -9,6 +9,7 @@ import { viewCommands } from "app/client/components/RegionFocusSwitcher";
@@ -10,13 +10,11 @@ index 7a6e1e2c5..9a43a709c 100644
  import BaseRowModel from "app/client/models/BaseRowModel";
  import { ClientColumnGetters } from "app/client/models/ClientColumnGetters";
  import { DataRowModel } from "app/client/models/DataRowModel";
-@@ -262,6 +263,16 @@ export default class BaseView extends DisposableWithEvents {
+@@ -262,6 +263,14 @@ export default class BaseView extends DisposableWithEvents {
      // --------------------------------------------------
      // Observables local to this view
      this._isLoading = ko.observable(true);
 +
-+    // Counted on the change, not per query: a superseded query never calls back, and the flag
-+    // stays set until the latest one does.
 +    testPendingViewLoads.start();
 +    this.autoDispose(this._isLoading.subscribe((isLoading: boolean) => {
 +      if (isLoading) { testPendingViewLoads.start(); } else { testPendingViewLoads.end(); }
@@ -41,7 +39,7 @@ index f3d73deb2..67cee4a2f 100644
      cmd?: { [name: string]: () => void };
      isRunningUnderElectron?: boolean;
 diff --git a/app/client/lib/testPendingOps.ts b/app/client/lib/testPendingOps.ts
-index 57d638cf6..046ba52b7 100644
+index 57d638cf6..49c55c692 100644
 --- a/app/client/lib/testPendingOps.ts
 +++ b/app/client/lib/testPendingOps.ts
 @@ -40,3 +40,15 @@ export const testPendingChecks = new TestPendingOps();
@@ -50,14 +48,14 @@ index 57d638cf6..046ba52b7 100644
  export const testPendingPastes = new TestPendingOps();
 +
 +/**
-+ * Menu items that defer their action to the next tick, so the menu can close first. Nothing is in
-+ * flight in that gap, so a test that reloads there loses the action.
++ * Menu items that defer their action to the next tick, so the menu can close first. No request is
++ * in flight during that gap, so a test that reloads the page then loses the action.
 + */
 +export const testPendingMenuActions = new TestPendingOps();
 +
 +/**
-+ * Views waiting for data. A cursor move makes the widgets linked to it re-query, and nothing in
-+ * the page waits for that.
++ * Views waiting for data. Moving the cursor in one widget makes the widgets linked to it
++ * re-query, and the page has no other signal for when those queries finish.
 + */
 +export const testPendingViewLoads = new TestPendingOps();
 diff --git a/app/client/ui/App.ts b/app/client/ui/App.ts
@@ -90,7 +88,7 @@ index a38c607bd..60c782ca8 100644
      console.log("reloadPane");
      this.topAppModel.reload();
 diff --git a/app/client/ui2018/menus.ts b/app/client/ui2018/menus.ts
-index 0b070be98..195f9b05e 100644
+index 0b070be98..ef4e2cee9 100644
 --- a/app/client/ui2018/menus.ts
 +++ b/app/client/ui2018/menus.ts
 @@ -1,6 +1,7 @@
@@ -101,44 +99,38 @@ index 0b070be98..195f9b05e 100644
  import { NeedUpgradeError, reportError } from "app/client/models/errors";
  import { textButton } from "app/client/ui2018/buttons";
  import { cssCheckboxSquare, cssLabel, cssLabelText } from "app/client/ui2018/checkbox";
-@@ -591,7 +592,19 @@ export function menuItemTrimmed(
+@@ -591,7 +592,14 @@ export function menuItemTrimmed(
   * can be removed.
   */
  export const menuItemAsync: typeof weasel.menuItem = function(action, ...args) {
 -  return menuItem(() => setTimeout(action, 0), ...args);
-+  // The timer calls the action with no arguments, as a bare setTimeout(action, 0) did.
-+  const run = action as unknown as () => unknown;
-+  return menuItem(() => {
-+    // Counted before yielding, so the action is never observed as not pending.
++  return menuItem((item, ev) => {
++    // Counted before the timer is set, so the count covers the whole deferral. The action is
++    // typed as returning void, but several are async, so settle whatever comes back.
 +    testPendingMenuActions.start();
-+    setTimeout(async () => {
-+      try {
-+        await run();
-+      } finally {
-+        testPendingMenuActions.end();
-+      }
++    setTimeout(() => {
++      void Promise.resolve(action(item, ev)).finally(() => testPendingMenuActions.end());
 +    }, 0);
 +  }, ...args);
  };
  
  export function menuItemCmd(
 diff --git a/test/nbrowser/CopyPasteLinked.ts b/test/nbrowser/CopyPasteLinked.ts
-index a9d637fd8..97b40a55f 100644
+index a9d637fd8..9b7b387f0 100644
 --- a/test/nbrowser/CopyPasteLinked.ts
 +++ b/test/nbrowser/CopyPasteLinked.ts
-@@ -28,6 +28,10 @@ describe("CopyPasteLinked", function() {
+@@ -28,6 +28,9 @@ describe("CopyPasteLinked", function() {
      assert.equal(await cell.getText(), "John Malik");
  
      await clipboard.lockAndPerform(async (cb) => {
 +      // The copy handler sits on the grid's hidden textarea, so a copy sent while anything else
-+      // holds the focus is dropped, leaving the previous suite's clipboard contents to be pasted
-+      // below.
++      // holds the focus is dropped, and the paste below uses the previous clipboard contents.
 +      await gu.waitAppFocus();
        // Copy the cell's value to the clipboard.
        await cb.copy();
  
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
-index 943d1918a..ef9b2f7af 100644
+index 943d1918a..eced91023 100644
 --- a/test/nbrowser/Pages.ts
 +++ b/test/nbrowser/Pages.ts
 @@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
@@ -223,9 +215,9 @@ index 943d1918a..ef9b2f7af 100644
    });
  
 +  /**
-+   * Waits for the page tree to settle on the given names, which is what hiding a table leads to.
-+   * Hiding one makes the app reload the document itself, and the tree is emptied before it is
-+   * rebuilt, so waiting for a page to be gone is not enough.
++   * Waits for the page tree to settle on the given names. Hiding a table makes the app reload the
++   * document itself, and the tree is emptied before it is rebuilt, so waiting for a page to be
++   * gone is not enough.
 +   */
 +  async function waitForPages(expected: string[]) {
 +    await driver.wait(async () => {
@@ -233,8 +225,8 @@ index 943d1918a..ef9b2f7af 100644
 +        return await driver.find(".test-treeview-container").isPresent() &&
 +          isEqual(await gu.getPageNames(), expected);
 +      } catch (e) {
-+        // The tree is rebuilt under the read, which makes its elements stale; look again. Other
-+        // failures are the driver's, and end the wait.
++        // A rebuild during the read makes the elements it found stale, which is expected here,
++        // so retry. Other errors are not expected, so rethrow.
 +        if (e.name !== "StaleElementReferenceError") { throw e; }
 +        return false;
 +      }
@@ -245,30 +237,28 @@ index 943d1918a..ef9b2f7af 100644
      await api.applyUserActions(doc.id, [
        ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
 diff --git a/test/nbrowser/ReferenceList.ts b/test/nbrowser/ReferenceList.ts
-index 1de092717..ffe5f6a77 100644
+index 1de092717..bc40f118a 100644
 --- a/test/nbrowser/ReferenceList.ts
 +++ b/test/nbrowser/ReferenceList.ts
-@@ -548,7 +548,14 @@ describe("ReferenceList", function() {
+@@ -548,7 +548,12 @@ describe("ReferenceList", function() {
  
    describe("autocomplete", function() {
      const getACOptions = stackWrapFunc(async (limit?: number) => {
-+      // Both waits are needed. An item says a dropdown is up; the search text says whose results
-+      // it holds, since a list left over from the previous keystroke looks identical. The search
-+      // text cannot separate two searches for the same text, which is why the first wait stays.
-+      // Call this while the typed text is still in the box: selecting an item with the arrow keys
-+      // or the mouse writes that item back into it without searching again.
++      // An item means the dropdown is open. The search text identifies which query produced the
++      // list, since a list left from the previous keystroke looks the same. Call this while the
++      // typed text is still in the box: picking an item writes it there without a new search.
        await driver.findWait(".test-ref-editor-item", 2000);
 +      const text = await driver.find(".cell_editor .test-tokenfield .test-tokenfield-input").value();
 +      await gu.autocomplete.wait(text);
        return (await driver.findAll(".test-ref-editor-item", el => el.getText())).slice(0, limit);
      });
  
-@@ -777,6 +784,9 @@ describe("ReferenceList", function() {
+@@ -777,6 +782,9 @@ describe("ReferenceList", function() {
        await driver.findContentWait(".test-treeview-itemHeader", /Colors/, 2000).click();
        await gu.waitForDocToLoad();
        await gu.sendKeys(Key.chord(await gu.modKey(), Key.ARROW_DOWN));
-+      // Jumping to the last row scrolls it into the rendered window, and the rows read below are
-+      // only there once it has. Waiting for the values avoids naming a row number.
++      // The grid renders only the rows around the cursor, so the rows read below are present
++      // only once the jump above has scrolled them into view.
 +      await driver.findContentWait(".active_section .field_clip", /^almost pink$/, 2000);
        assert.deepEqual(
          await gu.getVisibleGridCells("Color Name", [146, 147]),
@@ -314,17 +304,16 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..182068156 100644
+index c6fdbe3b0..db8cf3da5 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
-@@ -712,6 +712,14 @@ namespace gristUtils {
+@@ -712,6 +712,13 @@ namespace gristUtils {
      if (![Key.ENTER, Key.TAB].includes(lastKey!) && validate) {
        keys.push(Key.ENTER);
      }
-+    // An editor on its way out still counts as open, so asking for one does nothing and the wait
-+    // below never sees the focus move. Observed in failing runs: an editor present with the focus
-+    // back on the grid, gone a hundred or so milliseconds later, with nothing to replace it. Only
-+    // wait out an editor that has lost the focus: callers do type into one that still holds it.
++    // A closing editor still counts as open, and the input command below is a no-op while one
++    // is, so no new editor appears and the wait for it times out. Only wait for an editor that
++    // has lost the focus: callers do type into one that still has it.
 +    await driver.wait(async () => await driver.executeScript<boolean>(() => {
 +      const editors = Array.from(document.querySelectorAll(".cell_editor"));
 +      return editors.length === 0 || editors.some(e => e.contains(document.activeElement));
@@ -332,14 +321,14 @@ index c6fdbe3b0..182068156 100644
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
      }, ...(clear ? [""] : []));
-@@ -4342,6 +4350,35 @@ namespace gristUtils {
+@@ -4342,6 +4349,35 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
 +  /**
 +   * Waits for an open menu to hold the focus, which is when it starts handling keys. A menu takes
-+   * focus on the tick after it is shown, so a key sent as soon as one appears can go elsewhere,
-+   * and Escape in particular is then lost and the menu stays open.
++   * the focus on the tick after it is shown, so an Escape sent as soon as one appears is lost and
++   * the menu stays open.
 +   */
 +  export async function waitForMenuFocus(optTimeout: number = 1000) {
 +    await driver.wait(async () => await driver.executeScript<boolean>(() => {
@@ -350,8 +339,8 @@ index c6fdbe3b0..182068156 100644
 +  }
 +
 +  /**
-+   * Waits for every view to have the data it asked for. A cursor move makes the widgets linked to
-+   * it re-query, and nothing in the page waits for that.
++   * Waits for every view to have the data it asked for. Moving the cursor in one widget makes the
++   * widgets linked to it re-query, and the page has no other signal for when those queries finish.
 +   */
 +  export async function waitForViewLoads(optTimeout: number = 5000) {
 +    await waitForPendingOps("testNumPendingViewLoads", "views to load their data", optTimeout);
@@ -359,7 +348,7 @@ index c6fdbe3b0..182068156 100644
 +
 +  /**
 +   * Waits for a menu item's action to run. Items that let the menu close first defer their action
-+   * to the next tick, and waitForServer is not a substitute: it sees nothing in flight in that gap.
++   * to the next tick, and waitForServer is not a substitute, as no request is in flight by then.
 +   */
 +  export async function waitForMenuAction(optTimeout: number = 2000) {
 +    await waitForPendingOps("testNumPendingMenuActions", "a menu action to run", optTimeout);
@@ -369,7 +358,7 @@ index c6fdbe3b0..182068156 100644
    export async function getSelectValue(selector: string) {
      return await driver.find(`${selector} .test-select-row`).getText();
 diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
-index a3d5035de..a73e8405e 100644
+index a3d5035de..b94b46ebc 100644
 --- a/test/nbrowser/gristWebDriverUtils.ts
 +++ b/test/nbrowser/gristWebDriverUtils.ts
 @@ -413,7 +413,7 @@ export class GristWebDriverUtils {
@@ -389,12 +378,12 @@ index a3d5035de..a73e8405e 100644
 +
 +    if (!mapper) {
 +      // Read the row numbers and the cells together, in the browser. Reading them one element at
-+      // a time leaves gaps in which the section can be rebuilt, losing the elements just found.
++      // a time leaves gaps in which the section can be rebuilt, so earlier elements go stale.
 +      const [visibleRowNums, texts] = await this.driver.executeScript<[number[], string[]]>(
 +        (elem: HTMLElement, cellSelector: string) => [
 +          Array.from(elem.querySelectorAll(".gridview_data_row_num"),
 +            el => parseInt((el as HTMLElement).innerText, 10)),
-+          // Trimmed: getText() trims, innerText does not, and cells are white-space: pre.
++          // Trimmed to match getText(), which trims. innerText does not, and cells are white-space: pre.
 +          Array.from(elem.querySelectorAll(cellSelector), el => (el as HTMLElement).innerText.trim()),
 +        ], sectionElem, selector);
 +      return rowNums.map(n => texts[visibleRowNums.indexOf(n)]) as T[];

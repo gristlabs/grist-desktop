@@ -52,17 +52,25 @@ function raiseSuite(suite) {
 const startDriver = hooks.beforeAll;
 
 /**
- * mocha-webdriver's own hook sets this.timeout(20000) as its first statement, which beats
- * anything raised before it runs. Starting the browser occasionally takes longer than that on a
- * busy runner, and the whole run then fails having run no tests. It sets the timeout
- * synchronously, so raising it again straight after the call applies to the wait itself.
+ * mocha-webdriver's own hook sets this.timeout(20000) as its first statement, which overrides
+ * any value set before it runs. Starting the browser occasionally takes longer than that on a
+ * busy runner, and the run then fails before any test runs. It sets the timeout synchronously,
+ * so raising it again straight after the call applies to the wait itself.
  */
 hooks.beforeAll = [
   function () { raiseSuite(this.runnable().parent); },
   function () {
     const started = startDriver.call(this);
     this.timeout(TEST_FLOOR);
-    return started;
+    return started.then(() => {
+      // The raise above works only because mocha-webdriver sets its own timeout in the first
+      // statement of its hook. If that ever moves after an await, the raise is overwritten and
+      // this plugin no longer affects the driver start, so report it rather than run on.
+      if (this.timeout() !== TEST_FLOOR) {
+        throw new Error(`driver start timeout is ${this.timeout()}ms, not the ${TEST_FLOOR}ms ` +
+          `this plugin set: mocha-webdriver now sets it later, and the raise no longer holds`);
+      }
+    });
   },
 ];
 
