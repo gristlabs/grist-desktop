@@ -127,7 +127,7 @@ index 0b070be98..c1caf889b 100644
  
  export function menuItemCmd(
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
-index 943d1918a..288686568 100644
+index 943d1918a..58a090729 100644
 --- a/test/nbrowser/Pages.ts
 +++ b/test/nbrowser/Pages.ts
 @@ -4,6 +4,7 @@ import { Session } from "test/nbrowser/gristUtils";
@@ -207,7 +207,7 @@ index 943d1918a..288686568 100644
      await gu.waitForServer();
      assert.deepEqual(await gu.getPageNames(), ["Interactions", "Documents", "People", "User & Leads", "Overview"]);
      await driver.navigate().refresh();
-@@ -696,6 +697,23 @@ describe("Pages", function() {
+@@ -696,6 +697,28 @@ describe("Pages", function() {
      assert.deepEqual(await gu.getSectionTitles(), ["TABLE C", "TABLE D", "TABLE1"]);
    });
  
@@ -223,8 +223,13 @@ index 943d1918a..288686568 100644
 +   */
 +  async function waitForPages(expected: string[]) {
 +    await driver.wait(async () => {
-+      await driver.findWait(".test-treeview-container", 1000);
-+      return isEqual(await gu.getPageNames(), expected);
++      try {
++        return await driver.find(".test-treeview-container").isPresent() &&
++          isEqual(await gu.getPageNames(), expected);
++      } catch (e) {
++        // The tree is being rebuilt under the read; look again rather than give up.
++        return false;
++      }
 +    }, 4000, `pages did not settle as ${expected.join(", ")}`);
 +  }
 +
@@ -232,10 +237,10 @@ index 943d1918a..288686568 100644
      await api.applyUserActions(doc.id, [
        ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
 diff --git a/test/nbrowser/ReferenceList.ts b/test/nbrowser/ReferenceList.ts
-index 1de092717..0e5b722e6 100644
+index 1de092717..607ff1b89 100644
 --- a/test/nbrowser/ReferenceList.ts
 +++ b/test/nbrowser/ReferenceList.ts
-@@ -548,7 +548,14 @@ describe("ReferenceList", function() {
+@@ -548,7 +548,13 @@ describe("ReferenceList", function() {
  
    describe("autocomplete", function() {
      const getACOptions = stackWrapFunc(async (limit?: number) => {
@@ -244,13 +249,12 @@ index 1de092717..0e5b722e6 100644
 +      // like the current one. Waiting for the search text the items were built for tells those
 +      // apart, except between two searches for the same text, which is why the first wait stays.
        await driver.findWait(".test-ref-editor-item", 2000);
-+      const text = await driver.executeScript<string>(
-+        () => (document.activeElement as HTMLInputElement).value ?? "");
++      const text = await driver.find(".cell_editor .test-tokenfield .test-tokenfield-input").value();
 +      await gu.autocomplete.wait(text);
        return (await driver.findAll(".test-ref-editor-item", el => el.getText())).slice(0, limit);
      });
  
-@@ -777,6 +784,9 @@ describe("ReferenceList", function() {
+@@ -777,6 +783,9 @@ describe("ReferenceList", function() {
        await driver.findContentWait(".test-treeview-itemHeader", /Colors/, 2000).click();
        await gu.waitForDocToLoad();
        await gu.sendKeys(Key.chord(await gu.modKey(), Key.ARROW_DOWN));
@@ -293,7 +297,7 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..3106ff062 100644
+index c6fdbe3b0..8000d0faa 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
 @@ -712,6 +712,13 @@ namespace gristUtils {
@@ -306,7 +310,7 @@ index c6fdbe3b0..3106ff062 100644
 +    await driver.wait(async () => await driver.executeScript<boolean>(() => {
 +      const editor = document.querySelector(".cell_editor");
 +      return !editor || editor.contains(document.activeElement);
-+    }), 2000, "an editor was closing and did not go");
++    }).catch(() => false), 2000, "an editor was closing and did not go");
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
      }, ...(clear ? [""] : []));
@@ -314,15 +318,6 @@ index c6fdbe3b0..3106ff062 100644
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
-+  /**
-+   * Waits for every view to have the data it asked for. A cursor move in one widget makes the
-+   * widgets linked to it re-query, and nothing in the page waits for that, so reading a linked
-+   * widget straight after moving the cursor can return the rows it held before.
-+   */
-+  export async function waitForViewLoads(optTimeout: number = 5000) {
-+    await waitForPendingOps("testNumPendingViewLoads", "views to load their data", optTimeout);
-+  }
-+
 +  /**
 +   * Waits for an open menu to hold the focus, which is when it starts handling keys. A menu takes
 +   * focus on the tick after it is shown, so a key sent as soon as one appears can go elsewhere,
@@ -333,7 +328,16 @@ index c6fdbe3b0..3106ff062 100644
 +      const menu = document.querySelector(".grist-floating-menu");
 +      const active = document.activeElement;
 +      return !!menu && !!active && (menu === active || menu.contains(active));
-+    }), optTimeout, "the open menu did not take the focus");
++    }).catch(() => false), optTimeout, "the open menu did not take the focus");
++  }
++
++  /**
++   * Waits for every view to have the data it asked for. A cursor move in one widget makes the
++   * widgets linked to it re-query, and nothing in the page waits for that, so reading a linked
++   * widget straight after moving the cursor can return the rows it held before.
++   */
++  export async function waitForViewLoads(optTimeout: number = 5000) {
++    await waitForPendingOps("testNumPendingViewLoads", "views to load their data", optTimeout);
 +  }
 +
 +  /**
@@ -349,7 +353,7 @@ index c6fdbe3b0..3106ff062 100644
    export async function getSelectValue(selector: string) {
      return await driver.find(`${selector} .test-select-row`).getText();
 diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
-index a3d5035de..8dbc32b76 100644
+index a3d5035de..6c6948708 100644
 --- a/test/nbrowser/gristWebDriverUtils.ts
 +++ b/test/nbrowser/gristWebDriverUtils.ts
 @@ -413,7 +413,7 @@ export class GristWebDriverUtils {
@@ -361,7 +365,7 @@ index a3d5035de..8dbc32b76 100644
        typeof colOrOptions === "object" ? colOrOptions :
          { col: colOrOptions, rowNums: _rowNums!, section: _section }
      );
-@@ -427,11 +427,24 @@ export class GristWebDriverUtils {
+@@ -427,11 +427,25 @@ export class GristWebDriverUtils {
      const colIndex = (typeof col === "number" ? col :
        await sectionElem.findContentWait(".column_name", this.exactMatch(col), 1000).index());
  
@@ -375,7 +379,8 @@ index a3d5035de..8dbc32b76 100644
 +        (elem: HTMLElement, cellSelector: string) => [
 +          Array.from(elem.querySelectorAll(".gridview_data_row_num"),
 +            el => parseInt((el as HTMLElement).innerText, 10)),
-+          Array.from(elem.querySelectorAll(cellSelector), el => (el as HTMLElement).innerText),
++          // Trimmed, because getText() trims and innerText does not, and cells are white-space: pre.
++          Array.from(elem.querySelectorAll(cellSelector), el => (el as HTMLElement).innerText.trim()),
 +        ], sectionElem, selector);
 +      return rowNums.map(n => texts[visibleRowNums.indexOf(n)]) as T[];
 +    }
