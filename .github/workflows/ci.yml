@@ -41,16 +41,21 @@ jobs:
       - name: Build core browser tests
         run: yarn run build:tests
 
-      - name: Loop ReferenceList
-        timeout-minutes: 120
+      # ReferenceList runs last of fifteen suites, and only fails there. Running it alone restarts
+      # everything each round, which is the opposite of the state it fails in. A tail of suites in
+      # one invocation keeps the app, the browser and the accumulated documents alive across it.
+      - name: Loop the tail of the suite
+        timeout-minutes: 150
         run: |
           mkdir -p probe-logs
           fail=0
-          for i in $(seq 1 15); do
-            yarn run test:electron:deployment ReferenceList > probe-logs/run-$i.txt 2>&1 || fail=$((fail+1))
-            echo "run $i: $(grep -cE '^  [0-9]+\) ' probe-logs/run-$i.txt) failure block(s)"
+          for i in $(seq 1 8); do
+            yarn run test:electron:deployment ChoiceList Pages RowMenu ToggleColumns \
+              ReferenceColumns ReferenceList > probe-logs/run-$i.txt 2>&1 || fail=$((fail+1))
+            echo "run $i: $(grep -cE '^  [0-9]+\) ' probe-logs/run-$i.txt) failure block(s); $(
+              grep -oE '[0-9]+ (passing|failing)' probe-logs/run-$i.txt | paste -sd' ' -)"
           done
-          echo "TOTAL ${{ matrix.arm }}: $fail of 15 runs failed"
+          echo "TOTAL ${{ matrix.arm }}: $fail of 8 runs failed"
 
       - name: Save the logs
         if: always()
