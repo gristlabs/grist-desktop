@@ -27,7 +27,7 @@ const os = require('os');
 const path = require('path');
 const {OpenMode, SQLiteDB} = require('app/server/lib/SQLiteDB');
 const {delay} = require('app/common/delay');
-const {stopApp} = require('./appProcess');
+const {removeWorkDir, stopApp} = require('./appProcess');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const APP_ENTRY = path.join(ROOT, 'core/_build/ext/app/electron/main.js');
@@ -52,7 +52,7 @@ describe('OpenByPath', function () {
     // Only once the app is gone: on Windows its own handles outlive the signal.
     if (logFd !== null) { fs.closeSync(logFd); logFd = null; }
     if (workDir && !process.env.KEEP_TMPDIR) {
-      fs.rmSync(workDir, {recursive: true, force: true});
+      removeWorkDir(workDir);
     }
     workDir = null;
   });

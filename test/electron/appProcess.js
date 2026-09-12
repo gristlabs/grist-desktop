@@ -5,6 +5,7 @@
  */
 
 const {spawnSync} = require('child_process');
+const fs = require('fs');
 
 /**
  * Waits for the app to be gone, not merely signalled: it holds the state
@@ -26,4 +27,19 @@ function stopApp(app) {
   });
 }
 
+/**
+ * Removes a directory the app was working in. Windows can keep a document's
+ * file open for a moment after the process that held it is gone, so the removal
+ * is retried. A directory that still cannot be removed is left behind: these sit
+ * under the system temp directory, and cleanup is not what the test is checking.
+ */
+function removeWorkDir(dir) {
+  try {
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 20, retryDelay: 100});
+  } catch (e) {
+    console.log(`[left ${dir} behind: ${e.code || e.message}]`);
+  }
+}
+
 exports.stopApp = stopApp;
+exports.removeWorkDir = removeWorkDir;

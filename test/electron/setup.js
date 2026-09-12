@@ -12,6 +12,7 @@ const http = require('http');
 const net = require('net');
 const {Builder, Capabilities, Capability} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
+const {removeWorkDir} = require('./appProcess');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -213,7 +214,7 @@ async function stopDriver() {
     _logFd = null;
   }
   if (_tmpDir && !process.env.KEEP_TMPDIR) {
-    fs.rmSync(_tmpDir, {recursive: true, force: true});
+    removeWorkDir(_tmpDir);
   }
   _tmpDir = null;
 }
