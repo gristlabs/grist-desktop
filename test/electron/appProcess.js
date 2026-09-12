@@ -16,14 +16,26 @@ const fs = require('fs');
 function stopApp(app) {
   return new Promise((resolve) => {
     if (!app.pid || app.exitCode !== null || app.signalCode !== null) { return resolve(); }
-    app.once('exit', resolve);
+    // Giving up leaves a process holding the state directory open, which shows up
+    // later as a directory that cannot be removed or a port that is still taken.
+    const giveUp = setTimeout(() => {
+      console.warn(`[app ${app.pid} did not exit; anything it holds open stays held]`);
+      resolve();
+    }, 10000);
+    giveUp.unref();
+    const sigkill = process.platform === 'win32' ? null :
+      setTimeout(() => app.kill('SIGKILL'), 5000);
+    sigkill?.unref();
+    app.once('exit', () => {
+      clearTimeout(giveUp);
+      if (sigkill) { clearTimeout(sigkill); }
+      resolve();
+    });
     if (process.platform === 'win32') {
       spawnSync('taskkill', ['/pid', String(app.pid), '/T', '/F']);
     } else {
       app.kill();
-      setTimeout(() => app.kill('SIGKILL'), 5000).unref();
     }
-    setTimeout(resolve, 10000).unref();
   });
 }
 
@@ -35,7 +47,7 @@ function stopApp(app) {
  */
 function removeWorkDir(dir) {
   try {
-    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 20, retryDelay: 100});
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
   } catch (e) {
     console.log(`[left ${dir} behind: ${e.code || e.message}]`);
   }

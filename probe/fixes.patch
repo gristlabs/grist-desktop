@@ -304,7 +304,7 @@ index 37fa0899c..8d0e99ae3 100644
        ["", ""]);
  
 diff --git a/test/nbrowser/gristUtils.ts b/test/nbrowser/gristUtils.ts
-index c6fdbe3b0..db8cf3da5 100644
+index c6fdbe3b0..ea6d38d84 100644
 --- a/test/nbrowser/gristUtils.ts
 +++ b/test/nbrowser/gristUtils.ts
 @@ -712,6 +712,13 @@ namespace gristUtils {
@@ -321,7 +321,19 @@ index c6fdbe3b0..db8cf3da5 100644
      await driver.executeScript((...args: any[]) => {
        (window as any).gristApp.allCommands.input.run(...args);
      }, ...(clear ? [""] : []));
-@@ -4342,6 +4349,35 @@ namespace gristUtils {
+@@ -1495,8 +1502,9 @@ namespace gristUtils {
+     const menus = await driver.findAll(".test-raw-data-table .test-raw-data-table-menu");
+     assert.equal(menus.length, tableIdList.length);
+     await menus[tableIndex].click();
+-    await driver.findWait(".test-raw-data-menu-remove-table", 100).click();
+-    await driver.findWait(".test-modal-confirm", 100).click();
++    // A menu and a dialog each had 100ms to appear, which a loaded runner exceeds.
++    await driver.findWait(".test-raw-data-menu-remove-table", 1000).click();
++    await driver.findWait(".test-modal-confirm", 1000).click();
+     await waitForServer();
+   }
+ 
+@@ -4342,6 +4350,35 @@ namespace gristUtils {
      await waitForPendingOps("testNumPendingPastes", "paste to complete", optTimeout);
    }
  
