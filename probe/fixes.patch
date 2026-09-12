@@ -126,6 +126,21 @@ index 0b070be98..c1caf889b 100644
  };
  
  export function menuItemCmd(
+diff --git a/test/nbrowser/CopyPasteLinked.ts b/test/nbrowser/CopyPasteLinked.ts
+index a9d637fd8..17c4a4e87 100644
+--- a/test/nbrowser/CopyPasteLinked.ts
++++ b/test/nbrowser/CopyPasteLinked.ts
+@@ -28,6 +28,10 @@ describe("CopyPasteLinked", function() {
+     assert.equal(await cell.getText(), "John Malik");
+ 
+     await clipboard.lockAndPerform(async (cb) => {
++      // The app's copy handler sits on the grid's hidden textarea, so a copy sent while something
++      // else holds the focus never reaches it and the clipboard keeps what the previous suite left
++      // there. The paste below waits for the same reason.
++      await gu.waitAppFocus();
+       // Copy the cell's value to the clipboard.
+       await cb.copy();
+ 
 diff --git a/test/nbrowser/Pages.ts b/test/nbrowser/Pages.ts
 index 943d1918a..58a090729 100644
 --- a/test/nbrowser/Pages.ts
