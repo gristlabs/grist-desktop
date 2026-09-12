@@ -1,15 +1,15 @@
 diff --git a/app/client/components/BaseView.ts b/app/client/components/BaseView.ts
-index 7a6e1e2c5..82a108cb1 100644
+index 7a6e1e2c5..d406e013d 100644
 --- a/app/client/components/BaseView.ts
 +++ b/app/client/components/BaseView.ts
-@@ -20,6 +20,7 @@ import { ViewFieldRec } from "app/client/models/entities/ViewFieldRec";
- import { FilterInfo, ViewSectionRec } from "app/client/models/entities/ViewSectionRec";
- import { MutedError } from "app/client/models/errors";
- import { reportError } from "app/client/models/errors";
+@@ -9,6 +9,7 @@ import { viewCommands } from "app/client/components/RegionFocusSwitcher";
+ import { SelectionSummary } from "app/client/components/SelectionSummary";
+ import { KoArray } from "app/client/lib/koArray";
+ import * as tableUtil from "app/client/lib/tableUtil";
 +import { testPendingViewLoads } from "app/client/lib/testPendingOps";
- import { urlState } from "app/client/models/gristUrlState";
- import { DynamicQuerySet } from "app/client/models/QuerySet";
- import * as rowset from "app/client/models/rowset";
+ import BaseRowModel from "app/client/models/BaseRowModel";
+ import { ClientColumnGetters } from "app/client/models/ClientColumnGetters";
+ import { DataRowModel } from "app/client/models/DataRowModel";
 @@ -262,6 +263,17 @@ export default class BaseView extends DisposableWithEvents {
      // --------------------------------------------------
      // Observables local to this view
@@ -232,7 +232,7 @@ index 943d1918a..288686568 100644
      await api.applyUserActions(doc.id, [
        ["AddRecord", "_grist_ACLResources", -1, { tableId, colIds: "*" }],
 diff --git a/test/nbrowser/ReferenceList.ts b/test/nbrowser/ReferenceList.ts
-index 1de092717..d9008ff22 100644
+index 1de092717..0e5b722e6 100644
 --- a/test/nbrowser/ReferenceList.ts
 +++ b/test/nbrowser/ReferenceList.ts
 @@ -548,7 +548,14 @@ describe("ReferenceList", function() {
@@ -250,6 +250,16 @@ index 1de092717..d9008ff22 100644
        return (await driver.findAll(".test-ref-editor-item", el => el.getText())).slice(0, limit);
      });
  
+@@ -777,6 +784,9 @@ describe("ReferenceList", function() {
+       await driver.findContentWait(".test-treeview-itemHeader", /Colors/, 2000).click();
+       await gu.waitForDocToLoad();
+       await gu.sendKeys(Key.chord(await gu.modKey(), Key.ARROW_DOWN));
++      // Jumping to the last row scrolls it into the rendered window, and the rows read below are
++      // only there once it has. Wait for the last row rather than for the read to be slow enough.
++      await driver.findContentWait(".active_section .gridview_data_row_num", /^147$/, 2000);
+       assert.deepEqual(
+         await gu.getVisibleGridCells("Color Name", [146, 147]),
+         ["pinkish", "almost pink"],
 diff --git a/test/nbrowser/RowMenu.ts b/test/nbrowser/RowMenu.ts
 index 6a8770adb..22ae34b7d 100644
 --- a/test/nbrowser/RowMenu.ts
@@ -339,7 +349,7 @@ index c6fdbe3b0..3106ff062 100644
    export async function getSelectValue(selector: string) {
      return await driver.find(`${selector} .test-select-row`).getText();
 diff --git a/test/nbrowser/gristWebDriverUtils.ts b/test/nbrowser/gristWebDriverUtils.ts
-index a3d5035de..7fd84111a 100644
+index a3d5035de..8dbc32b76 100644
 --- a/test/nbrowser/gristWebDriverUtils.ts
 +++ b/test/nbrowser/gristWebDriverUtils.ts
 @@ -413,7 +413,7 @@ export class GristWebDriverUtils {
@@ -364,8 +374,8 @@ index a3d5035de..7fd84111a 100644
 +      const [visibleRowNums, texts] = await this.driver.executeScript<[number[], string[]]>(
 +        (elem: HTMLElement, cellSelector: string) => [
 +          Array.from(elem.querySelectorAll(".gridview_data_row_num"),
-+            (el) => parseInt((el as HTMLElement).innerText, 10)),
-+          Array.from(elem.querySelectorAll(cellSelector), (el) => (el as HTMLElement).innerText),
++            el => parseInt((el as HTMLElement).innerText, 10)),
++          Array.from(elem.querySelectorAll(cellSelector), el => (el as HTMLElement).innerText),
 +        ], sectionElem, selector);
 +      return rowNums.map(n => texts[visibleRowNums.indexOf(n)]) as T[];
 +    }
