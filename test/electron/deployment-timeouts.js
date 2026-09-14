@@ -12,7 +12,8 @@
 
 const path = require('path');
 
-const TEST_FLOOR = parseInt(process.env.GRIST_TEST_TIMEOUT || '90000', 10);
+const {raiseSuite, TEST_FLOOR} = require('./raiseTimeouts');
+
 const SERVER_FLOOR = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 10);
 
 /**
@@ -24,32 +25,26 @@ const SERVER_FLOOR = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 
 const hooks = require('mocha-webdriver').getMochaHooks();
 exports.mochaHooks = hooks;
 
+const startDriver = hooks.beforeAll;
+
 /**
- * Raising a helper's wait achieves nothing if the runnable around it times out
- * first, and several upstream suites declare this.timeout(20000), which beats
- * mocha's --timeout.
- *
- * Hooks have to be raised by name, and from a root beforeAll. Mocha copies a
- * suite's timeout into each hook as the hook is built, so raising the suite alone
- * leaves its `before` on the old number -- and `before` is where these suites open
- * their first document, the slowest thing they do.
+ * mocha-webdriver's own hook sets this.timeout(20000) as its first statement, which overrides
+ * any value set before it runs. Starting the browser occasionally takes longer than that on a
+ * busy runner, and the run then fails before any test runs. It sets the timeout synchronously,
+ * so raising it again straight after the call applies to the wait itself.
  */
-function raise(runnable) {
-  if (runnable.timeout() > 0 && runnable.timeout() < TEST_FLOOR) {
-    runnable.timeout(TEST_FLOOR);
-  }
-}
-
-function raiseSuite(suite) {
-  raise(suite);
-  for (const kind of ['_beforeAll', '_beforeEach', '_afterEach', '_afterAll']) {
-    (suite[kind] || []).forEach(raise);
-  }
-  suite.tests.forEach(raise);
-  suite.suites.forEach(raiseSuite);
-}
-
-hooks.beforeAll = [function () { raiseSuite(this.runnable().parent); }, hooks.beforeAll];
+hooks.beforeAll = [
+  function () { raiseSuite(this.runnable().parent); },
+  async function () {
+    const started = startDriver.call(this);
+    this.timeout(TEST_FLOOR);
+    await started;
+    if (this.timeout() !== TEST_FLOOR) {
+      throw new Error(`driver start ran at ${this.timeout()}ms, not the ${TEST_FLOOR}ms set ` +
+        `here: mocha-webdriver no longer sets its timeout in its hook's first statement`);
+    }
+  },
+];
 
 // Resolved absolutely rather than through NODE_PATH, so we patch the module the
 // tests will get and not a second copy of it.

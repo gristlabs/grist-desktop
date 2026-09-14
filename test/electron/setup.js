@@ -12,6 +12,8 @@ const http = require('http');
 const net = require('net');
 const {Builder, Capabilities, Capability} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
+const {removeWorkDir} = require('./appProcess');
+const {raiseSuite, TEST_FLOOR} = require('./raiseTimeouts');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -213,18 +215,21 @@ async function stopDriver() {
     _logFd = null;
   }
   if (_tmpDir && !process.env.KEEP_TMPDIR) {
-    fs.rmSync(_tmpDir, {recursive: true, force: true});
+    removeWorkDir(_tmpDir);
   }
   _tmpDir = null;
 }
 
 exports.mochaHooks = {
   beforeAll: [async function () {
-    this.timeout(60_000);
+    raiseSuite(this.runnable().parent);
+    // Starting the app is the slowest thing in the run, so it gets the same floor as the suites.
+    this.timeout(TEST_FLOOR);
     await startDriver();
   }],
   afterAll: [async function () {
-    this.timeout(15_000);
+    // Quitting the driver, then a removal that retries while Windows releases a file.
+    this.timeout(60_000);
     await stopDriver();
   }],
 };
