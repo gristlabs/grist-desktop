@@ -25,7 +25,8 @@ const os = require('os');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const {stopApp} = require(path.join(ROOT, 'test/electron/appProcess'));
+const {removeWorkDir, stopApp} = require(path.join(ROOT, 'test/electron/appProcess'));
+const {TEST_FLOOR} = require(path.join(ROOT, 'test/electron/raiseTimeouts'));
 const IS_LINUX = process.platform === 'linux';
 const HEADLESS = process.env.HEADLESS !== '0';
 
@@ -228,9 +229,8 @@ function runMocha(mochaBin, testFiles, port, logDir) {
   // The floor deployment-timeouts.js puts under upstream's server waits, which
   // budget for a sandbox that starts in milliseconds rather than seconds.
   const serverTimeout = parseInt(process.env.GRIST_TEST_SERVER_TIMEOUT || '30000', 10);
-  // Room for a few of those in one test. The plugin gets it too, as the floor it
-  // lifts the suites and hooks that declare a timeout of their own up to.
-  const testTimeout = Math.max(60000, serverTimeout * 3);
+  // Room for a few of those in one test.
+  const testTimeout = Math.max(TEST_FLOOR, serverTimeout * 3);
 
   const child = spawn(process.execPath,
     [mochaBin, '--reporter', 'spec', '--slow', '8000', '--timeout', String(testTimeout),
@@ -252,6 +252,8 @@ function runMocha(mochaBin, testFiles, port, logDir) {
       // What this mode adds on top.
       HOME_URL: `http://localhost:${port}`,
       GRIST_TEST_SERVER_TIMEOUT: String(serverTimeout),
+      // The floor the plugin lifts declared timeouts to. Passed because it can come out
+      // above the plugin's own default; the other mode leaves it to that default.
       GRIST_TEST_TIMEOUT: String(testTimeout),
       // Upstream's per-failure capture (mocha-webdriver's enableDebugCapture, which
       // every suite installs through setupTestSuite) does nothing without this.
@@ -292,10 +294,7 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
     await stopApp(app);
     fs.closeSync(logFd);
     reportAppLog(logPath, code);
-    if (!process.env.KEEP_TMPDIR) {
-      try { fs.rmSync(state, {recursive: true, force: true}); }
-      catch (e) { console.log(`[left ${state} behind: ${e.code || e.message}]`); }
-    }
+    if (!process.env.KEEP_TMPDIR) { removeWorkDir(state); }
     // Not process.exit: stdout is a pipe on CI, where writes are async, and
     // exiting here would drop everything printed above.
     process.exitCode = code;
@@ -325,7 +324,7 @@ async function runDeployment(mochaBin, appEntry, testFiles) {
  */
 function runAppAsBrowser(mochaBin, mode, testFiles) {
   const child = spawn(process.execPath,
-    [mochaBin, '--reporter', 'spec', '--slow', '10000',
+    [mochaBin, '--reporter', 'spec', '--slow', '10000', '--timeout', String(TEST_FLOOR),
       '--require', path.join(ROOT, 'test/electron/setup.js'),
       ...testFiles],
     {stdio: 'inherit', cwd: ROOT, env: {
