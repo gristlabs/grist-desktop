@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Info Card",
+    "url": "./index.html",
+    "widgetId": "tutorial/info-card",
+    "published": true,
+    "accessLevel": "read table",
+    "renderAfterReady": true,
+    "description": "Displays the selected record as a styled card with column mapping and theme options."
+  }
+]
