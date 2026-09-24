@@ -146,6 +146,7 @@ ln -sfn ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepi
 ln -sfn ../../node_modules/jquery core/static_ext/jquery
 ln -sfn ../../node_modules/jquery-ui core/static_ext/jquery-ui
 ln -sfn ../../node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
+ln -sfn ../../node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css core/static_ext/toastui-calendar.min.css
 
 echo ""
 echo "======================================================================="
