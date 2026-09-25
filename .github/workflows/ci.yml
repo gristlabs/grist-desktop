@@ -73,17 +73,17 @@ jobs:
       - name: Build core browser tests
         run: |
           yarn run build:tests
-          cp test/electron/probe/CalendarDragProbe.js core/_build/test/nbrowser/
+          node test/electron/probe/gen.js
 
       - name: Probe upstream
         continue-on-error: true
         timeout-minutes: 15
-        run: yarn run test:electron:upstream CalendarDragProbe
+        run: yarn run test:electron:upstream CalendarViewTrace CalendarViewFixed
 
       - name: Probe deployment
         continue-on-error: true
         timeout-minutes: 15
-        run: yarn run test:electron:deployment CalendarDragProbe
+        run: yarn run test:electron:deployment CalendarViewFixed
 
       - name: Save the logs from the browser tests
         if: failure()
