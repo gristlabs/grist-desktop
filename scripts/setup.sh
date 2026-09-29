@@ -145,8 +145,11 @@ mkdir -p core/static_ext
 ln -sfn ../../node_modules/bootstrap-datepicker core/static_ext/bootstrap-datepicker
 ln -sfn ../../node_modules/jquery core/static_ext/jquery
 ln -sfn ../../node_modules/jquery-ui core/static_ext/jquery-ui
-ln -sfn ../../node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
-ln -sfn ../../node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css core/static_ext/toastui-calendar.min.css
+# Files are copied, not linked: a symlink to a file is served empty from the asar.
+cp node_modules/highlight.js/styles/default.css core/static_ext/hljs.default.css
+cp node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css core/static_ext/toastui-calendar.min.css
+cp node_modules/swagger-ui-dist/swagger-ui.css core/static_ext/swagger-ui.css
+cp node_modules/swagger-ui-dist/swagger-ui-bundle.js core/static_ext/swagger-ui-bundle.js
 
 echo ""
 echo "======================================================================="
