@@ -71,17 +71,22 @@ jobs:
       - name: Build core browser tests
         run: |
           yarn run build:tests
-          cp test/electron/probe/CalendarSelectProbe.js core/_build/test/nbrowser/
+          node test/electron/probe/genSetupLoop.js
 
-      - name: Probe deployment
+      - name: Probe deployment, unchanged pickSlot
         continue-on-error: true
         timeout-minutes: 40
-        run: yarn run test:electron:deployment CalendarSelectProbe
+        run: yarn run test:electron:deployment CalendarSetupOrig
 
-      - name: Probe upstream
+      - name: Probe deployment, fixed pickSlot
         continue-on-error: true
         timeout-minutes: 40
-        run: yarn run test:electron:upstream CalendarSelectProbe
+        run: yarn run test:electron:deployment CalendarSetupFixed
+
+      - name: Probe upstream, fixed pickSlot
+        continue-on-error: true
+        timeout-minutes: 40
+        run: yarn run test:electron:upstream CalendarSetupFixed
 
       - name: Save the logs from the browser tests
         if: failure()
