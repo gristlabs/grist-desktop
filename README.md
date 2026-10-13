@@ -164,7 +164,7 @@ all `.grist` files there.
 `getPath("userData")`, which would be `~/.config/Grist Desktop` on Linux. Note that if
 `~/.grist/plugins` exists (and not `~/.config/Grist Desktop/plugins`), `~/.grist` is
 used instead, for backwards compatibility.
-For Windows the default location is `C:\users\AppData\Grist Desktop`, and for the
+For Windows the default location is `%APPDATA%\Grist Desktop`, and for the
 Flatpak from Flathub `~/.var/app/com.getgrist.grist/config/Grist Desktop`.
 
 ### Note on using Grist Desktop as a server
