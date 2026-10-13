@@ -6,6 +6,7 @@ import * as packageJson from "ext/desktop.package.json";
 import * as path from "path";
 import { commonUrls } from "app/common/gristUrls";
 import { getAvailablePort } from "app/server/lib/serverUtils";
+import { Deps as WidgetRepositoryDeps } from "app/server/lib/WidgetRepository";
 
 
 const NO_VALIDATION = () => true;
@@ -120,6 +121,8 @@ export async function loadConfig() {
     NO_VALIDATION,
     commonUrls.gristLabsWidgetRepository
   );
+  // WidgetRepository captured this variable on import, before the default above was set.
+  WidgetRepositoryDeps.STATIC_URL = process.env.GRIST_WIDGET_LIST_URL;
   validateOrFallback(
     "GRIST_SQLITE_MODE",
     (mode) => ["", "sync", "wal"].includes(mode),
