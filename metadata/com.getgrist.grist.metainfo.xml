@@ -66,6 +66,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.17" date="2026-10-29">
+      <description>
+        <p>Fixes an empty custom widget list</p>
+        <p>Updates core Grist version to v1.7.22</p>
+      </description>
+    </release>
     <release version="0.3.16" date="2026-09-28">
       <description>
         <p>Fixes the calendar widget failing to load its stylesheet</p>
