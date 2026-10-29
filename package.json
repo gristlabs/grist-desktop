@@ -147,6 +147,7 @@
       "core/ormconfig.js",
       "core/_build/**/*",
       "core/static/**/*",
+      "core/assets/**/*",
       "core/static_ext/**/*",
       "core/sandbox/**/*",
       "core/sandbox_venv3/**/*",
