@@ -35,7 +35,7 @@ jobs:
         node:
           - 22
         include:
-          - os: macos-14
+          - os: macos-15
             host: arm64
             target: arm64
             node: 22
